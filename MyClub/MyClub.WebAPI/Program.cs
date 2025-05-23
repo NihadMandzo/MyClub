@@ -11,7 +11,6 @@ builder.Services.AddMyClubDbContext(connectionString);
 // Add services to the container.
 builder.Services.AddTransient<IProductService, DummyProductService>();
 builder.Services.AddTransient<IUserService, UserService>();
-builder.Services.AddTransient<IProductTypeService, ProductTypeService>();
 
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle

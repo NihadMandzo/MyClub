@@ -14,10 +14,10 @@ namespace MyClub.Services.Database
         [ForeignKey("CartId")]
         public virtual Cart Cart { get; set; }
         
-        public int ProductId { get; set; }
+        public int ProductSizeId { get; set; }
         
-        [ForeignKey("ProductId")]
-        public virtual Product Product { get; set; }
+        [ForeignKey("ProductSizeId")]
+        public virtual ProductSize ProductSize { get; set; }
         
         [Required]
         [Range(1, int.MaxValue)]
@@ -26,6 +26,6 @@ namespace MyClub.Services.Database
         public DateTime AddedAt { get; set; } = DateTime.UtcNow;
         
         [NotMapped]
-        public decimal Subtotal => Quantity * (Product?.Price ?? 0);
+        public decimal Subtotal => Quantity * (ProductSize?.Product?.Price ?? 0);
     }
 } 

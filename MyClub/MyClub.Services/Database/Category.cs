@@ -16,11 +16,6 @@ namespace MyClub.Services.Database
         [MaxLength(500)]
         public string Description { get; set; } = string.Empty;
         
-        public int? ParentCategoryId { get; set; }
-        public virtual Category ParentCategory { get; set; }
-        
-        public virtual ICollection<Category> SubCategories { get; set; } = new List<Category>();
-        
         // Change from direct Products collection to ProductCategories
         public virtual ICollection<ProductCategory> ProductCategories { get; set; } = new List<ProductCategory>();
         

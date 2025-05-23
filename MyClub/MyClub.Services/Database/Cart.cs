@@ -31,7 +31,7 @@ namespace MyClub.Services.Database
             {
                 foreach (var item in Items)
                 {
-                    total += item.Quantity * (item.Product?.Price ?? 0);
+                    total += item.Quantity * (item?.Subtotal ?? 0);
                 }
             }
             return total;

@@ -21,35 +21,15 @@ namespace MyClub.Services.Database
         [Column(TypeName = "decimal(18,2)")]
         public decimal Price { get; set; }
         
-        [MaxLength(50)]
-        public string SKU { get; set; } = string.Empty;
         
         public int StockQuantity { get; set; } = 0;
         
-        // Product Type relationship
-        public int? ProductTypeId { get; set; }
+        // Color relationship
+        public int? ColorId { get; set; }
         
-        [ForeignKey("ProductTypeId")]
-        public virtual ProductType ProductType { get; set; }
+        [ForeignKey("ColorId")]
+        public virtual Color Color { get; set; }
         
-        // Unit of Measure relationship
-        public int? UnitOfMeasureId { get; set; }
-        
-        [ForeignKey("UnitOfMeasureId")]
-        public virtual UnitOfMeasure UnitOfMeasure { get; set; }
-        
-        // Weight/dimensions
-        [Column(TypeName = "decimal(10,2)")]
-        public decimal? Weight { get; set; }
-        
-        [Column(TypeName = "decimal(10,2)")]
-        public decimal? Length { get; set; }
-        
-        [Column(TypeName = "decimal(10,2)")]
-        public decimal? Width { get; set; }
-        
-        [Column(TypeName = "decimal(10,2)")]
-        public decimal? Height { get; set; }
         
         public bool IsActive { get; set; } = true;
         
@@ -57,14 +37,12 @@ namespace MyClub.Services.Database
         
         public DateTime? UpdatedAt { get; set; }
         
-        [MaxLength(50)]
-        public string Brand { get; set; } = string.Empty;
         
         [Column(TypeName = "decimal(5,2)")]
         public decimal? Rating { get; set; }
         
         public virtual ICollection<Asset> Assets { get; set; } = new List<Asset>();
-        public virtual ICollection<ProductReview> Reviews { get; set; } = new List<ProductReview>();
         public virtual ICollection<ProductCategory> ProductCategories { get; set; } = new List<ProductCategory>();
+        public virtual ICollection<ProductSize> ProductSizes { get; set; } = new List<ProductSize>();
     }
 }

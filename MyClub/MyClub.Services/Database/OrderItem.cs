@@ -14,10 +14,10 @@ namespace MyClub.Services.Database
         [ForeignKey("OrderId")]
         public virtual Order Order { get; set; }
         
-        public int ProductId { get; set; }
+        public int ProductSizeId { get; set; }
         
-        [ForeignKey("ProductId")]
-        public virtual Product Product { get; set; }
+        [ForeignKey("ProductSizeId")]
+        public virtual ProductSize ProductSize { get; set; }
         
         [Required]
         [Range(1, int.MaxValue)]

@@ -42,5 +42,13 @@ namespace MyClub.Services.Database
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         
         public DateTime? LastLogin { get; set; }
+
+        // Role relationship
+        public int RoleId { get; set; }
+        public virtual Role Role { get; set; }
+        
+        // Navigation collections
+        public virtual ICollection<Order> Orders { get; set; }
+        public virtual ICollection<Cart> Carts { get; set; }
     }
 }
