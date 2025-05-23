@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace MyClub.Services
 {
-    public interface IProductService
+    public interface IProductService 
     {
         public List<Product> Get(ProductSearchObject search);
         public Product Get(int id);
