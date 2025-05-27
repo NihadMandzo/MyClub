@@ -9,10 +9,10 @@ namespace MyClub.WebAPI.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class ColorController : BaseCRUDController<ColorResponse, ColorSearchObject, ColorUpsertRequest, ColorUpsertRequest>
+    public class SizeController : BaseCRUDController<SizeResponse, SizeSearchObject, SizeUpsertRequest, SizeUpsertRequest>
     {
-        public ColorController(IColorService service) : base(service)
+        public SizeController(ISizeService service) : base(service)
         {
         }
     }
-}
+} 

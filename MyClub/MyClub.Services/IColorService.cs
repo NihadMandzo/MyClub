@@ -6,7 +6,7 @@ using MyClub.Model.SearchObjects;
 
 namespace MyClub.Services
 {
-    public interface IColorService : IService<ColorResponse, ColorSearchObject>
+    public interface IColorService : ICRUDService<ColorResponse, ColorSearchObject, ColorUpsertRequest, ColorUpsertRequest>
     {
         Task<ColorResponse> CreateAsync(ColorUpsertRequest request);
         Task<ColorResponse?> UpdateAsync(int id, ColorUpsertRequest request);

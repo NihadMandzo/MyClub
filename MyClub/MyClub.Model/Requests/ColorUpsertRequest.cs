@@ -13,6 +13,5 @@ namespace MyClub.Model.Requests
         [StringLength(7)]
         public string HexCode { get; set; } = string.Empty;
         
-        public bool IsActive { get; set; } = true;
     }
 } 

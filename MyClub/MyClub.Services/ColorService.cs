@@ -7,7 +7,7 @@ using MyClub.Services.Database;
 
 namespace MyClub.Services
 {
-    public class ColorService : BaseService<ColorResponse, ColorSearchObject, Database.Color>, IColorService
+    public class ColorService : BaseCRUDService<ColorResponse, ColorSearchObject, ColorUpsertRequest, ColorUpsertRequest, Database.Color>, IColorService
     {
         private readonly MyClubContext _context;
 
@@ -26,19 +26,20 @@ namespace MyClub.Services
         }
 
 
-        public Task<ColorResponse> CreateAsync(ColorUpsertRequest request)
+        public async Task<ColorResponse> CreateAsync(ColorUpsertRequest request)
         {
-            throw new NotImplementedException();
+            var entity = await base.CreateAsync(request);
+            return entity;
         }
 
-        public Task<bool> DeleteAsync(int id)
+        public async Task<bool> DeleteAsync(int id)
         {
-            throw new NotImplementedException();
+            return await base.DeleteAsync(id);
         }
 
-        public Task<ColorResponse?> UpdateAsync(int id, ColorUpsertRequest request)
+        public async Task<ColorResponse?> UpdateAsync(int id, ColorUpsertRequest request)
         {
-            throw new NotImplementedException();
+            return await base.UpdateAsync(id, request);
         }
 
         protected override ColorResponse MapToResponse(Database.Color entity)
@@ -49,6 +50,17 @@ namespace MyClub.Services
                 Name = entity.Name,
                 HexCode = entity.HexCode
             };
+        }
+        protected override Database.Color MapInsertToEntity(Database.Color entity, ColorUpsertRequest request)
+        {
+            entity.Name = request.Name;
+            entity.HexCode = request.HexCode;
+            return entity;
+        }
+        protected override void MapUpdateToEntity(Database.Color entity, ColorUpsertRequest request)
+        {
+            entity.Name = request.Name;
+            entity.HexCode = request.HexCode;
         }
     }
 }

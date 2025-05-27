@@ -9,9 +9,6 @@ namespace MyClub.Model.Requests
         [StringLength(50)]
         public string Name { get; set; } = string.Empty;
         
-        [StringLength(100)]
-        public string Code { get; set; } = string.Empty;
-        
-        public bool IsActive { get; set; } = true;
+
     }
 } 

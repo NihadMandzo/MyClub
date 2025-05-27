@@ -7,7 +7,7 @@ using MyClub.Services.Database;
 namespace MyClub.Services
 {
 
-    public abstract class BaseService<T, TSearch, TEntity> : IService<T, TSearch> where T : class where TSearch : class where TEntity : class
+    public abstract class BaseService<T, TSearch, TEntity> : IService<T, TSearch> where T : class where TSearch : BaseSearchObject where TEntity : class
     {
         private readonly MyClubContext _context;
 
@@ -16,11 +16,27 @@ namespace MyClub.Services
             _context = context;
         }
 
-        public async Task<List<T>> GetAsync(TSearch search){
+        public async Task<PagedResult<T>> GetAsync(TSearch search){
             var query = _context.Set<TEntity>().AsQueryable();
             query = ApplyFilter(query, search);
+            if(search.IncludeTotalCount){
+                var totalCount = await query.CountAsync();
+            }
+            if(search.RetrieveAll){
+                if(search.Page.HasValue)
+                {
+                    query = query.Skip((search.Page.Value) * search.PageSize.Value);
+                }
+                if(search.PageSize.HasValue){
+                    query = query.Take(search.PageSize.Value);
+                }
+            }
             var list = await query.ToListAsync();
-            return list.Select(MapToResponse).ToList(); 
+            return new PagedResult<T>
+            {
+                Data = list.Select(MapToResponse).ToList(),
+                TotalCount = await query.CountAsync()
+            };
         }
         protected virtual IQueryable<TEntity> ApplyFilter(IQueryable<TEntity> query, TSearch search){
             return query;
