@@ -22,7 +22,7 @@ namespace MyClub.Services
             if(search.IncludeTotalCount){
                 var totalCount = await query.CountAsync();
             }
-            if(search.RetrieveAll){
+            if(!search.RetrieveAll){
                 if(search.Page.HasValue)
                 {
                     query = query.Skip((search.Page.Value) * search.PageSize.Value);
