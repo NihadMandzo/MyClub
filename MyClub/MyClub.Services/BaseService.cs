@@ -1,4 +1,5 @@
 using System;
+using MapsterMapper;
 using Microsoft.EntityFrameworkCore;
 using MyClub.Model.Responses;
 using MyClub.Model.SearchObjects;
@@ -10,10 +11,12 @@ namespace MyClub.Services
     public abstract class BaseService<T, TSearch, TEntity> : IService<T, TSearch> where T : class where TSearch : BaseSearchObject where TEntity : class
     {
         private readonly MyClubContext _context;
+        protected readonly IMapper _mapper;
 
-        public BaseService(MyClubContext context)
+        public BaseService(MyClubContext context, IMapper mapper)
         {
             _context = context;
+            _mapper = mapper;
         }
 
         public async Task<PagedResult<T>> GetAsync(TSearch search){
@@ -42,7 +45,9 @@ namespace MyClub.Services
             return query;
         }
 
-        protected abstract T MapToResponse(TEntity entity);
+        protected virtual T MapToResponse(TEntity entity){
+            return _mapper.Map<T>(entity);
+        }
 
         public async Task<T?> GetByIdAsync(int id){
             var entity = await _context.Set<TEntity>().FindAsync(id);

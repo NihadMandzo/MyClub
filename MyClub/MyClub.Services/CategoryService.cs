@@ -4,6 +4,7 @@ using MyClub.Model.Requests;
 using MyClub.Model.Responses;
 using MyClub.Model.SearchObjects;
 using MyClub.Services.Database;
+using MapsterMapper;
 
 namespace MyClub.Services
 {
@@ -11,7 +12,7 @@ namespace MyClub.Services
     {
         private readonly MyClubContext _context;
 
-        public CategoryService(MyClubContext context) : base(context)
+        public CategoryService(MyClubContext context, IMapper mapper) : base(context, mapper)
         {
             _context = context;
         }
@@ -28,51 +29,6 @@ namespace MyClub.Services
             }
 
             return query;
-        }
-
-        public async Task<CategoryResponse> CreateAsync(CategoryUpsertRequest request)
-        {
-            var entity = await base.CreateAsync(request);
-            return entity;
-        }
-
-        public async Task<bool> DeleteAsync(int id)
-        {
-            return await base.DeleteAsync(id);
-        }
-
-        public async Task<CategoryResponse?> UpdateAsync(int id, CategoryUpsertRequest request)
-        {
-            return await base.UpdateAsync(id, request);
-        }
-
-        protected override CategoryResponse MapToResponse(Database.Category entity)
-        {
-            return new CategoryResponse
-            {
-                Id = entity.Id,
-                Name = entity.Name,
-                Description = entity.Description,
-                IsActive = entity.IsActive,
-                CreatedAt = entity.CreatedAt,
-                UpdatedAt = null,
-                ProductCount = entity.ProductCategories?.Count ?? 0
-            };
-        }
-
-        protected override Database.Category MapInsertToEntity(Database.Category entity, CategoryUpsertRequest request)
-        {
-            entity.Name = request.Name;
-            entity.Description = request.Description;
-            entity.IsActive = true;
-            entity.CreatedAt = DateTime.UtcNow;
-            return entity;
-        }
-
-        protected override void MapUpdateToEntity(Database.Category entity, CategoryUpsertRequest request)
-        {
-            entity.Name = request.Name;
-            entity.Description = request.Description;
         }
     }
 } 

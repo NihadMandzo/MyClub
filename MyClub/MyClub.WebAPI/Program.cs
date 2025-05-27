@@ -1,19 +1,24 @@
 using Microsoft.EntityFrameworkCore;
 using MyClub.Services;
 using MyClub.Services.Database;
+using Mapster;
+using MapsterMapper;
 
 var builder = WebApplication.CreateBuilder(args);
-
-// Add database services
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? "Server=localhost;Database=MyClubDb;Trusted_Connection=True;TrustServerCertificate=True";
-builder.Services.AddMyClubDbContext(connectionString);
-
 // Add services to the container.
 builder.Services.AddTransient<IProductService, DummyProductService>();
 builder.Services.AddTransient<IUserService, UserService>();
 builder.Services.AddTransient<IColorService, ColorService>();
 builder.Services.AddTransient<ISizeService, SizeService>();
 builder.Services.AddTransient<ICategoryService, CategoryService>();
+
+builder.Services.AddMapster();
+
+// Add database services
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? "Server=localhost;Database=MyClubDb;Trusted_Connection=True;TrustServerCertificate=True";
+builder.Services.AddMyClubDbContext(connectionString);
+
+
 
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle

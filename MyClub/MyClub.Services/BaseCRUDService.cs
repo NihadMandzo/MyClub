@@ -1,6 +1,7 @@
 using System;
 using MyClub.Model.SearchObjects;
 using MyClub.Services.Database;
+using MapsterMapper;
 
 namespace MyClub.Services
 {
@@ -9,7 +10,7 @@ namespace MyClub.Services
     {
         private readonly MyClubContext _context;
 
-        public BaseCRUDService(MyClubContext context) : base(context)
+        public BaseCRUDService(MyClubContext context, IMapper mapper) : base(context, mapper)
         {
             _context = context;
         }
@@ -24,13 +25,12 @@ namespace MyClub.Services
         }
 
         protected virtual async Task BeforeInsert(TEntity entity, TInsert request){
-            await Task.CompletedTask;
-        }
-        protected abstract TEntity MapInsertToEntity(TEntity entity, TInsert request);
 
-        protected override T MapToResponse(TEntity entity){
-            throw new NotImplementedException();
         }
+        protected virtual TEntity MapInsertToEntity(TEntity entity, TInsert request){
+            return _mapper.Map<TEntity>(request);
+        }
+
 
         public virtual async Task<T> UpdateAsync(int id, TUpdate request){
             var entity = await _context.Set<TEntity>().FindAsync(id);
@@ -46,7 +46,9 @@ namespace MyClub.Services
         protected virtual async Task BeforeUpdate(TEntity entity, TUpdate request){
             await Task.CompletedTask;
         }
-        protected abstract void MapUpdateToEntity(TEntity entity, TUpdate request);
+        protected virtual void MapUpdateToEntity(TEntity entity, TUpdate request){
+            _mapper.Map(request, entity);
+        }
         public virtual async Task<bool> DeleteAsync(int id){
             var entity = await _context.Set<TEntity>().FindAsync(id);
             if(entity == null){

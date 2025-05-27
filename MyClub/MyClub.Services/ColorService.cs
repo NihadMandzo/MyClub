@@ -4,6 +4,7 @@ using MyClub.Model.Requests;
 using MyClub.Model.Responses;
 using MyClub.Model.SearchObjects;
 using MyClub.Services.Database;
+using MapsterMapper;
 
 namespace MyClub.Services
 {
@@ -11,7 +12,7 @@ namespace MyClub.Services
     {
         private readonly MyClubContext _context;
 
-        public ColorService(MyClubContext context) : base(context)
+        public ColorService(MyClubContext context, IMapper mapper) : base(context, mapper)
         {
             _context = context;
         }
@@ -25,42 +26,5 @@ namespace MyClub.Services
             return query;
         }
 
-
-        public async Task<ColorResponse> CreateAsync(ColorUpsertRequest request)
-        {
-            var entity = await base.CreateAsync(request);
-            return entity;
-        }
-
-        public async Task<bool> DeleteAsync(int id)
-        {
-            return await base.DeleteAsync(id);
-        }
-
-        public async Task<ColorResponse?> UpdateAsync(int id, ColorUpsertRequest request)
-        {
-            return await base.UpdateAsync(id, request);
-        }
-
-        protected override ColorResponse MapToResponse(Database.Color entity)
-        {
-            return new ColorResponse
-            {
-                Id = entity.Id,
-                Name = entity.Name,
-                HexCode = entity.HexCode
-            };
-        }
-        protected override Database.Color MapInsertToEntity(Database.Color entity, ColorUpsertRequest request)
-        {
-            entity.Name = request.Name;
-            entity.HexCode = request.HexCode;
-            return entity;
-        }
-        protected override void MapUpdateToEntity(Database.Color entity, ColorUpsertRequest request)
-        {
-            entity.Name = request.Name;
-            entity.HexCode = request.HexCode;
-        }
     }
 }
