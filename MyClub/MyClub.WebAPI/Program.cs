@@ -6,7 +6,7 @@ using MapsterMapper;
 
 var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
-builder.Services.AddTransient<IProductService, DummyProductService>();
+builder.Services.AddTransient<IProductService, ProductService>();
 builder.Services.AddTransient<IUserService, UserService>();
 builder.Services.AddTransient<IColorService, ColorService>();
 builder.Services.AddTransient<ISizeService, SizeService>();
