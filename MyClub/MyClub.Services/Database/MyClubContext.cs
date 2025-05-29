@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using MyClub.Services.Database.Seeders;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -308,6 +309,11 @@ namespace MyClub.Services.Database
                 .WithMany()
                 .HasForeignKey(lt => lt.LogoImageId)
                 .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<Color>().SeedData();
+            modelBuilder.Entity<Size>().SeedData();
+            modelBuilder.Entity<Role>().SeedData();
+            modelBuilder.Entity<Category>().SeedData();
         }
     }
 }

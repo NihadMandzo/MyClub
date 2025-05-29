@@ -17,19 +17,19 @@ namespace MyClub.WebAPI.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Create([FromBody] TInsert request)
+        public virtual async Task<IActionResult> Create([FromBody] TInsert request)
         {
             return Ok(await _service.CreateAsync(request));
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> Update(int id, [FromBody] TUpdate request)
+        public virtual async Task<IActionResult> Update(int id, [FromBody] TUpdate request)
         {
             return Ok(await _service.UpdateAsync(id, request));
         }
 
         [HttpDelete("{id}")]
-        public async Task<IActionResult> Delete(int id)
+        public virtual async Task<IActionResult> Delete(int id)
         {
             return Ok(await _service.DeleteAsync(id));
         }

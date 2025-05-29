@@ -9,16 +9,24 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Security.Cryptography;
 using System.Text;
-
+using MapsterMapper;
+using System.Security.Claims;
+using Microsoft.Extensions.Configuration;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
 namespace MyClub.Services
 {
     public class UserService : IUserService
     {
         private readonly MyClubContext _context;
+        private readonly IMapper _mapper;
+        private readonly IConfiguration _config;
 
-        public UserService(MyClubContext context)
+        public UserService(MyClubContext context, IMapper mapper, IConfiguration config)
         {
             _context = context;
+            _mapper = mapper;
+            _config = config;
         }
 
         public async Task<List<UserResponse>> Get(UserSearchObject search)
@@ -52,19 +60,19 @@ namespace MyClub.Services
             }
 
             var users = await query.ToListAsync();
-            return users.Select(MapToResponse).ToList();
+            return users.Select(u => _mapper.Map<UserResponse>(u)).ToList();
         }
 
         public async Task<List<UserResponse>> GetAllAsync()
         {
             var users = await _context.Users.ToListAsync();
-            return users.Select(MapToResponse).ToList();
+            return users.Select(u => _mapper.Map<UserResponse>(u)).ToList();
         }
 
         public async Task<UserResponse?> GetByIdAsync(int id)
         {
             var user = await _context.Users.FindAsync(id);
-            return user != null ? MapToResponse(user) : null;
+            return user != null ? _mapper.Map<UserResponse>(user) : null;
         }
 
         public async Task<UserResponse> CreateAsync(UserUpsertRequest request)
@@ -85,7 +93,8 @@ namespace MyClub.Services
                 Email = request.Email,
                 PhoneNumber = request.PhoneNumber,
                 IsActive = request.IsActive,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
+                RoleId = 1
             };
 
             // Hash password if provided
@@ -99,7 +108,7 @@ namespace MyClub.Services
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
             
-            return MapToResponse(user);
+            return _mapper.Map<UserResponse>(user);
         }
 
         public async Task<UserResponse?> UpdateAsync(int id, UserUpsertRequest request)
@@ -133,7 +142,7 @@ namespace MyClub.Services
             }
 
             await _context.SaveChangesAsync();
-            return MapToResponse(existingUser);
+            return _mapper.Map<UserResponse>(existingUser);
         }
 
         public async Task<bool> DeleteAsync(int id)
@@ -189,6 +198,58 @@ namespace MyClub.Services
                 byte[] hash = deriveBytes.GetBytes(20);
                 return Convert.ToBase64String(hash) == hashedPassword;
             }
+        }
+        public async Task<AuthResponse> AuthenticateAsync(LoginRequest request){
+            // Include Role in the query to avoid additional database calls
+            var user = await _context.Users
+                .Include(u => u.Role)
+                .FirstOrDefaultAsync(u => u.Username == request.Username);
+            
+            if(user == null)
+                return null;
+            
+            if(!VerifyPassword(request.Password, user.PasswordSalt, user.PasswordHash))
+                return null;
+            
+            var token = GenerateToken(user);
+            if(token == null)
+                return null;
+            
+            var response = new AuthResponse{    
+                UserId = user.Id,
+                Token = token,
+                RoleId = user.RoleId,
+                RoleName = user.Role.Name
+            };
+            return response;
+        }
+
+        private string GenerateToken(User user)
+        {
+            // Load user with role information
+            var entity = _context.Users.Include(u => u.Role).FirstOrDefault(u => u.Id == user.Id);
+            if(entity == null)
+                return null;
+            
+            // Use entity with role information
+            List<Claim> claims = new List<Claim>
+            {
+                new Claim(ClaimTypes.NameIdentifier, entity.Id.ToString()),
+                new Claim(ClaimTypes.Name, entity.Username),
+                new Claim(ClaimTypes.Role, entity.Role.Name),
+                new Claim(ClaimTypes.Email, entity.Email)
+            };
+            
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config.GetSection("JwtConfig:Key").Value));
+            var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+            var token = new JwtSecurityToken(
+                _config.GetSection("JwtConfig:Issuer").Value,
+                _config.GetSection("JwtConfig:Audience").Value,
+                claims,
+                expires: DateTime.UtcNow.AddDays(1),
+                signingCredentials: credentials
+            );
+            return new JwtSecurityTokenHandler().WriteToken(token);
         }
     }
 }

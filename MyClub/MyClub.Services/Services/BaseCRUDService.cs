@@ -5,7 +5,7 @@ using MapsterMapper;
 
 namespace MyClub.Services
 {
-    public abstract class BaseCRUDService<T, TSearch, TInsert, TUpdate, TEntity> : BaseService<T, TSearch, TEntity>
+    public abstract class BaseCRUDService<T, TSearch, TInsert, TUpdate, TEntity> : BaseService<T, TSearch, TEntity>, ICRUDService<T, TSearch, TInsert, TUpdate>
     where T : class where TSearch : BaseSearchObject where TEntity : class, new() where TInsert : class where TUpdate : class
     {
         private readonly MyClubContext _context;

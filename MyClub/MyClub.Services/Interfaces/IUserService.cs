@@ -15,5 +15,6 @@ namespace MyClub.Services
         Task<UserResponse> CreateAsync(UserUpsertRequest request);
         Task<UserResponse?> UpdateAsync(int id, UserUpsertRequest request);
         Task<bool> DeleteAsync(int id);
+        Task<AuthResponse> AuthenticateAsync(LoginRequest request);
     }
 } 

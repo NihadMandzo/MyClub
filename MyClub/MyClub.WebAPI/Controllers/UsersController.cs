@@ -75,5 +75,11 @@ namespace MyClub.WebAPI.Controllers
 
             return NoContent();
         }
+        [HttpPost("login")]
+        public async Task<IActionResult> Login(LoginRequest request)
+        {
+            var user = await _userService.AuthenticateAsync(request);
+            return Ok(user);
+        }
     }
 } 
