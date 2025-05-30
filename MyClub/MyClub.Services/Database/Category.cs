@@ -16,10 +16,10 @@ namespace MyClub.Services.Database
         [MaxLength(500)]
         public string Description { get; set; } = string.Empty;
         
-        // Change from direct Products collection to ProductCategories
-        public virtual ICollection<ProductCategory> ProductCategories { get; set; } = new List<ProductCategory>();
         
         public bool IsActive { get; set; } = true;
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        public virtual ICollection<Product> Products { get; set; } = new List<Product>();
     }
 } 

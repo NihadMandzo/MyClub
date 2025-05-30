@@ -47,7 +47,6 @@ namespace MyClub.Services.Database
         [ForeignKey("ImageId")]
         public virtual Asset Image { get; set; }
         
-        // Navigation collections
-        public virtual ICollection<MatchSquad> MatchSquads { get; set; }
+
     }
 } 

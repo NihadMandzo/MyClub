@@ -8,6 +8,9 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.OpenApi.Models;
 using System.Security.Claims;
+using MyClub.WebAPI.Filters;
+using MyClub.Services.Interfaces;
+using MyClub.Services.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
@@ -16,6 +19,8 @@ builder.Services.AddTransient<IUserService, UserService>();
 builder.Services.AddTransient<IColorService, ColorService>();
 builder.Services.AddTransient<ISizeService, SizeService>();
 builder.Services.AddTransient<ICategoryService, CategoryService>();
+builder.Services.AddTransient<IBlobStorageService, BlobStorageService>();
+
 
 builder.Services.AddMapster();
 
@@ -80,7 +85,10 @@ builder.Services.AddAuthorization(options =>
         policy.RequireClaim(ClaimTypes.Role, "User"));
 });
 
-builder.Services.AddControllers();
+builder.Services.AddControllers(options =>
+{
+    options.Filters.Add<ErrorFilter>();
+});
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>

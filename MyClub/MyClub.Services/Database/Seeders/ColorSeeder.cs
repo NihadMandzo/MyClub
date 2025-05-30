@@ -10,62 +10,44 @@ namespace MyClub.Services.Database.Seeders
                 new Color
                 {
                     Id = 1,
-                    Name = "Red",
-                    HexCode = "#FF0000"
+                    Name = "Bijela",
+                    HexCode = "#FFFFFF"
                 },
                 new Color
                 {
                     Id = 2,
-                    Name = "Blue",
+                    Name = "Plava",
                     HexCode = "#0000FF"
                 },
                 new Color
                 {
                     Id = 3,
-                    Name = "Green",
-                    HexCode = "#00FF00"
-                },
-                new Color
-                {
-                    Id = 4,
-                    Name = "Yellow",
-                    HexCode = "#FFFF00"
-                },
-                new Color
-                {
-                    Id = 5,
-                    Name = "Black",
+                    Name = "Crna",
                     HexCode = "#000000"
                 },
                 new Color
                 {
+                    Id = 4,
+                    Name = "Teget plava",
+                    HexCode = "#071330"
+                },
+                new Color
+                {
+                    Id = 5,
+                    Name = "Roza",
+                    HexCode = "#F4C2C2"
+                },
+                new Color
+                {
                     Id = 6,
-                    Name = "White",
-                    HexCode = "#FFFFFF"
-                },
-                new Color
-                {
-                    Id = 7,
-                    Name = "Purple",
-                    HexCode = "#800080"
-                },
-                new Color
-                {
-                    Id = 8,
-                    Name = "Orange",
-                    HexCode = "#FFA500"
-                },
-                new Color
-                {
-                    Id = 9,
-                    Name = "Grey",
+                    Name = "Siva",
                     HexCode = "#808080"
                 },
                 new Color
                 {
-                    Id = 10,
-                    Name = "Brown",
-                    HexCode = "#A52A2A"
+                    Id = 7,
+                    Name = "Zelena",
+                    HexCode = "#008000"
                 }
             );
         }

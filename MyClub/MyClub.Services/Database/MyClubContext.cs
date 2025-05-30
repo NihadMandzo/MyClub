@@ -19,19 +19,19 @@ namespace MyClub.Services.Database
 
         // News
         public DbSet<News> News { get; set; }
+        public DbSet<NewsAsset> NewsAssets { get; set; }
         public DbSet<NewsComment> NewsComments { get; set; }
 
         // Products
         public DbSet<Product> Products { get; set; }
         public DbSet<Category> Categories { get; set; }
-        public DbSet<ProductCategory> ProductCategories { get; set; }
         public DbSet<Size> Sizes { get; set; }
         public DbSet<Color> Colors { get; set; }
         public DbSet<ProductSize> ProductSizes { get; set; }
 
         // Images
         public DbSet<Asset> Assets { get; set; }
-        public DbSet<ProductImage> ProductImages { get; set; }
+        public DbSet<ProductAsset> ProductAssets { get; set; }
 
         // Cart and Orders
         public DbSet<Cart> Carts { get; set; }
@@ -51,9 +51,8 @@ namespace MyClub.Services.Database
         // Players and Matches
         public DbSet<Player> Players { get; set; }
         public DbSet<Match> Matches { get; set; }
-        public DbSet<CommentType> CommentTypes { get; set; }
-        public DbSet<MatchComment> MatchComments { get; set; }
-        public DbSet<MatchSquad> MatchSquads { get; set; }
+
+
         public DbSet<MatchTicket> MatchTickets { get; set; }
         public DbSet<UserTicket> UserTickets { get; set; }
 
@@ -72,20 +71,35 @@ namespace MyClub.Services.Database
             }
 
             // Configure composite keys
-            modelBuilder.Entity<ProductImage>()
-                .HasKey(pi => new { pi.ProductId, pi.ImageId });
+            modelBuilder.Entity<ProductAsset>()
+                .HasKey(pi => new { pi.ProductId, pi.AssetId });
 
             // Configure ProductImage relationships explicitly
-            modelBuilder.Entity<ProductImage>()
+            modelBuilder.Entity<ProductAsset>()
                 .HasOne(pi => pi.Product)
-                .WithMany()
+                .WithMany(p => p.ProductAssets)
                 .HasForeignKey(pi => pi.ProductId)
                 .OnDelete(DeleteBehavior.NoAction);
 
-            modelBuilder.Entity<ProductImage>()
-                .HasOne(pi => pi.Image)
-                .WithMany()
-                .HasForeignKey(pi => pi.ImageId)
+            modelBuilder.Entity<ProductAsset>()
+                .HasOne(pi => pi.Asset)
+                .WithMany(a => a.ProductAssets)
+                .HasForeignKey(pi => pi.AssetId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<NewsAsset>()
+                .HasKey(na => new { na.NewsId, na.AssetId });
+
+            modelBuilder.Entity<NewsAsset>()
+                .HasOne(na => na.News)
+                .WithMany(n => n.NewsAssets)
+                .HasForeignKey(na => na.NewsId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<NewsAsset>()
+                .HasOne(na => na.Asset)
+                .WithMany(a => a.NewsAssets)
+                .HasForeignKey(na => na.AssetId)
                 .OnDelete(DeleteBehavior.NoAction);
 
             modelBuilder.Entity<UserMembership>()
@@ -103,7 +117,7 @@ namespace MyClub.Services.Database
                 .WithMany(mc => mc.UserMemberships)
                 .HasForeignKey(um => um.MembershipCardId)
                 .OnDelete(DeleteBehavior.NoAction);
-           
+
             // Configure unique constraints
             modelBuilder.Entity<User>()
                 .HasIndex(u => u.Username)
@@ -120,45 +134,25 @@ namespace MyClub.Services.Database
             modelBuilder.Entity<Size>()
                 .HasIndex(s => s.Name)
                 .IsUnique();
-                
-            modelBuilder.Entity<CommentType>()
-                .HasIndex(ct => ct.Name)
-                .IsUnique();
-                
+
+
             modelBuilder.Entity<StadiumSide>()
                 .HasIndex(ss => ss.Name)
                 .IsUnique();
 
-            // Configure ProductCategory (many-to-many) relationships
-            modelBuilder.Entity<ProductCategory>()
-                .HasOne(pc => pc.Product)
-                .WithMany(p => p.ProductCategories)
-                .HasForeignKey(pc => pc.ProductId)
-                .OnDelete(DeleteBehavior.NoAction);
-                
-            modelBuilder.Entity<ProductCategory>()
-                .HasOne(pc => pc.Category)
-                .WithMany(c => c.ProductCategories)
-                .HasForeignKey(pc => pc.CategoryId)
-                .OnDelete(DeleteBehavior.NoAction);
-                
-            // Create a composite index for ProductId and CategoryId to ensure uniqueness
-            modelBuilder.Entity<ProductCategory>()
-                .HasIndex(pc => new { pc.ProductId, pc.CategoryId })
-                .IsUnique();
-                
+
             modelBuilder.Entity<Cart>()
                 .HasMany(c => c.Items)
                 .WithOne(i => i.Cart)
                 .HasForeignKey(i => i.CartId)
                 .OnDelete(DeleteBehavior.Cascade); // This is safe to cascade
-                
+
             modelBuilder.Entity<Order>()
                 .HasMany(o => o.OrderItems)
                 .WithOne(i => i.Order)
                 .HasForeignKey(i => i.OrderId)
                 .OnDelete(DeleteBehavior.Cascade); // This is safe to cascade
-                
+
 
             // Configure ProductSize relationships
             modelBuilder.Entity<ProductSize>()
@@ -189,6 +183,21 @@ namespace MyClub.Services.Database
                 .HasOne(n => n.User)
                 .WithMany()
                 .HasForeignKey(n => n.UserId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<NewsAsset>()
+                .HasKey(na => new { na.NewsId, na.AssetId });
+
+            modelBuilder.Entity<NewsAsset>()
+                .HasOne(na => na.News)
+                .WithMany(n => n.NewsAssets)
+                .HasForeignKey(na => na.NewsId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<NewsAsset>()
+                .HasOne(na => na.Asset)
+                .WithMany(a => a.NewsAssets)
+                .HasForeignKey(na => na.AssetId)
                 .OnDelete(DeleteBehavior.NoAction);
 
             // NewsComment relationships - prevent cascade delete cycles
@@ -224,28 +233,15 @@ namespace MyClub.Services.Database
                 .WithMany(c => c.Matches)
                 .HasForeignKey(m => m.ClubId)
                 .OnDelete(DeleteBehavior.NoAction);
-                
-            // Configure MatchComment-CommentType relationship
-            modelBuilder.Entity<MatchComment>()
-                .HasOne(mc => mc.CommentType)
-                .WithMany(ct => ct.MatchComments)
-                .HasForeignKey(mc => mc.CommentTypeId)
-                .OnDelete(DeleteBehavior.NoAction);
 
-            // Configure MatchComment-Match relationship
-            modelBuilder.Entity<MatchComment>()
-                .HasOne(mc => mc.Match)
-                .WithMany(m => m.Comments)
-                .HasForeignKey(mc => mc.MatchId)
-                .OnDelete(DeleteBehavior.Cascade); // Safe to cascade delete comments when match is deleted
-                
+
             // Configure StadiumSector-StadiumSide relationship
             modelBuilder.Entity<StadiumSector>()
                 .HasOne(ss => ss.StadiumSide)
                 .WithMany(s => s.Sectors)
                 .HasForeignKey(ss => ss.StadiumSideId)
                 .OnDelete(DeleteBehavior.NoAction);
-                
+
             // Configure MatchTicket-StadiumSector relationship
             modelBuilder.Entity<MatchTicket>()
                 .HasOne(mt => mt.StadiumSector)
@@ -259,7 +255,7 @@ namespace MyClub.Services.Database
                 .WithMany(m => m.Tickets)
                 .HasForeignKey(mt => mt.MatchId)
                 .OnDelete(DeleteBehavior.Cascade); // Safe to cascade delete tickets when match is deleted
-                
+
             // Make StadiumSector FullName unique
             modelBuilder.Entity<StadiumSector>()
                 .HasIndex(ss => ss.FullName)
@@ -290,11 +286,6 @@ namespace MyClub.Services.Database
                 .HasForeignKey(ut => ut.MatchTicketId)
                 .OnDelete(DeleteBehavior.NoAction);
 
-            modelBuilder.Entity<MatchComment>()
-                .HasOne(mc => mc.Player)
-                .WithMany()
-                .HasForeignKey(mc => mc.PlayerId)
-                .OnDelete(DeleteBehavior.NoAction);
 
             // Club-Logo relationship
             modelBuilder.Entity<Club>()
@@ -309,6 +300,12 @@ namespace MyClub.Services.Database
                 .WithMany()
                 .HasForeignKey(lt => lt.LogoImageId)
                 .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<Product>()
+                .HasOne(p => p.Category)
+                .WithMany(c => c.Products)
+                .HasForeignKey(p => p.CategoryId)
+                .OnDelete(DeleteBehavior.Restrict);
 
             modelBuilder.Entity<Color>().SeedData();
             modelBuilder.Entity<Size>().SeedData();

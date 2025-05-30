@@ -25,6 +25,7 @@ namespace MyClub.Services
         }
 
         protected virtual async Task BeforeInsert(TEntity entity, TInsert request){
+            
 
         }
         protected virtual TEntity MapInsertToEntity(TEntity entity, TInsert request){

@@ -13,71 +13,71 @@ namespace MyClub.Services.Database.Seeders
                 new Category
                 {
                     Id = 1,
-                    Name = "Jerseys",
-                    Description = "Official team jerseys",
+                    Name = "Dresovi",
+                    Description = "Oficijelni dresovi kluba",
                     IsActive = true
                 },
                 new Category
                 {
                     Id = 2,
-                    Name = "T-Shirts",
-                    Description = "Casual t-shirts with club logos",
+                    Name = "Majice",
+                    Description = "Casual majice kluba ",
                     IsActive = true
                 },
                 new Category
                 {
                     Id = 3,
-                    Name = "Hoodies",
-                    Description = "Sweatshirts and hoodies",
+                    Name = "Dukserice",
+                    Description = "Dukserice kluba",
                     IsActive = true
                 },
                 new Category
                 {
                     Id = 4,
-                    Name = "Pants",
-                    Description = "Training and casual pants",
+                    Name = "Šorcevi",
+                    Description = "Šorcevi kluba",
                     IsActive = true
                 },
                 new Category
                 {
                     Id = 5,
-                    Name = "Shorts",
-                    Description = "Sports and casual shorts",
+                    Name = "Kape",
+                    Description = "Kape kluba",
                     IsActive = true
                 },
                 new Category
                 {
                     Id = 6,
-                    Name = "Jackets",
-                    Description = "Outdoor and training jackets",
+                    Name = "Šalovi",
+                    Description = "Šalovi kluba",
                     IsActive = true
                 },
                 new Category
                 {
                     Id = 7,
-                    Name = "Accessories",
-                    Description = "Scarves, hats, and other accessories",
+                    Name = "Aksesoari",
+                    Description = "Aksesoari kluba",
                     IsActive = true
                 },
                 new Category
                 {
                     Id = 8,
-                    Name = "Footwear",
-                    Description = "Shoes and boots",
+                    Name = "Odjeca za bebe",
+                    Description = "Odjeca za bebe kluba",
                     IsActive = true
                 },
                 new Category
                 {
                     Id = 9,
-                    Name = "Equipment",
-                    Description = "Balls, bags, and training equipment",
+                    Name = "Zastave",
+                    Description = "Zastave kluba",
                     IsActive = true
                 },
                 new Category
                 {
                     Id = 10,
-                    Name = "Memorabilia",
-                    Description = "Collectibles and souvenirs",
+                    Name = "Retro stil",
+                    Description = "Retro stil kluba",
                     IsActive = true
                 }
             );

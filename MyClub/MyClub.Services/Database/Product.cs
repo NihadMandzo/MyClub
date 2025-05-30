@@ -21,11 +21,7 @@ namespace MyClub.Services.Database
         [Column(TypeName = "decimal(18,2)")]
         public decimal Price { get; set; }
         
-        
-        public int StockQuantity { get; set; } = 0;
-        
-        // Color relationship
-        public int? ColorId { get; set; }
+        public int ColorId { get; set; }
         
         [ForeignKey("ColorId")]
         public virtual Color Color { get; set; }
@@ -40,9 +36,12 @@ namespace MyClub.Services.Database
         
         [Column(TypeName = "decimal(5,2)")]
         public decimal? Rating { get; set; }
-        
-        public virtual ICollection<Asset> Assets { get; set; } = new List<Asset>();
-        public virtual ICollection<ProductCategory> ProductCategories { get; set; } = new List<ProductCategory>();
+
+        public int CategoryId { get; set; }
+        [ForeignKey("CategoryId")]    
+        public virtual Category Category { get; set; }
+        public virtual ICollection<ProductAsset> ProductAssets { get; set; } = new List<ProductAsset>();
+
         public virtual ICollection<ProductSize> ProductSizes { get; set; } = new List<ProductSize>();
     }
 }

@@ -35,6 +35,7 @@ namespace MyClub.Services.Database
         public virtual User User { get; set; }
         
         // Navigation collections
-        public virtual ICollection<NewsComment> Comments { get; set; }
+        public virtual ICollection<NewsComment> Comments { get; set; } = new List<NewsComment>();
+        public virtual ICollection<NewsAsset> NewsAssets { get; set; } = new List<NewsAsset>();
     }
 } 

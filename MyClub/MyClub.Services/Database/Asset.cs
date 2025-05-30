@@ -12,9 +12,8 @@ namespace MyClub.Services.Database
         [MaxLength(255)]
         public string Url { get; set; } = string.Empty;
         
-        [ForeignKey(nameof(Product))]
-        public int ProductId { get; set; }
-        
-        public virtual Product Product { get; set; }
+        public virtual ICollection<ProductAsset> ProductAssets { get; set; } = new List<ProductAsset>();
+        public virtual ICollection<NewsAsset> NewsAssets { get; set; } = new List<NewsAsset>();
+    
     }
 } 
