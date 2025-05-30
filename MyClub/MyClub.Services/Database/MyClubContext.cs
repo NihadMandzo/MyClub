@@ -20,7 +20,7 @@ namespace MyClub.Services.Database
         // News
         public DbSet<News> News { get; set; }
         public DbSet<NewsAsset> NewsAssets { get; set; }
-        public DbSet<NewsComment> NewsComments { get; set; }
+        public DbSet<Comment> Comments { get; set; }
 
         // Products
         public DbSet<Product> Products { get; set; }
@@ -201,13 +201,13 @@ namespace MyClub.Services.Database
                 .OnDelete(DeleteBehavior.NoAction);
 
             // NewsComment relationships - prevent cascade delete cycles
-            modelBuilder.Entity<NewsComment>()
+            modelBuilder.Entity<Comment>()
                 .HasOne(nc => nc.News)
                 .WithMany(n => n.Comments)
                 .HasForeignKey(nc => nc.NewsId)
                 .OnDelete(DeleteBehavior.Cascade); // Safe to cascade delete comments when news is deleted
 
-            modelBuilder.Entity<NewsComment>()
+            modelBuilder.Entity<Comment>()
                 .HasOne(nc => nc.User)
                 .WithMany()
                 .HasForeignKey(nc => nc.UserId)

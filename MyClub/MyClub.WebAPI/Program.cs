@@ -20,6 +20,8 @@ builder.Services.AddTransient<IColorService, ColorService>();
 builder.Services.AddTransient<ISizeService, SizeService>();
 builder.Services.AddTransient<ICategoryService, CategoryService>();
 builder.Services.AddTransient<IBlobStorageService, BlobStorageService>();
+builder.Services.AddTransient<INewsService, NewsService>();
+builder.Services.AddTransient<ICommentService, CommentService>();
 
 
 builder.Services.AddMapster();
@@ -85,10 +87,7 @@ builder.Services.AddAuthorization(options =>
         policy.RequireClaim(ClaimTypes.Role, "User"));
 });
 
-builder.Services.AddControllers(options =>
-{
-    options.Filters.Add<ErrorFilter>();
-});
+builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -138,7 +137,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+//app.UseHttpsRedirection();
+
 
 // Add authentication middleware before authorization
 app.UseAuthentication();

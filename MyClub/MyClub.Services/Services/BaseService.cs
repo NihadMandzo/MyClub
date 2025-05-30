@@ -19,7 +19,7 @@ namespace MyClub.Services
             _mapper = mapper;
         }
 
-        public async Task<PagedResult<T>> GetAsync(TSearch search){
+        public virtual async Task<PagedResult<T>> GetAsync(TSearch search){
             var query = _context.Set<TEntity>().AsQueryable();
             query = ApplyFilter(query, search);
             if(search.IncludeTotalCount){
@@ -49,7 +49,7 @@ namespace MyClub.Services
             return _mapper.Map<T>(entity);
         }
 
-        public async Task<T?> GetByIdAsync(int id){
+        public virtual async Task<T?> GetByIdAsync(int id){
             var entity = await _context.Set<TEntity>().FindAsync(id);
             if(entity == null){
                 return null;

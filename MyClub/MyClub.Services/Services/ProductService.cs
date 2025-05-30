@@ -52,13 +52,11 @@ namespace MyClub.Services
             }
 
             var list = await query.ToListAsync();
-            var totalCount = await query.CountAsync();
-
             // Map to response
             var result = new PagedResult<ProductResponse>
             {
                 Data = list.Select(x => MapToProductResponse(x)).ToList(),
-                TotalCount = totalCount
+                TotalCount = await query.CountAsync()
             };
 
             return result;
@@ -125,8 +123,7 @@ namespace MyClub.Services
 
         public override async Task<ProductResponse> CreateAsync(ProductUpsertRequest request)
         {
-            var entity = new Database.Product();
-            MapInsertToEntity(entity, request);
+            var entity = MapInsertToEntity(new Database.Product(), request);
             await BeforeInsert(entity, request);
             _context.Products.Add(entity);
             await _context.SaveChangesAsync();
@@ -208,9 +205,10 @@ namespace MyClub.Services
                 .FirstOrDefaultAsync(x => x.Id == id);
 
             if (entity == null)
-                throw new Exception($"Product with ID {id} not found");
+                throw new UserException($"Product with ID {id} not found");
 
             MapUpdateToEntity(entity, request);
+            Console.WriteLine($"Product updated: {entity.Name}, {entity.Id}, {entity.Description}, {entity.Price}, {entity.ColorId}, {entity.CategoryId}, {entity.IsActive}, {entity.CreatedAt}, {entity.UpdatedAt}, {entity.ProductAssets.Count}, {entity.ProductSizes.Count}, {entity.ProductAssets.Count}, {entity.ProductSizes.Count}, {entity.ProductAssets.Count}, {entity.ProductSizes.Count}");
             await BeforeUpdate(entity, request);
 
             // Update product sizes with quantities
@@ -279,8 +277,19 @@ namespace MyClub.Services
                     {
                         Url = imageUrl,
                     };
-
-                    _context.Assets.Add(asset);
+                    
+                    // First add and save the asset to get its ID
+                    await _context.Assets.AddAsync(asset);
+                    await _context.SaveChangesAsync();
+                    
+                    // Now create the relationship with the valid ID
+                    var productAsset = new ProductAsset
+                    {
+                        ProductId = entity.Id,
+                        AssetId = asset.Id
+                    };
+                    await _context.ProductAssets.AddAsync(productAsset);
+                    await _context.SaveChangesAsync();
                 }
             }
 
@@ -378,6 +387,18 @@ namespace MyClub.Services
             entity.UpdatedAt = DateTime.UtcNow;
             entity.ProductAssets = new List<ProductAsset>();
             entity.ProductSizes = new List<ProductSize>();
+            return entity;
+        }
+    
+        protected override Database.Product MapUpdateToEntity(Database.Product entity, ProductUpsertRequest request)
+        {
+            entity.Name = request.Name;
+            entity.Description = request.Description;
+            entity.Price = request.Price;
+            entity.ColorId = request.ColorId;
+            entity.CategoryId = request.CategoryId;
+            entity.IsActive = request.IsActive;
+            entity.UpdatedAt = DateTime.UtcNow;
             return entity;
         }
     }

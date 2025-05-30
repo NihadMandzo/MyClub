@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace MyClub.Services.Database
 {
-    public class NewsComment
+    public class Comment
     {
         [Key]
         public int Id { get; set; }

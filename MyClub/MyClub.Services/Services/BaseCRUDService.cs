@@ -25,8 +25,7 @@ namespace MyClub.Services
         }
 
         protected virtual async Task BeforeInsert(TEntity entity, TInsert request){
-            
-
+            await Task.CompletedTask;
         }
         protected virtual TEntity MapInsertToEntity(TEntity entity, TInsert request){
             return _mapper.Map<TEntity>(request);
@@ -38,7 +37,7 @@ namespace MyClub.Services
             if(entity == null){
                 throw new Exception("Entity not found");
             }
-            MapUpdateToEntity(entity, request);
+            entity = MapUpdateToEntity(entity, request);
             await BeforeUpdate(entity, request);
             await _context.SaveChangesAsync();
             return MapToResponse(entity);
@@ -47,8 +46,8 @@ namespace MyClub.Services
         protected virtual async Task BeforeUpdate(TEntity entity, TUpdate request){
             await Task.CompletedTask;
         }
-        protected virtual void MapUpdateToEntity(TEntity entity, TUpdate request){
-            _mapper.Map(request, entity);
+        protected virtual TEntity MapUpdateToEntity(TEntity entity, TUpdate request){
+            return _mapper.Map(request, entity);
         }
         public virtual async Task<bool> DeleteAsync(int id){
             var entity = await _context.Set<TEntity>().FindAsync(id);

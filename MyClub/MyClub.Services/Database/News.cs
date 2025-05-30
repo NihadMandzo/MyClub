@@ -19,23 +19,17 @@ namespace MyClub.Services.Database
         [MaxLength(255)]
         public string? VideoURL { get; set; }
         
-        [MaxLength(255)]
-        public string? ImageUrl { get; set; }
         
         [Required]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         
-        [MaxLength(50)]
-        public string? Category { get; set; }
-        
-        public bool IsPublished { get; set; } = true;
         
         // User relationship
         public int UserId { get; set; }
         public virtual User User { get; set; }
         
         // Navigation collections
-        public virtual ICollection<NewsComment> Comments { get; set; } = new List<NewsComment>();
+        public virtual ICollection<Comment> Comments { get; set; } = new List<Comment>();
         public virtual ICollection<NewsAsset> NewsAssets { get; set; } = new List<NewsAsset>();
     }
 } 
