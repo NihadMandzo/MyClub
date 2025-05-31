@@ -318,6 +318,10 @@ namespace MyClub.Services.Database
             modelBuilder.Entity<News>().SeedData();
             modelBuilder.Entity<NewsAsset>().SeedData();
             modelBuilder.Entity<Comment>().SeedData();
+            modelBuilder.Entity<Product>().SeedData();
+            modelBuilder.Entity<ProductAsset>().SeedData();
+            modelBuilder.Entity<ProductSize>().SeedData();
+
         }
     }
 }

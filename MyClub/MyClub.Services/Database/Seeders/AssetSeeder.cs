@@ -46,7 +46,40 @@ namespace MyClub.Services.Database.Seeders
                 new Asset { Id = 37, Url = "https://nihadfit.blob.core.windows.net/test/37.jpg" },
                 new Asset { Id = 38, Url = "https://nihadfit.blob.core.windows.net/test/38.jpg" },
                 new Asset { Id = 39, Url = "https://nihadfit.blob.core.windows.net/test/39.jpg" },
-                new Asset { Id = 40, Url = "https://nihadfit.blob.core.windows.net/test/40.jpg" }
+                new Asset { Id = 40, Url = "https://nihadfit.blob.core.windows.net/test/40.jpg" },
+
+                //Asset for Products
+                new Asset { Id = 41, Url = "https://nihadfit.blob.core.windows.net/productseeder/1.jpg" },
+                new Asset { Id = 42, Url = "https://nihadfit.blob.core.windows.net/productseeder/2.jpg" },
+                new Asset { Id = 43, Url = "https://nihadfit.blob.core.windows.net/productseeder/3.jpg" },
+                new Asset { Id = 44, Url = "https://nihadfit.blob.core.windows.net/productseeder/4.jpg" },
+                new Asset { Id = 45, Url = "https://nihadfit.blob.core.windows.net/productseeder/5.jpg" },
+                new Asset { Id = 46, Url = "https://nihadfit.blob.core.windows.net/productseeder/6.jpg" },
+                new Asset { Id = 47, Url = "https://nihadfit.blob.core.windows.net/productseeder/7.jpg" },
+                new Asset { Id = 48, Url = "https://nihadfit.blob.core.windows.net/productseeder/8.jpg" },
+                new Asset { Id = 49, Url = "https://nihadfit.blob.core.windows.net/productseeder/9.jpg" },
+                new Asset { Id = 50, Url = "https://nihadfit.blob.core.windows.net/productseeder/10.jpg" },                new Asset { Id = 51, Url = "https://nihadfit.blob.core.windows.net/productseeder/11.jpg" },
+                new Asset { Id = 52, Url = "https://nihadfit.blob.core.windows.net/productseeder/12.jpg" },
+                new Asset { Id = 53, Url = "https://nihadfit.blob.core.windows.net/productseeder/13.jpg" },
+                new Asset { Id = 54, Url = "https://nihadfit.blob.core.windows.net/productseeder/14.jpg" },
+                new Asset { Id = 55, Url = "https://nihadfit.blob.core.windows.net/productseeder/15.jpg" },
+                new Asset { Id = 56, Url = "https://nihadfit.blob.core.windows.net/productseeder/16.jpg" },
+                new Asset { Id = 57, Url = "https://nihadfit.blob.core.windows.net/productseeder/17.jpg" },
+                new Asset { Id = 58, Url = "https://nihadfit.blob.core.windows.net/productseeder/18.jpg" },
+                new Asset { Id = 59, Url = "https://nihadfit.blob.core.windows.net/productseeder/19.jpg" },
+                new Asset { Id = 60, Url = "https://nihadfit.blob.core.windows.net/productseeder/20.jpg" },
+                new Asset { Id = 61, Url = "https://nihadfit.blob.core.windows.net/productseeder/21.jpg" },
+                new Asset { Id = 62, Url = "https://nihadfit.blob.core.windows.net/productseeder/22.jpg" },
+                new Asset { Id = 63, Url = "https://nihadfit.blob.core.windows.net/productseeder/23.jpg" },
+                new Asset { Id = 64, Url = "https://nihadfit.blob.core.windows.net/productseeder/24.jpg" },
+                new Asset { Id = 65, Url = "https://nihadfit.blob.core.windows.net/productseeder/25.jpg" },
+                new Asset { Id = 66, Url = "https://nihadfit.blob.core.windows.net/productseeder/26.jpg" },
+                new Asset { Id = 67, Url = "https://nihadfit.blob.core.windows.net/productseeder/27.jpg" },
+                new Asset { Id = 68, Url = "https://nihadfit.blob.core.windows.net/productseeder/28.jpg" },
+                new Asset { Id = 69, Url = "https://nihadfit.blob.core.windows.net/productseeder/29.jpg" },
+                new Asset { Id = 70, Url = "https://nihadfit.blob.core.windows.net/productseeder/30.jpg" },
+                new Asset { Id = 71, Url = "https://nihadfit.blob.core.windows.net/productseeder/31.jpg" },
+                new Asset { Id = 72, Url = "https://nihadfit.blob.core.windows.net/productseeder/32.jpg" }
             );
         }
     }
