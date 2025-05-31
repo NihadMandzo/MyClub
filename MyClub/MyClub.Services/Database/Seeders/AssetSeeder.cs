@@ -58,7 +58,8 @@ namespace MyClub.Services.Database.Seeders
                 new Asset { Id = 47, Url = "https://nihadfit.blob.core.windows.net/productseeder/7.jpg" },
                 new Asset { Id = 48, Url = "https://nihadfit.blob.core.windows.net/productseeder/8.jpg" },
                 new Asset { Id = 49, Url = "https://nihadfit.blob.core.windows.net/productseeder/9.jpg" },
-                new Asset { Id = 50, Url = "https://nihadfit.blob.core.windows.net/productseeder/10.jpg" },                new Asset { Id = 51, Url = "https://nihadfit.blob.core.windows.net/productseeder/11.jpg" },
+                new Asset { Id = 50, Url = "https://nihadfit.blob.core.windows.net/productseeder/10.jpg" },                
+                new Asset { Id = 51, Url = "https://nihadfit.blob.core.windows.net/productseeder/11.jpg" },
                 new Asset { Id = 52, Url = "https://nihadfit.blob.core.windows.net/productseeder/12.jpg" },
                 new Asset { Id = 53, Url = "https://nihadfit.blob.core.windows.net/productseeder/13.jpg" },
                 new Asset { Id = 54, Url = "https://nihadfit.blob.core.windows.net/productseeder/14.jpg" },
@@ -79,7 +80,10 @@ namespace MyClub.Services.Database.Seeders
                 new Asset { Id = 69, Url = "https://nihadfit.blob.core.windows.net/productseeder/29.jpg" },
                 new Asset { Id = 70, Url = "https://nihadfit.blob.core.windows.net/productseeder/30.jpg" },
                 new Asset { Id = 71, Url = "https://nihadfit.blob.core.windows.net/productseeder/31.jpg" },
-                new Asset { Id = 72, Url = "https://nihadfit.blob.core.windows.net/productseeder/32.jpg" }
+                new Asset { Id = 72, Url = "https://nihadfit.blob.core.windows.net/productseeder/32.jpg" },
+
+                //Asset for club picture
+                new Asset { Id = 73, Url = "hhttps://nihadfit.blob.core.windows.net/club/club.jpg" }
             );
         }
     }

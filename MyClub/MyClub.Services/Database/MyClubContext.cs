@@ -321,7 +321,7 @@ namespace MyClub.Services.Database
             modelBuilder.Entity<Product>().SeedData();
             modelBuilder.Entity<ProductAsset>().SeedData();
             modelBuilder.Entity<ProductSize>().SeedData();
-
+            modelBuilder.Entity<Club>().SeedData();
         }
     }
 }
