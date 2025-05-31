@@ -83,7 +83,36 @@ namespace MyClub.Services.Database.Seeders
                 new Asset { Id = 72, Url = "https://nihadfit.blob.core.windows.net/productseeder/32.jpg" },
 
                 //Asset for club picture
-                new Asset { Id = 73, Url = "hhttps://nihadfit.blob.core.windows.net/club/club.jpg" }
+                new Asset { Id = 73, Url = "hhttps://nihadfit.blob.core.windows.net/club/club.jpg" },
+            
+                //Asset for player picture
+                 new Asset { Id = 74, Url = "https://nihadfit.blob.core.windows.net/playerseed/soccer_player_1.png" },
+                new Asset { Id = 75, Url = "https://nihadfit.blob.core.windows.net/playerseed/soccer_player_2.png" },
+                new Asset { Id = 76, Url = "https://nihadfit.blob.core.windows.net/playerseed/soccer_player_3.png" },
+                new Asset { Id = 77, Url = "https://nihadfit.blob.core.windows.net/playerseed/soccer_player_4.png" },
+                new Asset { Id = 78, Url = "https://nihadfit.blob.core.windows.net/playerseed/soccer_player_5.png" },
+                new Asset { Id = 79, Url = "https://nihadfit.blob.core.windows.net/playerseed/soccer_player_6.png" },
+                new Asset { Id = 80, Url = "https://nihadfit.blob.core.windows.net/playerseed/soccer_player_7.png" },
+                new Asset { Id = 81, Url = "https://nihadfit.blob.core.windows.net/playerseed/soccer_player_8.png" },
+                new Asset { Id = 82, Url = "https://nihadfit.blob.core.windows.net/playerseed/soccer_player_9.png" },
+                new Asset { Id = 83, Url = "https://nihadfit.blob.core.windows.net/playerseed/soccer_player_10.png" },
+                new Asset { Id = 84, Url = "https://nihadfit.blob.core.windows.net/playerseed/soccer_player_11.png" },
+                new Asset { Id = 85, Url = "https://nihadfit.blob.core.windows.net/playerseed/soccer_player_12.png" },
+                new Asset { Id = 86, Url = "https://nihadfit.blob.core.windows.net/playerseed/soccer_player_13.png" },
+                new Asset { Id = 87, Url = "https://nihadfit.blob.core.windows.net/playerseed/soccer_player_14.png" },
+                new Asset { Id = 88, Url = "https://nihadfit.blob.core.windows.net/playerseed/soccer_player_15.png" },
+                new Asset { Id = 89, Url = "https://nihadfit.blob.core.windows.net/playerseed/soccer_player_16.png" },
+                new Asset { Id = 90, Url = "https://nihadfit.blob.core.windows.net/playerseed/soccer_player_17.png" },
+                new Asset { Id = 91, Url = "https://nihadfit.blob.core.windows.net/playerseed/soccer_player_18.png" },
+                new Asset { Id = 92, Url = "https://nihadfit.blob.core.windows.net/playerseed/soccer_player_19.png" },
+                new Asset { Id = 93, Url = "https://nihadfit.blob.core.windows.net/playerseed/soccer_player_20.png" },
+                new Asset { Id = 94, Url = "https://nihadfit.blob.core.windows.net/playerseed/soccer_player_21.png" },
+                new Asset { Id = 95, Url = "https://nihadfit.blob.core.windows.net/playerseed/soccer_player_22.png" },
+                new Asset { Id = 96, Url = "https://nihadfit.blob.core.windows.net/playerseed/soccer_player_23.png" },
+                new Asset { Id = 97, Url = "https://nihadfit.blob.core.windows.net/playerseed/soccer_player_24.png" },
+                new Asset { Id = 98, Url = "https://nihadfit.blob.core.windows.net/playerseed/soccer_player_25.png" }
+
+                
             );
         }
     }
