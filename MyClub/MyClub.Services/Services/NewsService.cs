@@ -6,7 +6,7 @@ using MyClub.Services.Interfaces;
 using MyClub.Services.Database;
 using MapsterMapper;
 using Microsoft.EntityFrameworkCore;
-using MyClub.Services.Utilities;
+using MyClub.Services.Helpers;
 using Microsoft.AspNetCore.Http;
 
 namespace MyClub.Services.Services
@@ -27,7 +27,7 @@ namespace MyClub.Services.Services
         //GET ALL NEWS
         public override async Task<PagedResult<NewsResponse>> GetAsync(NewsSearchObject search)
         {
-            var query = _context.News.Include(n=>n.NewsAssets).Include(n=>n.Comments).AsQueryable();
+            var query = _context.News.Include(n=>n.NewsAssets).ThenInclude(n=>n.Asset).Include(n=>n.Comments).OrderByDescending(x=>x.CreatedAt).AsQueryable();
             query = ApplyFilter(query, search);
 
             if (search.IncludeTotalCount)
@@ -75,7 +75,7 @@ namespace MyClub.Services.Services
         //GET NEWS BY ID
         public override async Task<NewsResponse?> GetByIdAsync(int id)
         {
-            var entity = await _context.News.Include(n=>n.NewsAssets).Include(n=>n.Comments).FirstOrDefaultAsync(n=>n.Id == id);
+            var entity = await _context.News.Include(n=>n.NewsAssets).ThenInclude(x=>x.Asset).Include(n=>n.Comments).FirstOrDefaultAsync(n=>n.Id == id);
             if(entity == null){
                 return null;
             }

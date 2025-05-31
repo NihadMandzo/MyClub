@@ -314,6 +314,10 @@ namespace MyClub.Services.Database
             modelBuilder.Entity<StadiumSide>().SeedData();
             modelBuilder.Entity<StadiumSector>().SeedData();
             modelBuilder.Entity<User>().SeedData();
+            modelBuilder.Entity<Asset>().SeedData();
+            modelBuilder.Entity<News>().SeedData();
+            modelBuilder.Entity<NewsAsset>().SeedData();
+            modelBuilder.Entity<Comment>().SeedData();
         }
     }
 }

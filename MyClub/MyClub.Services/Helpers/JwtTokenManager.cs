@@ -5,8 +5,7 @@ using System.Text;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 
-namespace MyClub.Services.Utilities
-{
+namespace MyClub.Services.Helpers{
     public static class JwtTokenManager
     {
         public static int GetUserIdFromToken(string authorizationHeader)
@@ -73,6 +72,23 @@ namespace MyClub.Services.Utilities
                 throw new UnauthorizedAccessException("Role not found in token");
 
             return roleClaim.Value;
+        }
+        public static bool IsAdmin(string authorizationHeader)
+        {
+            if (string.IsNullOrEmpty(authorizationHeader))
+                throw new UnauthorizedAccessException("Authorization header is missing");
+
+            // Remove "Bearer " prefix if present
+            string token = authorizationHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)
+                ? authorizationHeader.Substring("Bearer ".Length).Trim()
+                : authorizationHeader.Trim();
+
+            var tokenHandler = new JwtSecurityTokenHandler();
+            var jwtToken = tokenHandler.ReadJwtToken(token);
+
+            // Check if the role claim is "Admin"
+            var roleClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role && c.Value.Equals("Administrator", StringComparison.OrdinalIgnoreCase));
+            return roleClaim != null;
         }
     }
 } 
