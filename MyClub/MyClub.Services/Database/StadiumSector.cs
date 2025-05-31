@@ -11,16 +11,9 @@ namespace MyClub.Services.Database
         
         [Required]
         [MaxLength(50)]
-        public string Name { get; set; }  // A1, A2, B1, B2, B3, etc.
-        
-        [Required]
-        [MaxLength(50)]
-        public string FullName { get; set; }  // South A1, South A2, etc.
+        public string Code { get; set; }  // A1, A2, B1, B2, B3, etc.
         
         public int Capacity { get; set; }
-        
-        [MaxLength(255)]
-        public string Description { get; set; }
         
         // Stadium Side relationship
         public int StadiumSideId { get; set; }

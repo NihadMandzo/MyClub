@@ -12,8 +12,6 @@ namespace MyClub.Services.Database
         [MaxLength(50)]
         public string Name { get; set; }  // North, South, East, West
         
-        [MaxLength(255)]
-        public string Description { get; set; }
         
         // Navigation properties
         public virtual ICollection<StadiumSector> Sectors { get; set; }

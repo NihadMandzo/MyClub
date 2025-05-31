@@ -6,6 +6,8 @@ using MyClub.Services.Interfaces;
 using MyClub.Services.Database;
 
 using MapsterMapper;
+using Microsoft.AspNetCore.Http;
+using MyClub.Services.Utilities;
 
 namespace MyClub.Services.Services
 {
@@ -14,16 +16,19 @@ namespace MyClub.Services.Services
     {
         private readonly MyClubContext _context;
         private readonly IMapper _mapper;
-        public CommentService(MyClubContext context, IMapper mapper) : base(context, mapper)
+        private readonly IHttpContextAccessor _httpContextAccessor;
+
+        public CommentService(MyClubContext context, IMapper mapper, IHttpContextAccessor httpContextAccessor) : base(context, mapper)
         {
             _context = context;
             _mapper = mapper;
+            _httpContextAccessor = httpContextAccessor;
         }
 
         public override async Task<CommentResponse> CreateAsync(CommentUpsertRequest request)
         {
             var entity = _mapper.Map<Database.Comment>(request);
-            await _context.Comments.AddAsync(entity);
+            await BeforeInsert(entity, request);
             await _context.SaveChangesAsync();
             return _mapper.Map<CommentResponse>(entity);
         }
@@ -52,6 +57,8 @@ namespace MyClub.Services.Services
 
         protected override Database.Comment MapInsertToEntity(Database.Comment entity, CommentUpsertRequest request)
         {
+            string authHeader = _httpContextAccessor.HttpContext.Request.Headers["Authorization"];
+            entity.UserId = JwtTokenManager.GetUserIdFromToken(authHeader);
             entity.CreatedAt = DateTime.Now;
             return entity;
         }

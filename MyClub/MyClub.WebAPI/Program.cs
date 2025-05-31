@@ -22,7 +22,10 @@ builder.Services.AddTransient<ICategoryService, CategoryService>();
 builder.Services.AddTransient<IBlobStorageService, BlobStorageService>();
 builder.Services.AddTransient<INewsService, NewsService>();
 builder.Services.AddTransient<ICommentService, CommentService>();
+builder.Services.AddTransient<IStadiumSectorService, StadiumSectorService>();
 
+// Add HttpContextAccessor
+builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddMapster();
 

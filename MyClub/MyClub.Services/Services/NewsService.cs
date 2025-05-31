@@ -5,8 +5,9 @@ using MyClub.Model.Requests;
 using MyClub.Services.Interfaces;
 using MyClub.Services.Database;
 using MapsterMapper;
-using Azure;
 using Microsoft.EntityFrameworkCore;
+using MyClub.Services.Utilities;
+using Microsoft.AspNetCore.Http;
 
 namespace MyClub.Services.Services
 {
@@ -15,11 +16,13 @@ namespace MyClub.Services.Services
         private readonly MyClubContext _context;
         private readonly IBlobStorageService _blobStorageService;
         private const string _containerName = "news";
+        private readonly IHttpContextAccessor _httpContextAccessor;
         
-        public NewsService(MyClubContext context, IMapper mapper, IBlobStorageService blobStorageService) : base(context, mapper)
+        public NewsService(MyClubContext context, IMapper mapper, IBlobStorageService blobStorageService, IHttpContextAccessor httpContextAccessor) : base(context, mapper)
         {
             _context = context;
             _blobStorageService = blobStorageService;
+            _httpContextAccessor = httpContextAccessor;
         }
         //GET ALL NEWS
         public override async Task<PagedResult<NewsResponse>> GetAsync(NewsSearchObject search)
@@ -111,7 +114,9 @@ namespace MyClub.Services.Services
         //BEFORE INSERT
         protected override Task BeforeInsert(News entity, NewsUpsertRequest request)
         {
-            entity.UserId = 1;
+            string authHeader = _httpContextAccessor.HttpContext.Request.Headers["Authorization"];
+        
+            entity.UserId = JwtTokenManager.GetUserIdFromToken(authHeader);
             entity.CreatedAt = DateTime.UtcNow;
             return Task.CompletedTask;
         }

@@ -4,7 +4,6 @@ namespace MyClub.Services.Database
 {
     public class ProductAsset
     {
-        // Composite key is configured in DbContext
         public int ProductId { get; set; }
                 
         [ForeignKey("ProductId")]

@@ -258,7 +258,7 @@ namespace MyClub.Services.Database
 
             // Make StadiumSector FullName unique
             modelBuilder.Entity<StadiumSector>()
-                .HasIndex(ss => ss.FullName)
+                .HasIndex(ss => ss.Code)
                 .IsUnique();
 
             // Fix other potential cascade delete issues
@@ -311,6 +311,9 @@ namespace MyClub.Services.Database
             modelBuilder.Entity<Size>().SeedData();
             modelBuilder.Entity<Role>().SeedData();
             modelBuilder.Entity<Category>().SeedData();
+            modelBuilder.Entity<StadiumSide>().SeedData();
+            modelBuilder.Entity<StadiumSector>().SeedData();
+            modelBuilder.Entity<User>().SeedData();
         }
     }
 }

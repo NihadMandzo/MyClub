@@ -21,12 +21,14 @@ namespace MyClub.WebAPI.Controllers
 
 
         [HttpPost]
+        [Authorize(Policy = "AdminOnly")]
         public override async Task<IActionResult> Create([FromForm] NewsUpsertRequest request){
             return Ok(await _service.CreateAsync(request));
         }
 
         
         [HttpPut("{id}")]
+        [Authorize(Policy = "AdminOnly")]
         public override async Task<IActionResult> Update(int id, [FromForm] NewsUpsertRequest request){
             return Ok(await _service.UpdateAsync(id, request));
         }
