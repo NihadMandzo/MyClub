@@ -8,9 +8,6 @@ namespace MyClub.Services
 {
     public interface IColorService : ICRUDService<ColorResponse, ColorSearchObject, ColorUpsertRequest, ColorUpsertRequest>
     {
-        Task<ColorResponse> CreateAsync(ColorUpsertRequest request);
-        Task<ColorResponse?> UpdateAsync(int id, ColorUpsertRequest request);
-        Task<bool> DeleteAsync(int id);
     }
 
 

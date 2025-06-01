@@ -24,6 +24,7 @@ builder.Services.AddTransient<INewsService, NewsService>();
 builder.Services.AddTransient<ICommentService, CommentService>();
 builder.Services.AddTransient<IStadiumSectorService, StadiumSectorService>();
 builder.Services.AddTransient<IClubService, ClubService>();
+builder.Services.AddTransient<PlayerService, PlayerService>();
 // Add HttpContextAccessor
 builder.Services.AddHttpContextAccessor();
 
