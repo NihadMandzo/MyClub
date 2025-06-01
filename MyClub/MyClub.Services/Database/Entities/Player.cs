@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore.Internal;
 
 namespace MyClub.Services.Database
 {
@@ -47,6 +48,9 @@ namespace MyClub.Services.Database
         [ForeignKey("ImageId")]
         public virtual Asset Image { get; set; }
         
-
+        public virtual string FullName 
+        {
+            get { return $"{FirstName} {LastName}"; }
+        }
     }
 } 

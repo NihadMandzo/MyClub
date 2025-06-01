@@ -30,8 +30,6 @@ namespace MyClub.Services
         protected virtual TEntity MapInsertToEntity(TEntity entity, TInsert request){
             return _mapper.Map<TEntity>(request);
         }
-
-
         public virtual async Task<T> UpdateAsync(int id, TUpdate request){
             var entity = await _context.Set<TEntity>().FindAsync(id);
             if(entity == null){
@@ -42,7 +40,6 @@ namespace MyClub.Services
             await _context.SaveChangesAsync();
             return MapToResponse(entity);
         }
-
         protected virtual async Task BeforeUpdate(TEntity entity, TUpdate request){
             await Task.CompletedTask;
         }
@@ -59,7 +56,6 @@ namespace MyClub.Services
             await _context.SaveChangesAsync();
             return true;
         }
-
         protected virtual async Task BeforeDelete(TEntity entity)
         {
             await Task.CompletedTask;
