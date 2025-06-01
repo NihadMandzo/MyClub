@@ -25,6 +25,8 @@ builder.Services.AddTransient<ICommentService, CommentService>();
 builder.Services.AddTransient<IStadiumSectorService, StadiumSectorService>();
 builder.Services.AddTransient<IClubService, ClubService>();
 builder.Services.AddTransient<PlayerService, PlayerService>();
+
+
 // Add HttpContextAccessor
 builder.Services.AddHttpContextAccessor();
 
@@ -91,7 +93,10 @@ builder.Services.AddAuthorization(options =>
         policy.RequireClaim(ClaimTypes.Role, "User"));
 });
 
-builder.Services.AddControllers();
+builder.Services.AddControllers(options =>
+{
+    options.Filters.Add<ErrorFilter>();
+});
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>

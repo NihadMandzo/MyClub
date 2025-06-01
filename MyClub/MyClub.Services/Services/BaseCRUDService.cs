@@ -16,8 +16,7 @@ namespace MyClub.Services
         }
 
         public virtual async Task<T> CreateAsync(TInsert request)  {
-            var entity = new TEntity();
-            MapInsertToEntity(entity, request);
+            var entity = MapInsertToEntity(new TEntity(), request);
             await BeforeInsert(entity, request);
             _context.Set<TEntity>().Add(entity);
             await _context.SaveChangesAsync();

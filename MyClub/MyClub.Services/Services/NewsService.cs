@@ -27,19 +27,25 @@ namespace MyClub.Services.Services
         //GET ALL NEWS
         public override async Task<PagedResult<NewsResponse>> GetAsync(NewsSearchObject search)
         {
-            var query = _context.News.Include(n=>n.NewsAssets).ThenInclude(n=>n.Asset).Include(n=>n.Comments).OrderByDescending(x=>x.CreatedAt).AsQueryable();
+            var query = _context.News
+                .Include(n => n.NewsAssets)
+                .ThenInclude(n => n.Asset)
+                .OrderByDescending(x => x.CreatedAt)
+                .AsQueryable();
+                
             query = ApplyFilter(query, search);
 
+            var totalCount = 0;
             if (search.IncludeTotalCount)
             {
-                var totalCount = await query.CountAsync();
+                totalCount = await query.CountAsync();
             }
 
             if (!search.RetrieveAll)
             {
-                if (search.Page.HasValue)
+                if (search.Page.HasValue && search.PageSize.HasValue)
                 {
-                    query = query.Skip((search.Page.Value) * search.PageSize.Value);
+                    query = query.Skip(search.Page.Value * search.PageSize.Value);
                 }
                 if (search.PageSize.HasValue)
                 {
@@ -51,7 +57,7 @@ namespace MyClub.Services.Services
             return new PagedResult<NewsResponse>
             {
                 Data = list.Select(MapToResponse).ToList(),
-                TotalCount = await query.CountAsync()
+                TotalCount = search.IncludeTotalCount ? totalCount : await query.CountAsync()
             };
         }
 
@@ -75,11 +81,18 @@ namespace MyClub.Services.Services
         //GET NEWS BY ID
         public override async Task<NewsResponse?> GetByIdAsync(int id)
         {
-            var entity = await _context.News.Include(n=>n.NewsAssets).ThenInclude(x=>x.Asset).Include(n=>n.Comments).FirstOrDefaultAsync(n=>n.Id == id);
+            var entity = await _context.News
+                .Include(n => n.NewsAssets)
+                .ThenInclude(x => x.Asset)
+                .Include(n => n.Comments)
+                .ThenInclude(c => c.User)
+                .Include(n => n.User)
+                .FirstOrDefaultAsync(n => n.Id == id);
+
             if(entity == null){
                 return null;
             }
-            return MapToResponse(entity);
+            return MapToDetailedResponse(entity);
         }
         
         //CREATE NEWS
@@ -114,8 +127,42 @@ namespace MyClub.Services.Services
         //BEFORE INSERT
         protected override Task BeforeInsert(News entity, NewsUpsertRequest request)
         {
-            string authHeader = _httpContextAccessor.HttpContext.Request.Headers["Authorization"];
-        
+            if (string.IsNullOrWhiteSpace(request.Title))
+            {
+                throw new UserException("Title is required");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.Content))
+            {
+                throw new UserException("Content is required");
+            }
+
+            if (request.Images == null || !request.Images.Any())
+            {
+                throw new UserException("At least one image is required");
+            }
+
+            foreach (var image in request.Images)
+            {
+                var extension = Path.GetExtension(image.FileName).ToLower();
+                if (!new[] { ".jpg", ".jpeg", ".png" }.Contains(extension))
+                {
+                    throw new UserException("Only .jpg, .jpeg and .png files are allowed");
+                }
+            }
+
+            var httpContext = _httpContextAccessor.HttpContext;
+            if (httpContext == null)
+            {
+                throw new UserException("No HTTP context available");
+            }
+
+            string? authHeader = httpContext.Request.Headers["Authorization"].ToString();
+            if (string.IsNullOrEmpty(authHeader))
+            {
+                throw new UserException("No authorization header found");
+            }
+
             entity.UserId = JwtTokenManager.GetUserIdFromToken(authHeader);
             entity.CreatedAt = DateTime.UtcNow;
             return Task.CompletedTask;
@@ -129,17 +176,15 @@ namespace MyClub.Services.Services
                 .ThenInclude(na => na.Asset)
                 .FirstOrDefaultAsync(n => n.Id == id);
 
-            if (entity == null)
-            {
-                throw new UserException("News not found");
-            }
 
+            await BeforeUpdate(entity, request);
             var updatedEntity = MapUpdateToEntity(entity, request);
-            await BeforeUpdate(updatedEntity, request);
 
-            // Handle images
-            // Delete all existing images since we're not tracking which ones to keep
-            var imagesToDelete = updatedEntity.NewsAssets.ToList();
+            // Handle images to delete
+            var imagesToDelete = updatedEntity.NewsAssets
+                .Where(na => request.ImagesToKeep == null || !request.ImagesToKeep.Contains(na.AssetId))
+                .ToList();
+
             foreach (var image in imagesToDelete)
             {
                 // Delete from Azure Blob Storage
@@ -150,7 +195,10 @@ namespace MyClub.Services.Services
                 _context.Assets.Remove(image.Asset);
             }
 
-            // Upload new images
+            // Save changes after deleting to avoid conflicts
+            await _context.SaveChangesAsync();
+
+            // Upload and save new images
             if (request.Images != null && request.Images.Any())
             {
                 foreach (var image in request.Images)
@@ -158,30 +206,61 @@ namespace MyClub.Services.Services
                     // Upload to Azure Blob Storage
                     var imageUrl = await _blobStorageService.UploadAsync(image, _containerName);
 
-                    // Create new asset
+                    // Create and save new asset first
                     var asset = new Asset
                     {
                         Url = imageUrl
                     };
                     _context.Assets.Add(asset);
-                    
-                    // Create news asset relationship
+                    await _context.SaveChangesAsync(); // Save to get the Asset Id
+
+                    // Now create the relationship with valid AssetId
                     var newsAsset = new NewsAsset
                     {
                         NewsId = entity.Id,
                         AssetId = asset.Id
                     };
                     _context.NewsAssets.Add(newsAsset);
+                    await _context.SaveChangesAsync();
                 }
             }
 
-            await _context.SaveChangesAsync();
             return MapToResponse(entity);
         }
         //BEFORE UPDATE
         protected override Task BeforeUpdate(News entity, NewsUpsertRequest request)
         {
-            return base.BeforeUpdate(entity, request);
+            if (entity == null)
+            {
+                throw new UserException("News not found");
+            }
+            if (string.IsNullOrWhiteSpace(request.Title))
+            {
+                throw new UserException("Title is required");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.Content))
+            {
+                throw new UserException("Content is required");
+            }
+
+            if ((request.Images == null || !request.Images.Any()) && (request.ImagesToKeep == null || !request.ImagesToKeep.Any()))
+            {
+                throw new UserException("At least one image is required");
+            }
+
+            if (request.Images != null)
+            {
+                foreach (var image in request.Images)
+                {
+                    var extension = Path.GetExtension(image.FileName).ToLower();
+                    if (!new[] { ".jpg", ".jpeg", ".png" }.Contains(extension))
+                    {
+                        throw new UserException("Only .jpg, .jpeg and .png files are allowed");
+                    }
+                }
+            }
+            return Task.CompletedTask;
         }
 
         //DELETE NEWS
@@ -202,7 +281,14 @@ namespace MyClub.Services.Services
             {
                 await _blobStorageService.DeleteAsync(newsAsset.Asset.Url, _containerName);
             }
+            // Remove news assets and assets from the database
+            _context.NewsAssets.RemoveRange(entity.NewsAssets);
+            _context.Assets.RemoveRange(entity.NewsAssets.Select(na => na.Asset));
 
+            // Remove comments associated with the news
+            _context.Comments.RemoveRange(entity.Comments);
+
+            // Remove the news entity
             await BeforeDelete(entity);
             _context.News.Remove(entity);
             await _context.SaveChangesAsync();
@@ -212,8 +298,52 @@ namespace MyClub.Services.Services
         //MAP TO RESPONSE
         protected override NewsResponse MapToResponse(Database.News entity)
         {
-            var response = _mapper.Map<NewsResponse>(entity);
-            response.ImageUrls = entity.NewsAssets?.Select(na => na.Asset?.Url).ToList() ?? new List<string>();
+            var response = new NewsResponse
+            {
+                Id = entity.Id,
+                Title = entity.Title,
+                Date = entity.CreatedAt,
+                PrimaryImage = entity.NewsAssets?
+                    .Where(na => na.Asset?.Url != null)
+                    .Select(na => new NewsImageResponse 
+                    { 
+                        AssetId = na.AssetId,
+                        Url = na.Asset!.Url! 
+                    })
+                    .FirstOrDefault()
+            };
+            return response;
+        }
+
+        protected NewsResponse MapToDetailedResponse(Database.News entity)
+        {
+            var response = new NewsByIdResponse
+            {
+                Id = entity.Id,
+                Title = entity.Title,
+                Content = entity.Content,
+                VideoUrl = entity.VideoURL,
+                Date = entity.CreatedAt,
+                IsActive = true, // You might want to add this field to your News entity
+                Username = entity.User?.Username ?? string.Empty,
+                PrimaryImage = entity.NewsAssets?
+                    .Where(na => na.Asset?.Url != null)
+                    .Select(na => new NewsImageResponse 
+                    { 
+                        AssetId = na.AssetId,
+                        Url = na.Asset!.Url! 
+                    })
+                    .ToList() ?? new List<NewsImageResponse>(),
+                Comments = entity.Comments?
+                    .Select(c => new NewsCommentResponse
+                    {
+                        Id = c.Id,
+                        Content = c.Content,
+                        Date = c.CreatedAt,
+                        UserName = c.User?.Username ?? string.Empty
+                    })
+                    .ToList() ?? new List<NewsCommentResponse>()
+            };
             return response;
         }
 
@@ -228,13 +358,15 @@ namespace MyClub.Services.Services
             entity.CreatedAt = DateTime.UtcNow;
             return entity;
         }
+
         //BEFORE DELETE
         protected override Task BeforeDelete(News entity)
         {
             return base.BeforeDelete(entity);
         }
+
         //MAP UPDATE TO ENTITY
-        protected override Database.News MapUpdateToEntity(Database.News entity, NewsUpsertRequest request)
+        protected override News MapUpdateToEntity(News entity, NewsUpsertRequest request)
         {
             entity.Title = request.Title;
             entity.Content = request.Content;

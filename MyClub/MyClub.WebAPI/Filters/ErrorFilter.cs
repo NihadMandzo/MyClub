@@ -7,25 +7,33 @@ using System.Net;
 
 namespace MyClub.WebAPI.Filters
 {
-    public class ErrorFilter : IExceptionFilter
+public class ErrorFilter : ExceptionFilterAttribute
     {
-        public void OnException(ExceptionContext context)
+        private readonly ILogger<ErrorFilter> _logger;
+        public ErrorFilter(ILogger<ErrorFilter> logger){
+                _logger = logger;
+        }
+        public override void OnException(ExceptionContext context)
         {
-            if (context.Exception is UserException)
+            _logger.LogError(context.Exception, context.Exception.Message);
+            
+            if(context.Exception is UserException) 
             {
-                UserException exception = (UserException)context.Exception;
-                context.ModelState.AddModelError("ERROR", exception.Message);
-                context.HttpContext.Response.StatusCode = exception.StatusCode;
+                context.ModelState.AddModelError("userError", context.Exception.Message);
+                context.HttpContext.Response.StatusCode = (int)HttpStatusCode.BadRequest;
             }
             else
             {
-                context.ModelState.AddModelError("ERROR", "Internal server error");
+                context.ModelState.AddModelError("ERROR", "Server side error, please check logs");
                 context.HttpContext.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
             }
 
-            var list = context.ModelState.Where(x => x.Value.Errors.Count > 0).ToDictionary(x => x.Key, y => y.Value.Errors.Select(z => z.ErrorMessage));
+            var list = context.ModelState.Where(x => x.Value.Errors.Count > 0)
+                .ToDictionary(x => x.Key, y => y.Value.Errors.Select(z => z.ErrorMessage));
 
-            context.Result = new JsonResult(new { errors = list });
+            context.Result = new JsonResult(new {
+                errors = list
+            });
         }
     }
 }
