@@ -5,11 +5,7 @@ using MyClub.Model.SearchObjects;
 using MyClub.Services.Database;
 using MyClub.Services.Interfaces;
 using MapsterMapper;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using MyClub.Model.Responses;
+
 namespace MyClub.Services
 {
     public class ProductService : BaseCRUDService<ProductResponse, ProductSearchObject, ProductUpsertRequest, ProductUpsertRequest, Database.Product>, IProductService
@@ -61,7 +57,6 @@ namespace MyClub.Services
 
             return result;
         }
-
         public new async Task<ProductByIdResponse> GetByIdAsync(int id)
         {
             var entity = await _context.Products
@@ -78,7 +73,6 @@ namespace MyClub.Services
 
             return MapToProductByIdResponse(entity);
         }
-
         protected override IQueryable<Database.Product> ApplyFilter(IQueryable<Database.Product> query, ProductSearchObject search)
         {
             if (!string.IsNullOrWhiteSpace(search?.Code))
@@ -93,19 +87,16 @@ namespace MyClub.Services
 
             return query;
         }
-
         protected override async Task BeforeInsert(Database.Product entity, ProductUpsertRequest request)
         {
             await ValidateAsync(request);
             entity.CreatedAt = DateTime.UtcNow;
         }
-
         protected override async Task BeforeUpdate(Database.Product entity, ProductUpsertRequest request)
         {
             await ValidateAsync(request, entity.Id);
             entity.UpdatedAt = DateTime.UtcNow;
         }
-
         protected override async Task BeforeDelete(Database.Product entity)
         {
             // Delete images from Azure Blob Storage
@@ -120,7 +111,6 @@ namespace MyClub.Services
             _context.ProductSizes.RemoveRange(productSizes);
             await _context.SaveChangesAsync();
         }
-
         public override async Task<ProductResponse> CreateAsync(ProductUpsertRequest request)
         {
             var entity = MapInsertToEntity(new Database.Product(), request);
@@ -195,7 +185,6 @@ namespace MyClub.Services
 
             return MapToResponse(entity);
         }
-
         public override async Task<ProductResponse> UpdateAsync(int id, ProductUpsertRequest request)
         {
             var entity = await _context.Products
@@ -297,7 +286,6 @@ namespace MyClub.Services
 
             return MapToResponse(entity);
         }
-
         private async Task<bool> ValidateAsync(ProductUpsertRequest request, int? id = null)
         {
             // Validate category exists
@@ -344,12 +332,10 @@ namespace MyClub.Services
 
             return true;
         }
-
         protected override ProductResponse MapToResponse(Database.Product entity)
         {
             return MapToProductResponse(entity);
         }
-
         private ProductResponse MapToProductResponse(Database.Product entity)
         {
             var response = _mapper.Map<ProductResponse>(entity);
@@ -358,7 +344,6 @@ namespace MyClub.Services
             response.PrimaryImageUrl = entity.ProductAssets?.FirstOrDefault()?.Asset?.Url;
             return response;
         }
-
         private ProductByIdResponse MapToProductByIdResponse(Database.Product entity)
         {
             var response = _mapper.Map<ProductByIdResponse>(entity);
@@ -374,7 +359,6 @@ namespace MyClub.Services
             
             return response;
         }
-                
         protected override Database.Product MapInsertToEntity(Database.Product entity, ProductUpsertRequest request)
         {
             entity.Name = request.Name;
@@ -389,7 +373,6 @@ namespace MyClub.Services
             entity.ProductSizes = new List<ProductSize>();
             return entity;
         }
-    
         protected override Database.Product MapUpdateToEntity(Database.Product entity, ProductUpsertRequest request)
         {
             entity.Name = request.Name;

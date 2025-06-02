@@ -10,33 +10,33 @@ namespace MyClub.Model.Requests
     {
         [Required(ErrorMessage = "Name is required")]
         [MaxLength(100, ErrorMessage = "Name cannot exceed 100 characters")]
-        public string Name { get; set; }
-        
+        public string Name { get; set; } = string.Empty;
+        [Required(ErrorMessage = "Description is required")]
         [MaxLength(500, ErrorMessage = "Description cannot exceed 500 characters")]
         public string Description { get; set; }
         
         [Required(ErrorMessage = "Price is required")]
         [Range(0.01, 10000, ErrorMessage = "Price must be greater than 0 and less than 10,000")]
-        public decimal Price { get; set; }
+        public decimal Price { get; set; } = 0;
         
-        [Range(0, 10000, ErrorMessage = "Stock quantity must be between 0 and 10,000")]
-        public int StockQuantity { get; set; }
         
         [Required(ErrorMessage = "Color is required")]
-        public int ColorId { get; set; }
+        public int ColorId { get; set; } = 0;
         
         [Required(ErrorMessage = "Category is required")]
-        public int CategoryId { get; set; }
+        public int CategoryId { get; set; } = 0;
         
         public bool IsActive { get; set; } = true;
         
         // For handling image uploads
+        [Required(ErrorMessage = "Images are required")]
         public List<IFormFile> Images { get; set; } = new List<IFormFile>();
         
         // For tracking existing images when updating
         public List<int> ImagesToKeep { get; set; } = new List<int>();
         
         // For product sizes with quantities
+        
         public List<ProductSizeRequest> ProductSizes { get; set; } = new List<ProductSizeRequest>();
         
         // Helper properties for form submission
