@@ -18,9 +18,7 @@ namespace MyClub.Model.Requests
         [Url(ErrorMessage = "Invalid video URL format")]
         public string? VideoUrl { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "At least one image is required")]
-        public List<IFormFile> Images { get; set; } = new List<IFormFile>();
-
-        public List<int> ImagesToKeep { get; set; } = new List<int>();
+        public List<IFormFile>? Images { get; set; } = new List<IFormFile>();
+        public List<int>? ImagesToKeep { get; set; } = new List<int>();
     }
 }

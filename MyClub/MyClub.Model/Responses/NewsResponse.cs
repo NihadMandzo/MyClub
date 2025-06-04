@@ -16,7 +16,6 @@ namespace MyClub.Model.Responses
         public string Content { get; set; } = string.Empty;
         public string? VideoUrl { get; set; }
         public new List<NewsImageResponse> PrimaryImage { get; set; } = new List<NewsImageResponse>();
-        public bool IsActive { get; set; }
         public List<NewsCommentResponse> Comments { get; set; } = new List<NewsCommentResponse>();
         public string Username { get; set; } = string.Empty;
     }
