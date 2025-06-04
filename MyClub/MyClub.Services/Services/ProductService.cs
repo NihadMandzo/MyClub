@@ -5,6 +5,7 @@ using MyClub.Model.SearchObjects;
 using MyClub.Services.Database;
 using MyClub.Services.Interfaces;
 using MapsterMapper;
+using MyClub.Services.Helpers;
 
 namespace MyClub.Services
 {
@@ -22,9 +23,10 @@ namespace MyClub.Services
         }
 
         // Custom implementation of GetAsync to include related data
-        public new async Task<PagedResult<ProductResponse>> GetAsync(ProductSearchObject search)
+        public override async Task<PagedResult<ProductResponse>> GetAsync(ProductSearchObject search)
         {
             var query = _context.Products
+                .AsNoTracking()
                 .Include(p => p.Category)
                 .Include(p => p.Color)
                 .Include(p => p.ProductAssets)
@@ -34,32 +36,57 @@ namespace MyClub.Services
             // Apply filters
             query = ApplyFilter(query, search);
 
+            int totalCount = 0;
+            
+            // Get total count if requested
+            if (search.IncludeTotalCount)
+            {
+                totalCount = await query.CountAsync();
+            }
+
             // Apply pagination
+            int pageSize = search.PageSize ?? 10;
+            int currentPage = search.Page ?? 0;
+            
             if (!search.RetrieveAll)
             {
-                if (search.Page.HasValue)
-                {
-                    query = query.Skip((search.Page.Value) * search.PageSize.Value);
-                }
-                if (search.PageSize.HasValue)
-                {
-                    query = query.Take(search.PageSize.Value);
-                }
+                query = query.Skip(currentPage * pageSize).Take(pageSize);
             }
 
             var list = await query.ToListAsync();
-            // Map to response
-            var result = new PagedResult<ProductResponse>
+            
+            // Create the paged result with enhanced pagination metadata
+            return new PagedResult<ProductResponse>
             {
                 Data = list.Select(x => MapToProductResponse(x)).ToList(),
-                TotalCount = await query.CountAsync()
+                TotalCount = totalCount,
+                CurrentPage = currentPage,
+                PageSize = pageSize
             };
-
-            return result;
         }
-        public new async Task<ProductByIdResponse> GetByIdAsync(int id)
+
+        // Implement the base class method
+        public override async Task<ProductResponse?> GetByIdAsync(int id)
         {
             var entity = await _context.Products
+                .AsNoTracking()
+                .Include(p => p.Category)
+                .Include(p => p.Color)
+                .Include(p => p.ProductAssets)
+                .ThenInclude(pa => pa.Asset)
+                .FirstOrDefaultAsync(x => x.Id == id);
+
+            if (entity == null)
+                return null;
+
+            return MapToProductResponse(entity);
+        }
+        
+        // Implement the interface method explicitly
+        async Task<ProductByIdResponse> IProductService.GetByIdAsync(int id)
+        {
+            var entity = await _context.Products
+                .AsNoTracking()
                 .Include(p => p.Category)
                 .Include(p => p.Color)
                 .Include(p => p.ProductAssets)
@@ -73,148 +100,135 @@ namespace MyClub.Services
 
             return MapToProductByIdResponse(entity);
         }
+
+        public async Task<ProductByIdResponse?> GetProductDetailsByIdAsync(int id)
+        {
+            var entity = await _context.Products
+                .AsNoTracking()
+                .Include(p => p.Category)
+                .Include(p => p.Color)
+                .Include(p => p.ProductAssets)
+                .ThenInclude(pa => pa.Asset)
+                .Include(p => p.ProductSizes)
+                .ThenInclude(ps => ps.Size)
+                .FirstOrDefaultAsync(x => x.Id == id);
+
+            if (entity == null)
+                return null;
+
+            return MapToProductByIdResponse(entity);
+        }
+
         protected override IQueryable<Database.Product> ApplyFilter(IQueryable<Database.Product> query, ProductSearchObject search)
         {
-            if (!string.IsNullOrWhiteSpace(search?.Code))
+            // Implement full-text search
+            if (!string.IsNullOrWhiteSpace(search?.FTS))
             {
-                query = query.Where(x => x.Name.Contains(search.Code));
+                string searchTerm = search.FTS.Trim().ToLower();
+                query = query.Where(p => 
+                    p.Name.ToLower().Contains(searchTerm) || 
+                    p.Description.ToLower().Contains(searchTerm) ||
+                    p.Category.Name.ToLower().Contains(searchTerm) ||
+                    p.Color.Name.ToLower().Contains(searchTerm)
+                );
             }
 
-            if (!string.IsNullOrWhiteSpace(search?.CodeGTE))
+            // Filter by barcode
+            if (!string.IsNullOrWhiteSpace(search?.BarCode))
             {
-                query = query.Where(x => x.Name.CompareTo(search.CodeGTE) >= 0);
+                query = query.Where(x => x.BarCode.Contains(search.BarCode));
+            }
+
+            // Filter by category IDs
+            if (search?.CategoryIds != null && search.CategoryIds.Any())
+            {
+                query = query.Where(p => search.CategoryIds.Contains(p.CategoryId));
+            }
+
+            // Filter by color IDs
+            if (search?.ColorIds != null && search.ColorIds.Any())
+            {
+                query = query.Where(p => search.ColorIds.Contains(p.ColorId));
+            }
+
+            // Filter by size IDs
+            if (search?.SizeIds != null && search.SizeIds.Any())
+            {
+                query = query.Where(p => p.ProductSizes.Any(ps => search.SizeIds.Contains(ps.SizeId)));
+            }
+
+            // Filter by price range
+            if (search?.MinPrice.HasValue == true)
+            {
+                query = query.Where(p => p.Price >= search.MinPrice.Value);
+            }
+
+            if (search?.MaxPrice.HasValue == true)
+            {
+                query = query.Where(p => p.Price <= search.MaxPrice.Value);
             }
 
             return query;
         }
+
         protected override async Task BeforeInsert(Database.Product entity, ProductUpsertRequest request)
         {
             await ValidateAsync(request);
             entity.CreatedAt = DateTime.UtcNow;
         }
+
         protected override async Task BeforeUpdate(Database.Product entity, ProductUpsertRequest request)
         {
             await ValidateAsync(request, entity.Id);
             entity.UpdatedAt = DateTime.UtcNow;
         }
+
         protected override async Task BeforeDelete(Database.Product entity)
         {
-            // Delete images from Azure Blob Storage
-            var assets = await _context.Assets.Include(a => a.ProductAssets).Where(a => a.ProductAssets.Any(pi => pi.ProductId == entity.Id)).ToListAsync();
-            foreach (var asset in assets)
+            // Use transaction to ensure atomicity
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
             {
-                await _blobStorageService.DeleteAsync(asset.Url, _containerName);
+                // Delete images from Azure Blob Storage
+                var assets = await _context.Assets
+                    .Include(a => a.ProductAssets)
+                    .Where(a => a.ProductAssets.Any(pi => pi.ProductId == entity.Id))
+                    .ToListAsync();
+                
+                foreach (var asset in assets)
+                {
+                    await _blobStorageService.DeleteAsync(asset.Url, _containerName);
+                }
+                
+                // Delete product sizes
+                var productSizes = await _context.ProductSizes.Where(ps => ps.ProductId == entity.Id).ToListAsync();
+                _context.ProductSizes.RemoveRange(productSizes);
+                
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
             }
-            
-            // Delete product sizes
-            var productSizes = await _context.ProductSizes.Where(ps => ps.ProductId == entity.Id).ToListAsync();
-            _context.ProductSizes.RemoveRange(productSizes);
-            await _context.SaveChangesAsync();
+            catch (Exception)
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
+
         public override async Task<ProductResponse> CreateAsync(ProductUpsertRequest request)
         {
-            var entity = MapInsertToEntity(new Database.Product(), request);
-            await BeforeInsert(entity, request);
-            _context.Products.Add(entity);
-            await _context.SaveChangesAsync();
-
-            Console.WriteLine($"Product with sizes: {request.ProductSizes.Count}");
-            
-            // Add more detailed debugging
-            if (request.ProductSizes != null)
+            // Use transaction to ensure atomicity
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
             {
-                Console.WriteLine("Size IDs received:");
-                foreach (var size in request.ProductSizes)
-                {
-                    Console.WriteLine($"  SizeId: {size.SizeId}, Quantity: {size.Quantity}");
-                }
-            }
-            else
-            {
-                Console.WriteLine("ProductSizes is null");
-            }
-
-            // Add product sizes with quantities
-            if (request.ProductSizes != null && request.ProductSizes.Count > 0)
-            {
-                Console.WriteLine($"Adding {request.ProductSizes.Count} product sizes");
-                foreach (var sizeRequest in request.ProductSizes)
-                {
-                    var productSize = new ProductSize
-                    {
-                        ProductId = entity.Id,
-                        SizeId = sizeRequest.SizeId,
-                        Quantity = sizeRequest.Quantity
-                    };
-                    Console.WriteLine($"Adding product size: {productSize.SizeId} - {productSize.Quantity}");
-                    await _context.ProductSizes.AddAsync(productSize);
-                }
+                var entity = MapInsertToEntity(new Database.Product(), request);
+                await BeforeInsert(entity, request);
+                _context.Products.Add(entity);
                 await _context.SaveChangesAsync();
-            }
 
-            // Upload images
-            if (request.Images != null && request.Images.Any())
-            {
-                foreach (var image in request.Images)
+                // Add product sizes with quantities
+                if (request.ProductSizes != null && request.ProductSizes.Count > 0)
                 {
-                    // Upload to Azure Blob Storage
-                    var imageUrl = await _blobStorageService.UploadAsync(image, _containerName);
-
-                    // Save image URL to database
-                    var asset = new Asset
-                    {
-                        Url = imageUrl,
-                    };
-                    
-                    // First add and save the asset to get its ID
-                    await _context.Assets.AddAsync(asset);
-                    await _context.SaveChangesAsync();
-                    
-                    // Now create the relationship with the valid ID
-                    var productAsset = new ProductAsset
-                    {
-                        ProductId = entity.Id,
-                        AssetId = asset.Id
-                    };
-                    await _context.ProductAssets.AddAsync(productAsset);
-                    await _context.SaveChangesAsync();
-                }
-            }
-
-            
-
-            return MapToResponse(entity);
-        }
-        public override async Task<ProductResponse> UpdateAsync(int id, ProductUpsertRequest request)
-        {
-            var entity = await _context.Products
-                .Include(p => p.ProductAssets)
-                .ThenInclude(pa => pa.Asset)
-                .Include(p => p.ProductSizes)
-                .FirstOrDefaultAsync(x => x.Id == id);
-
-            if (entity == null)
-                throw new UserException($"Product with ID {id} not found");
-
-            MapUpdateToEntity(entity, request);
-            Console.WriteLine($"Product updated: {entity.Name}, {entity.Id}, {entity.Description}, {entity.Price}, {entity.ColorId}, {entity.CategoryId}, {entity.IsActive}, {entity.CreatedAt}, {entity.UpdatedAt}, {entity.ProductAssets.Count}, {entity.ProductSizes.Count}, {entity.ProductAssets.Count}, {entity.ProductSizes.Count}, {entity.ProductAssets.Count}, {entity.ProductSizes.Count}");
-            await BeforeUpdate(entity, request);
-
-            // Update product sizes with quantities
-            if (request.ProductSizes != null && request.ProductSizes.Count > 0)
-            {
-                // Get existing product sizes
-                var existingSizes = entity.ProductSizes.ToDictionary(ps => ps.SizeId, ps => ps);
-                
-                foreach (var sizeRequest in request.ProductSizes)
-                {
-                    // If size already exists for this product, update the quantity
-                    if (existingSizes.TryGetValue(sizeRequest.SizeId, out var existingSize))
-                    {
-                        existingSize.Quantity = sizeRequest.Quantity;
-                    }
-                    // Otherwise, add a new product size
-                    else
+                    foreach (var sizeRequest in request.ProductSizes)
                     {
                         var productSize = new ProductSize
                         {
@@ -224,79 +238,174 @@ namespace MyClub.Services
                         };
                         await _context.ProductSizes.AddAsync(productSize);
                     }
-                }
-                
-                // Remove sizes that are not in the request
-                var requestSizeIds = request.ProductSizes.Select(ps => ps.SizeId).ToHashSet();
-                var sizesToRemove = entity.ProductSizes.Where(ps => !requestSizeIds.Contains(ps.SizeId)).ToList();
-                
-                foreach (var sizeToRemove in sizesToRemove)
-                {
-                    _context.ProductSizes.Remove(sizeToRemove);
-                }
-            }
-            else
-            {
-                // If no sizes are provided, remove all existing sizes
-                _context.ProductSizes.RemoveRange(entity.ProductSizes);
-            }
-
-            // Handle images
-            // Delete images not included in ImagesToKeep
-            var imagesToDelete = entity.ProductAssets.Where(pa => !request.ImagesToKeep.Contains(pa.AssetId)).ToList();
-            foreach (var image in imagesToDelete)
-            {
-                // Delete from Azure Blob Storage
-                await _blobStorageService.DeleteAsync(image.Asset.Url, _containerName);
-
-                // Remove from database
-                _context.ProductAssets.Remove(image);
-            }
-
-            // Upload new images
-            if (request.Images != null && request.Images.Any())
-            {
-                foreach (var image in request.Images)
-                {
-                    // Upload to Azure Blob Storage
-                    var imageUrl = await _blobStorageService.UploadAsync(image, _containerName);
-
-                    // Save image URL to database
-                    var asset = new Asset
-                    {
-                        Url = imageUrl,
-                    };
-                    
-                    // First add and save the asset to get its ID
-                    await _context.Assets.AddAsync(asset);
-                    await _context.SaveChangesAsync();
-                    
-                    // Now create the relationship with the valid ID
-                    var productAsset = new ProductAsset
-                    {
-                        ProductId = entity.Id,
-                        AssetId = asset.Id
-                    };
-                    await _context.ProductAssets.AddAsync(productAsset);
                     await _context.SaveChangesAsync();
                 }
+
+                // Upload images
+                if (request.Images != null && request.Images.Any())
+                {
+                    foreach (var image in request.Images)
+                    {
+                        // Upload to Azure Blob Storage
+                        var imageUrl = await _blobStorageService.UploadAsync(image, _containerName);
+
+                        // Save image URL to database
+                        var asset = new Asset
+                        {
+                            Url = imageUrl,
+                        };
+                        
+                        // First add and save the asset to get its ID
+                        await _context.Assets.AddAsync(asset);
+                        await _context.SaveChangesAsync();
+                        
+                        // Now create the relationship with the valid ID
+                        var productAsset = new ProductAsset
+                        {
+                            ProductId = entity.Id,
+                            AssetId = asset.Id
+                        };
+                        await _context.ProductAssets.AddAsync(productAsset);
+                        await _context.SaveChangesAsync();
+                    }
+                }
+
+                await transaction.CommitAsync();
+                return MapToResponse(entity);
             }
-
-            await _context.SaveChangesAsync();
-
-            return MapToResponse(entity);
+            catch (Exception)
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
+
+        public override async Task<ProductResponse> UpdateAsync(int id, ProductUpsertRequest request)
+        {
+            // Use transaction to ensure atomicity
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                var entity = await _context.Products
+                    .Include(p => p.ProductAssets)
+                    .ThenInclude(pa => pa.Asset)
+                    .Include(p => p.ProductSizes)
+                    .FirstOrDefaultAsync(x => x.Id == id);
+
+                if (entity == null)
+                    throw new UserException($"Product with ID {id} not found");
+
+                await BeforeUpdate(entity, request);
+                var updatedEntity = MapUpdateToEntity(entity, request);
+
+                // Update product sizes with quantities
+                if (request.ProductSizes != null && request.ProductSizes.Count > 0)
+                {
+                    // Get existing product sizes
+                    var existingSizes = entity.ProductSizes.ToDictionary(ps => ps.SizeId, ps => ps);
+                    
+                    foreach (var sizeRequest in request.ProductSizes)
+                    {
+                        // If size already exists for this product, update the quantity
+                        if (existingSizes.TryGetValue(sizeRequest.SizeId, out var existingSize))
+                        {
+                            existingSize.Quantity = sizeRequest.Quantity;
+                        }
+                        // Otherwise, add a new product size
+                        else
+                        {
+                            var productSize = new ProductSize
+                            {
+                                ProductId = entity.Id,
+                                SizeId = sizeRequest.SizeId,
+                                Quantity = sizeRequest.Quantity
+                            };
+                            await _context.ProductSizes.AddAsync(productSize);
+                        }
+                    }
+                    
+                    // Remove sizes that are not in the request
+                    var requestSizeIds = request.ProductSizes.Select(ps => ps.SizeId).ToHashSet();
+                    var sizesToRemove = entity.ProductSizes.Where(ps => !requestSizeIds.Contains(ps.SizeId)).ToList();
+                    
+                    foreach (var sizeToRemove in sizesToRemove)
+                    {
+                        _context.ProductSizes.Remove(sizeToRemove);
+                    }
+                }
+                else
+                {
+                    // If no sizes are provided, remove all existing sizes
+                    _context.ProductSizes.RemoveRange(entity.ProductSizes);
+                }
+
+                // Handle images to delete
+                var imagesToDelete = entity.ProductAssets.Where(pa => 
+                    request.ImagesToKeep == null || !request.ImagesToKeep.Contains(pa.AssetId)).ToList();
+                
+                foreach (var image in imagesToDelete)
+                {
+                    // Delete from Azure Blob Storage
+                    await _blobStorageService.DeleteAsync(image.Asset.Url, _containerName);
+
+                    // Remove from database
+                    _context.ProductAssets.Remove(image);
+                    _context.Assets.Remove(image.Asset);
+                }
+
+                // Save changes after deleting to avoid conflicts
+                await _context.SaveChangesAsync();
+
+                // Upload new images
+                if (request.Images != null && request.Images.Any())
+                {
+                    foreach (var image in request.Images)
+                    {
+                        // Upload to Azure Blob Storage
+                        var imageUrl = await _blobStorageService.UploadAsync(image, _containerName);
+
+                        // Save image URL to database
+                        var asset = new Asset
+                        {
+                            Url = imageUrl,
+                        };
+                        
+                        // First add and save the asset to get its ID
+                        await _context.Assets.AddAsync(asset);
+                        await _context.SaveChangesAsync();
+                        
+                        // Now create the relationship with the valid ID
+                        var productAsset = new ProductAsset
+                        {
+                            ProductId = entity.Id,
+                            AssetId = asset.Id
+                        };
+                        await _context.ProductAssets.AddAsync(productAsset);
+                        await _context.SaveChangesAsync();
+                    }
+                }
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+                return MapToResponse(entity);
+            }
+            catch (Exception)
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+        }
+
         private async Task<bool> ValidateAsync(ProductUpsertRequest request, int? id = null)
         {
             // Validate category exists
-            var categoryExists = await _context.Categories.FindAsync(request.CategoryId) as Category;
-            Console.WriteLine($"Category with ID {request.CategoryId} exists: {categoryExists != null}");
+            var categoryExists = await _context.Categories.FindAsync(request.CategoryId);
             if (categoryExists == null)
             {
-                Console.WriteLine($"Category with ID {request.CategoryId} does not exist");
                 throw new UserException($"Category with ID {request.CategoryId} does not exist");
             }
 
+            // Validate color exists
             var colorExists = await _context.Colors.FindAsync(request.ColorId);
             if (colorExists == null)
                 throw new UserException($"Color with ID {request.ColorId} does not exist");
@@ -330,12 +439,24 @@ namespace MyClub.Services
             if (nameExists)
                 throw new UserException($"Product with name '{request.Name}' already exists");
 
+            // Validate barcode is unique if provided
+            if (!string.IsNullOrWhiteSpace(request.BarCode))
+            {
+                var barcodeExists = await _context.Products
+                    .AnyAsync(p => p.BarCode == request.BarCode && (id == null || p.Id != id));
+                    
+                if (barcodeExists)
+                    throw new UserException($"Product with barcode '{request.BarCode}' already exists");
+            }
+
             return true;
         }
+
         protected override ProductResponse MapToResponse(Database.Product entity)
         {
             return MapToProductResponse(entity);
         }
+
         private ProductResponse MapToProductResponse(Database.Product entity)
         {
             var response = _mapper.Map<ProductResponse>(entity);
@@ -344,6 +465,7 @@ namespace MyClub.Services
             response.PrimaryImageUrl = entity.ProductAssets?.FirstOrDefault()?.Asset?.Url;
             return response;
         }
+
         private ProductByIdResponse MapToProductByIdResponse(Database.Product entity)
         {
             var response = _mapper.Map<ProductByIdResponse>(entity);
@@ -359,10 +481,12 @@ namespace MyClub.Services
             
             return response;
         }
+
         protected override Database.Product MapInsertToEntity(Database.Product entity, ProductUpsertRequest request)
         {
             entity.Name = request.Name;
             entity.Description = request.Description;
+            entity.BarCode = request.BarCode;
             entity.Price = request.Price;
             entity.ColorId = request.ColorId;
             entity.CategoryId = request.CategoryId;
@@ -373,10 +497,12 @@ namespace MyClub.Services
             entity.ProductSizes = new List<ProductSize>();
             return entity;
         }
+
         protected override Database.Product MapUpdateToEntity(Database.Product entity, ProductUpsertRequest request)
         {
             entity.Name = request.Name;
             entity.Description = request.Description;
+            entity.BarCode = request.BarCode;
             entity.Price = request.Price;
             entity.ColorId = request.ColorId;
             entity.CategoryId = request.CategoryId;

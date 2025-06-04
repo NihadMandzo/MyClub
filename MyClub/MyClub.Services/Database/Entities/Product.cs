@@ -17,6 +17,9 @@ namespace MyClub.Services.Database
         [MaxLength(500)]
         public string Description { get; set; } = string.Empty;
         
+        [MaxLength(50)]
+        public string BarCode { get; set; } = string.Empty;
+        
         [Required]
         [Column(TypeName = "decimal(18,2)")]
         public decimal Price { get; set; }

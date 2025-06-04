@@ -15,6 +15,9 @@ namespace MyClub.Model.Requests
         [MaxLength(500, ErrorMessage = "Description cannot exceed 500 characters")]
         public string Description { get; set; }
         
+        [MaxLength(50, ErrorMessage = "Barcode cannot exceed 50 characters")]
+        public string BarCode { get; set; } = string.Empty;
+        
         [Required(ErrorMessage = "Price is required")]
         [Range(0.01, 10000, ErrorMessage = "Price must be greater than 0 and less than 10,000")]
         public decimal Price { get; set; } = 0;
