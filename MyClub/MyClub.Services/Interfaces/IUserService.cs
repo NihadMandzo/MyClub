@@ -7,14 +7,10 @@ using MyClub.Model.SearchObjects;
 
 namespace MyClub.Services
 {
-    public interface IUserService
+    public interface IUserService : ICRUDService<UserResponse, UserSearchObject, UserUpsertRequest, UserUpsertRequest>
     {
-        Task<List<UserResponse>> Get(UserSearchObject search);
-        Task<List<UserResponse>> GetAllAsync();
-        Task<UserResponse?> GetByIdAsync(int id);
-        Task<UserResponse> CreateAsync(UserUpsertRequest request);
-        Task<UserResponse?> UpdateAsync(int id, UserUpsertRequest request);
-        Task<bool> DeleteAsync(int id);
+        Task<bool> ChangePasswordAsync(ChangePasswordRequest request);
         Task<AuthResponse> AuthenticateAsync(LoginRequest request);
+        Task<UserResponse> GetMeAsync();
     }
 } 

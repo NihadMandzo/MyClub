@@ -31,5 +31,8 @@ namespace MyClub.Model.Requests
         // Password is only required for new users
         [StringLength(100, MinimumLength = 6)]
         public string? Password { get; set; }
+        
+        // Role ID (null means keep existing role or use default)
+        public int? RoleId { get; set; }
     }
 } 

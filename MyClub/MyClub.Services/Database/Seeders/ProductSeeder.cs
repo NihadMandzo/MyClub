@@ -15,6 +15,7 @@ namespace MyClub.Services.Database.Seeders
                     Price = 89.99m,
                     CategoryId = 1,
                     ColorId = 2,
+                    BarCode = "1234567890123",
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
                 },
@@ -26,6 +27,7 @@ namespace MyClub.Services.Database.Seeders
                     Price = 89.99m,
                     CategoryId = 1,
                     ColorId = 1,
+                    BarCode = "1234567890124",
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
                 },
@@ -37,6 +39,7 @@ namespace MyClub.Services.Database.Seeders
                     Price = 29.99m,
                     CategoryId = 2,
                     ColorId = 3,
+                    BarCode = "1234567890125",
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
                 },
@@ -48,6 +51,7 @@ namespace MyClub.Services.Database.Seeders
                     Price = 59.99m,
                     CategoryId = 3,
                     ColorId = 4,
+                    BarCode = "1234567890126",
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
                 },
@@ -59,6 +63,7 @@ namespace MyClub.Services.Database.Seeders
                     Price = 34.99m,
                     CategoryId = 4,
                     ColorId = 3,
+                    BarCode = "1234567890127",
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
                 },
@@ -70,6 +75,7 @@ namespace MyClub.Services.Database.Seeders
                     Price = 24.99m,
                     CategoryId = 5,
                     ColorId = 2,
+                    BarCode = "1234567890128",
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
                 },
@@ -81,6 +87,7 @@ namespace MyClub.Services.Database.Seeders
                     Price = 19.99m,
                     CategoryId = 6,
                     ColorId = 4,
+                    BarCode = "1234567890129",
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
                 },
@@ -92,6 +99,7 @@ namespace MyClub.Services.Database.Seeders
                     Price = 9.99m,
                     CategoryId = 7,
                     ColorId = 6,
+                    BarCode = "1234567890130",
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
                 },
@@ -103,6 +111,7 @@ namespace MyClub.Services.Database.Seeders
                     Price = 29.99m,
                     CategoryId = 8,
                     ColorId = 5,
+                    BarCode = "1234567890131",
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
                 },
@@ -114,6 +123,7 @@ namespace MyClub.Services.Database.Seeders
                     Price = 39.99m,
                     CategoryId = 9,
                     ColorId = 2,
+                    BarCode = "1234567890132",
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
                 },
@@ -136,6 +146,7 @@ namespace MyClub.Services.Database.Seeders
                     Price = 89.99m,
                     CategoryId = 1,
                     ColorId = 7,
+                    BarCode = "1234567890133",
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
                 },
@@ -147,6 +158,7 @@ namespace MyClub.Services.Database.Seeders
                     Price = 39.99m,
                     CategoryId = 2,
                     ColorId = 6,
+                    BarCode = "1234567890134",
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
                 },
@@ -158,6 +170,7 @@ namespace MyClub.Services.Database.Seeders
                     Price = 69.99m,
                     CategoryId = 8,
                     ColorId = 2,
+                    BarCode = "1234567890135",
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
                 },
@@ -169,6 +182,7 @@ namespace MyClub.Services.Database.Seeders
                     Price = 129.99m,
                     CategoryId = 3,
                     ColorId = 3,
+                    BarCode = "1234567890136",
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
                 }

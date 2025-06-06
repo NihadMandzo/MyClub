@@ -58,14 +58,14 @@ namespace MyClub.Services
             // Create the paged result with enhanced pagination metadata
             return new PagedResult<ProductResponse>
             {
-                Data = list.Select(x => MapToProductResponse(x)).ToList(),
+                Data = list.Select(x => MapToResponse(x)).ToList(),
                 TotalCount = totalCount,
                 CurrentPage = currentPage,
                 PageSize = pageSize
             };
         }
 
-        // Implement the base class method
+        // // Implement the base class method
         public override async Task<ProductResponse?> GetByIdAsync(int id)
         {
             var entity = await _context.Products
@@ -74,51 +74,16 @@ namespace MyClub.Services
                 .Include(p => p.Color)
                 .Include(p => p.ProductAssets)
                 .ThenInclude(pa => pa.Asset)
+                .Include(p => p.ProductSizes)
+                .ThenInclude(ps => ps.Size)
                 .FirstOrDefaultAsync(x => x.Id == id);
 
             if (entity == null)
                 return null;
 
-            return MapToProductResponse(entity);
+            return MapToDetailedResponse(entity);
         }
         
-        // Implement the interface method explicitly
-        async Task<ProductByIdResponse> IProductService.GetByIdAsync(int id)
-        {
-            var entity = await _context.Products
-                .AsNoTracking()
-                .Include(p => p.Category)
-                .Include(p => p.Color)
-                .Include(p => p.ProductAssets)
-                .ThenInclude(pa => pa.Asset)
-                .Include(p => p.ProductSizes)
-                .ThenInclude(ps => ps.Size)
-                .FirstOrDefaultAsync(x => x.Id == id);
-
-            if (entity == null)
-                return null;
-
-            return MapToProductByIdResponse(entity);
-        }
-
-        public async Task<ProductByIdResponse?> GetProductDetailsByIdAsync(int id)
-        {
-            var entity = await _context.Products
-                .AsNoTracking()
-                .Include(p => p.Category)
-                .Include(p => p.Color)
-                .Include(p => p.ProductAssets)
-                .ThenInclude(pa => pa.Asset)
-                .Include(p => p.ProductSizes)
-                .ThenInclude(ps => ps.Size)
-                .FirstOrDefaultAsync(x => x.Id == id);
-
-            if (entity == null)
-                return null;
-
-            return MapToProductByIdResponse(entity);
-        }
-
         protected override IQueryable<Database.Product> ApplyFilter(IQueryable<Database.Product> query, ProductSearchObject search)
         {
             // Implement full-text search
@@ -452,12 +417,8 @@ namespace MyClub.Services
             return true;
         }
 
-        protected override ProductResponse MapToResponse(Database.Product entity)
-        {
-            return MapToProductResponse(entity);
-        }
 
-        private ProductResponse MapToProductResponse(Database.Product entity)
+        private ProductResponse MapToResponse(Database.Product entity)
         {
             var response = _mapper.Map<ProductResponse>(entity);
             response.CategoryName = entity.Category?.Name;
@@ -466,7 +427,7 @@ namespace MyClub.Services
             return response;
         }
 
-        private ProductByIdResponse MapToProductByIdResponse(Database.Product entity)
+        private ProductByIdResponse MapToDetailedResponse(Database.Product entity)
         {
             var response = _mapper.Map<ProductByIdResponse>(entity);
             response.CategoryName = entity.Category?.Name;
@@ -478,7 +439,6 @@ namespace MyClub.Services
                 SizeName = ps.Size?.Name,
                 Quantity = ps.Quantity
             }).ToList() ?? new List<ProductSizeResponse>();
-            
             return response;
         }
 
