@@ -25,6 +25,7 @@ builder.Services.AddTransient<ICommentService, CommentService>();
 builder.Services.AddTransient<IStadiumSectorService, StadiumSectorService>();
 builder.Services.AddTransient<IClubService, ClubService>();
 builder.Services.AddTransient<PlayerService, PlayerService>();
+builder.Services.AddTransient<ICartService, CartService>();
 
 
 // Add HttpContextAccessor
