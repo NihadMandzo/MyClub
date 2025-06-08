@@ -5,87 +5,35 @@ using MyClub.Model.SearchObjects;
 using MyClub.Services.Database;
 using MapsterMapper;
 using System;
+using System.Net;
 
 namespace MyClub.Services
 {
-    public class CartService : BaseCRUDService<CartResponse, CartSearchObject, CartUpsertRequest, CartUpsertRequest, Database.Cart>, ICartService
+    public class CartService : ICartService
     {
         private readonly MyClubContext _context;
+        private readonly IMapper _mapper;
 
-        public CartService(MyClubContext context, IMapper mapper) 
-            : base(context, mapper)
+        public CartService(MyClubContext context, IMapper mapper)
         {
             _context = context;
+            _mapper = mapper;
         }
 
-        public override async Task<PagedResult<CartResponse>> GetAsync(CartSearchObject search)
-        {
-            var query = _context.Carts
-                .AsNoTracking()
-                .Include(c => c.User)
-                .AsQueryable();
-
-            // Apply filters
-            query = ApplyFilter(query, search);
-
-            // Include items if requested
-            if (search.IncludeItems == true)
-            {
-                query = query.Include(c => c.Items)
-                    .ThenInclude(i => i.ProductSize)
-                    .ThenInclude(ps => ps.Product);
-            }
-
-            int totalCount = 0;
-            
-            // Get total count if requested
-            if (search.IncludeTotalCount)
-            {
-                totalCount = await query.CountAsync();
-            }
-
-            // Apply pagination
-            int pageSize = search.PageSize ?? 10;
-            int currentPage = search.Page ?? 0;
-            
-            if (!search.RetrieveAll)
-            {
-                query = query.Skip(currentPage * pageSize).Take(pageSize);
-            }
-
-            var list = await query.ToListAsync();
-            
-            // Create the paged result
-            return new PagedResult<CartResponse>
-            {
-                Data = list.Select(x => MapToResponse(x)).ToList(),
-                TotalCount = totalCount,
-                CurrentPage = currentPage,
-                PageSize = pageSize
-            };
-        }
-
-        public override async Task<CartResponse?> GetByIdAsync(int id)
-        {
-            var entity = await _context.Carts
-                .AsNoTracking()
-                .Include(c => c.User)
-                .Include(c => c.Items)
-                .ThenInclude(i => i.ProductSize)
-                .ThenInclude(ps => ps.Product)
-                .Include(c => c.Items)
-                .ThenInclude(i => i.ProductSize)
-                .ThenInclude(ps => ps.Size)
-                .FirstOrDefaultAsync(c => c.Id == id);
-
-            if (entity == null)
-                return null;
-
-            return MapToResponse(entity);
-        }
-
+        /// <summary>
+        /// Retrieves a user's cart by their user ID
+        /// </summary>
+        /// <param name="userId">The ID of the user whose cart to retrieve</param>
+        /// <returns>The user's cart if it exists, null otherwise</returns>
+        /// <remarks>
+        /// This method loads the cart with all its items and related product information.
+        /// It does not create a cart if one doesn't exist - this follows the lazy cart creation
+        /// pattern where carts are only created when a user adds their first product.
+        /// </remarks>
         public async Task<CartResponse> GetCartByUserIdAsync(int userId)
         {
+            await ValidateUserExistsAsync(userId);
+            
             var cart = await _context.Carts
                 .AsNoTracking()
                 .Include(c => c.User)
@@ -99,45 +47,40 @@ namespace MyClub.Services
 
             if (cart == null)
             {
-                // Create a new cart for the user
-                var newCart = new Database.Cart
-                {
-                    UserId = userId,
-                    CreatedAt = DateTime.UtcNow
-                };
-                
-                _context.Carts.Add(newCart);
-                await _context.SaveChangesAsync();
-                
-                // Reload with user information
-                cart = await _context.Carts
-                    .Include(c => c.User)
-                    .FirstOrDefaultAsync(c => c.Id == newCart.Id);
+                // Instead of creating a cart right away, we'll return null 
+                // The cart will be created when the user adds the first item
+                return null;
             }
 
             return MapToResponse(cart);
         }
 
-        public async Task<CartResponse> AddItemAsync(int cartId, CartItemUpsertRequest request)
+        /// <summary>
+        /// Adds a product to the user's cart
+        /// </summary>
+        /// <param name="userId">The ID of the user whose cart to update</param>
+        /// <param name="request">Information about the product to add</param>
+        /// <returns>The updated cart</returns>
+        /// <remarks>
+        /// This method:
+        /// 1. Gets or creates a cart for the user if one doesn't exist
+        /// 2. Verifies the product exists and has enough stock
+        /// 3. Checks if the item already exists in the cart:
+        ///    - If it does, increases the quantity
+        ///    - If not, adds a new item
+        /// 4. Updates the cart's timestamp
+        /// 5. Returns the updated cart with all related data
+        /// </remarks>
+        public async Task<CartResponse> AddToCartAsync(int userId, CartItemUpsertRequest request)
         {
-            var cart = await _context.Carts
-                .Include(c => c.Items)
-                .FirstOrDefaultAsync(c => c.Id == cartId);
+            await ValidateUserExistsAsync(userId);
+            ValidateCartItemRequest(request);
 
-            if (cart == null)
-                throw new Exception($"Cart with ID {cartId} not found");
+            // Get or create cart for user
+            var cart = await GetOrCreateCartAsync(userId);
 
-            // Check if the product size exists
-            var productSize = await _context.ProductSizes
-                .Include(ps => ps.Product)
-                .FirstOrDefaultAsync(ps => ps.Id == request.ProductSizeId);
-
-            if (productSize == null)
-                throw new Exception($"ProductSize with ID {request.ProductSizeId} not found");
-
-            // Check if there's enough stock
-            if (productSize.Quantity < request.Quantity)
-                throw new Exception($"Not enough stock. Available: {productSize.Quantity}");
+            // Validate product size and stock
+            var productSize = await ValidateAndGetProductSizeAsync(request.ProductSizeId, request.Quantity);
 
             // Check if the item already exists in the cart
             var existingItem = cart.Items.FirstOrDefault(i => i.ProductSizeId == request.ProductSizeId);
@@ -148,15 +91,14 @@ namespace MyClub.Services
                 existingItem.Quantity += request.Quantity;
                 
                 // Check if the new quantity exceeds the stock
-                if (existingItem.Quantity > productSize.Quantity)
-                    throw new Exception($"Not enough stock. Available: {productSize.Quantity}");
+                await ValidateStockAvailabilityAsync(productSize.Id, existingItem.Quantity);
             }
             else
             {
                 // Add a new item to the cart
                 var newItem = new CartItem
                 {
-                    CartId = cartId,
+                    CartId = cart.Id,
                     ProductSizeId = request.ProductSizeId,
                     Quantity = request.Quantity,
                     AddedAt = DateTime.UtcNow
@@ -170,35 +112,40 @@ namespace MyClub.Services
             
             await _context.SaveChangesAsync();
             
-            // Reload the cart with all related data
-            return await GetByIdAsync(cartId);
+            // Reload the cart with all related data for response
+            return await GetFullCartAsync(cart.Id);
         }
 
-        public async Task<CartResponse> UpdateItemAsync(int cartId, int itemId, CartItemUpsertRequest request)
+        /// <summary>
+        /// Updates a specific item in the user's cart
+        /// </summary>
+        /// <param name="userId">The ID of the user whose cart to update</param>
+        /// <param name="itemId">The ID of the cart item to update</param>
+        /// <param name="request">The new product size and quantity information</param>
+        /// <returns>The updated cart</returns>
+        /// <remarks>
+        /// This method:
+        /// 1. Retrieves the user's cart
+        /// 2. Finds the specific item to update
+        /// 3. Verifies the new product size exists and has enough stock
+        /// 4. Updates the item's product size and quantity
+        /// 5. Updates the cart's timestamp
+        /// 6. Returns the updated cart with all related data
+        /// </remarks>
+        public async Task<CartResponse> UpdateCartItemAsync(int userId, int itemId, CartItemUpsertRequest request)
         {
-            var cart = await _context.Carts
-                .Include(c => c.Items)
-                .FirstOrDefaultAsync(c => c.Id == cartId);
+            await ValidateUserExistsAsync(userId);
+            await ValidateCartItemExistsInDatabaseAsync(itemId);
+            ValidateCartItemRequest(request);
 
-            if (cart == null)
-                throw new Exception($"Cart with ID {cartId} not found");
+            // Get user's cart
+            var cart = await GetUserCartAsync(userId);
 
-            var cartItem = cart.Items.FirstOrDefault(i => i.Id == itemId);
+            // Find and validate cart item
+            var cartItem = await ValidateAndGetCartItemAsync(cart, itemId);
 
-            if (cartItem == null)
-                throw new Exception($"Cart item with ID {itemId} not found in cart {cartId}");
-
-            // Check if the product size exists
-            var productSize = await _context.ProductSizes
-                .Include(ps => ps.Product)
-                .FirstOrDefaultAsync(ps => ps.Id == request.ProductSizeId);
-
-            if (productSize == null)
-                throw new Exception($"ProductSize with ID {request.ProductSizeId} not found");
-
-            // Check if there's enough stock
-            if (productSize.Quantity < request.Quantity)
-                throw new Exception($"Not enough stock. Available: {productSize.Quantity}");
+            // Validate product size and stock
+            var productSize = await ValidateAndGetProductSizeAsync(request.ProductSizeId, request.Quantity);
 
             // Update the cart item
             cartItem.ProductSizeId = request.ProductSizeId;
@@ -210,22 +157,36 @@ namespace MyClub.Services
             await _context.SaveChangesAsync();
             
             // Reload the cart with all related data
-            return await GetByIdAsync(cartId);
+            return await GetFullCartAsync(cart.Id);
         }
 
-        public async Task<CartResponse> RemoveItemAsync(int cartId, int itemId)
+        /// <summary>
+        /// Removes a specific item from the user's cart
+        /// </summary>
+        /// <param name="userId">The ID of the user whose cart to update</param>
+        /// <param name="itemId">The ID of the cart item to remove</param>
+        /// <returns>The updated cart</returns>
+        /// <remarks>
+        /// This method:
+        /// 1. Retrieves the user's cart
+        /// 2. Finds the specific item to remove
+        /// 3. Removes the item from the cart and database
+        /// 4. Updates the cart's timestamp
+        /// 5. Returns the updated cart with all related data
+        /// </remarks>
+        public async Task<CartResponse> RemoveFromCartAsync(int userId, int itemId)
         {
-            var cart = await _context.Carts
-                .Include(c => c.Items)
-                .FirstOrDefaultAsync(c => c.Id == cartId);
+            await ValidateUserExistsAsync(userId);
+            await ValidateCartItemExistsInDatabaseAsync(itemId);
 
-            if (cart == null)
-                throw new Exception($"Cart with ID {cartId} not found");
+            // Get user's cart
+            var cart = await GetUserCartAsync(userId);
 
-            var cartItem = cart.Items.FirstOrDefault(i => i.Id == itemId);
+            // Find and validate cart item
+            var cartItem = await ValidateAndGetCartItemAsync(cart, itemId);
 
-            if (cartItem == null)
-                throw new Exception($"Cart item with ID {itemId} not found in cart {cartId}");
+            // Validate item ownership
+            await ValidateCartItemOwnershipAsync(cartItem, userId);
 
             // Remove the item from the cart
             cart.Items.Remove(cartItem);
@@ -237,17 +198,27 @@ namespace MyClub.Services
             await _context.SaveChangesAsync();
             
             // Reload the cart with all related data
-            return await GetByIdAsync(cartId);
+            return await GetFullCartAsync(cart.Id);
         }
 
-        public async Task<CartResponse> ClearCartAsync(int cartId)
+        /// <summary>
+        /// Removes all items from the user's cart
+        /// </summary>
+        /// <param name="userId">The ID of the user whose cart to clear</param>
+        /// <returns>The empty cart</returns>
+        /// <remarks>
+        /// This method:
+        /// 1. Retrieves the user's cart
+        /// 2. Removes all items from the cart and database
+        /// 3. Updates the cart's timestamp
+        /// 4. Returns the empty cart
+        /// </remarks>
+        public async Task<CartResponse> ClearCartAsync(int userId)
         {
-            var cart = await _context.Carts
-                .Include(c => c.Items)
-                .FirstOrDefaultAsync(c => c.Id == cartId);
+            await ValidateUserExistsAsync(userId);
 
-            if (cart == null)
-                throw new Exception($"Cart with ID {cartId} not found");
+            // Get user's cart
+            var cart = await GetUserCartAsync(userId);
 
             // Remove all items from the cart
             _context.CartItems.RemoveRange(cart.Items);
@@ -259,78 +230,278 @@ namespace MyClub.Services
             await _context.SaveChangesAsync();
             
             // Return the empty cart
+            return await GetFullCartAsync(cart.Id);
+        }
+
+        #region Validation Methods
+
+        /// <summary>
+        /// Validates that the user exists in the database
+        /// </summary>
+        /// <param name="userId">The user ID to validate</param>
+        /// <exception cref="UserException">Thrown if the user doesn't exist</exception>
+        private async Task ValidateUserExistsAsync(int userId)
+        {
+            if (userId <= 0)
+            {
+                throw new UserException("User ID must be greater than zero", (int)HttpStatusCode.BadRequest);
+            }
+
+            var userExists = await _context.Users.AnyAsync(u => u.Id == userId);
+            if (!userExists)
+            {
+                throw new UserException($"User with ID {userId} not found", (int)HttpStatusCode.NotFound);
+            }
+        }
+
+        /// <summary>
+        /// Validates that the cart item exists in the database
+        /// </summary>
+        /// <param name="itemId">The item ID to validate</param>
+        /// <exception cref="UserException">Thrown if the item doesn't exist</exception>
+        private async Task ValidateCartItemExistsInDatabaseAsync(int itemId)
+        {
+            if (itemId <= 0)
+            {
+                throw new UserException("Item ID must be greater than zero", (int)HttpStatusCode.BadRequest);
+            }
+
+            var itemExists = await _context.CartItems.AnyAsync(i => i.Id == itemId);
+            if (!itemExists)
+            {
+                throw new UserException($"Cart item with ID {itemId} not found", (int)HttpStatusCode.NotFound);
+            }
+        }
+
+        /// <summary>
+        /// Validates that the cart item belongs to the specified user
+        /// </summary>
+        /// <param name="cartItem">The cart item to validate</param>
+        /// <param name="userId">The user ID to check ownership against</param>
+        /// <exception cref="UserException">Thrown if the item doesn't belong to the user</exception>
+        private async Task ValidateCartItemOwnershipAsync(CartItem cartItem, int userId)
+        {
+            var cart = await _context.Carts.FirstOrDefaultAsync(c => c.Id == cartItem.CartId);
+            if (cart.UserId != userId)
+            {
+                throw new UserException("You don't have permission to modify this cart item", (int)HttpStatusCode.Forbidden);
+            }
+        }
+
+        /// <summary>
+        /// Validates a cart item request
+        /// </summary>
+        /// <param name="request">The request to validate</param>
+        /// <exception cref="UserException">Thrown if the request is invalid</exception>
+        private void ValidateCartItemRequest(CartItemUpsertRequest request)
+        {
+            if (request == null)
+            {
+                throw new UserException("Cart item request cannot be null", (int)HttpStatusCode.BadRequest);
+            }
+
+            if (request.ProductSizeId <= 0)
+            {
+                throw new UserException("Product size ID must be greater than zero", (int)HttpStatusCode.BadRequest);
+            }
+
+            if (request.Quantity <= 0)
+            {
+                throw new UserException("Quantity must be greater than zero", (int)HttpStatusCode.BadRequest);
+            }
+
+            if (request.Quantity > 100)
+            {
+                throw new UserException("Maximum quantity per item is 100", (int)HttpStatusCode.BadRequest);
+            }
+        }
+
+        /// <summary>
+        /// Gets a user's cart or throws an exception if it doesn't exist
+        /// </summary>
+        /// <param name="userId">The ID of the user whose cart to get</param>
+        /// <returns>The user's cart</returns>
+        /// <exception cref="UserException">Thrown if the cart doesn't exist</exception>
+        private async Task<Database.Cart> GetUserCartAsync(int userId)
+        {
+            var cart = await _context.Carts
+                .Include(c => c.Items)
+                .FirstOrDefaultAsync(c => c.UserId == userId);
+
+            if (cart == null)
+            {
+                throw new UserException($"Cart not found for user ID {userId}", (int)HttpStatusCode.NotFound);
+            }
+
+            return cart;
+        }
+
+        /// <summary>
+        /// Gets or creates a cart for a user
+        /// </summary>
+        /// <param name="userId">The ID of the user whose cart to get or create</param>
+        /// <returns>The user's cart</returns>
+        private async Task<Database.Cart> GetOrCreateCartAsync(int userId)
+        {
+            var cart = await _context.Carts
+                .Include(c => c.Items)
+                .Include(c => c.User)
+                .FirstOrDefaultAsync(c => c.UserId == userId);
+
+            if (cart == null)
+            {
+                // Create a new cart for the user
+                cart = new Database.Cart
+                {
+                    UserId = userId,
+                    CreatedAt = DateTime.UtcNow,
+                    Items = new List<CartItem>()
+                };
+                
+                _context.Carts.Add(cart);
+                
+                // User existence has already been validated
+            }
+
+            return cart;
+        }
+
+        /// <summary>
+        /// Validates and gets a cart item
+        /// </summary>
+        /// <param name="cart">The cart containing the item</param>
+        /// <param name="itemId">The ID of the item to get</param>
+        /// <returns>The cart item</returns>
+        /// <exception cref="UserException">Thrown if the item doesn't exist</exception>
+        private async Task<CartItem> ValidateAndGetCartItemAsync(Database.Cart cart, int itemId)
+        {
+            var cartItem = cart.Items.FirstOrDefault(i => i.Id == itemId);
+
+            if (cartItem == null)
+            {
+                throw new UserException($"Cart item with ID {itemId} not found in your cart", (int)HttpStatusCode.NotFound);
+            }
+
+            return await Task.FromResult(cartItem);
+        }
+
+        /// <summary>
+        /// Validates and gets a product size
+        /// </summary>
+        /// <param name="productSizeId">The ID of the product size to get</param>
+        /// <param name="requestedQuantity">The requested quantity</param>
+        /// <returns>The product size</returns>
+        /// <exception cref="UserException">Thrown if the product size doesn't exist or there's not enough stock</exception>
+        private async Task<ProductSize> ValidateAndGetProductSizeAsync(int productSizeId, int requestedQuantity)
+        {
+            var productSize = await _context.ProductSizes
+                .Include(ps => ps.Product)
+                .Include(ps => ps.Size)
+                .FirstOrDefaultAsync(ps => ps.Id == productSizeId);
+
+            if (productSize == null)
+            {
+                throw new UserException($"ProductSize with ID {productSizeId} not found", (int)HttpStatusCode.NotFound);
+            }
+
+            if (productSize.Quantity < requestedQuantity)
+            {
+                throw new UserException($"Not enough stock for product '{productSize.Product?.Name}' in size '{productSize.Size?.Name}'. Available: {productSize.Quantity}", (int)HttpStatusCode.BadRequest);
+            }
+
+            return productSize;
+        }
+
+        /// <summary>
+        /// Validates that there's enough stock for a product size
+        /// </summary>
+        /// <param name="productSize">The product size to check</param>
+        /// <param name="requestedQuantity">The requested quantity</param>
+        /// <exception cref="UserException">Thrown if there's not enough stock</exception>
+        private async Task ValidateStockAvailabilityAsync(ProductSize productSize, int requestedQuantity)
+        {
+            // Get the latest stock information
+            var latestStock = await _context.ProductSizes
+                .Include(ps => ps.Product)
+                .Include(ps => ps.Size)
+                .FirstOrDefaultAsync(ps => ps.Id == productSize.Id);
+
+            if (latestStock == null)
+            {
+                throw new UserException($"ProductSize with ID {productSize.Id} no longer exists", (int)HttpStatusCode.NotFound);
+            }
+
+            if (latestStock.Quantity < requestedQuantity)
+            {
+                throw new UserException($"Not enough stock for product '{latestStock.Product?.Name}' in size '{latestStock.Size?.Name}'. Available: {latestStock.Quantity}", (int)HttpStatusCode.BadRequest);
+            }
+
+            await Task.CompletedTask;
+        }
+
+        /// <summary>
+        /// Validates that there's enough stock for a product size
+        /// </summary>
+        /// <param name="productSizeId">The ID of the product size to check</param>
+        /// <param name="requestedQuantity">The requested quantity</param>
+        /// <exception cref="UserException">Thrown if there's not enough stock</exception>
+        private async Task ValidateStockAvailabilityAsync(int productSizeId, int requestedQuantity)
+        {
+            var productSize = await _context.ProductSizes
+                .Include(ps => ps.Product)
+                .Include(ps => ps.Size)
+                .FirstOrDefaultAsync(ps => ps.Id == productSizeId);
+
+            if (productSize == null)
+            {
+                throw new UserException($"ProductSize with ID {productSizeId} not found", (int)HttpStatusCode.NotFound);
+            }
+
+            await ValidateStockAvailabilityAsync(productSize, requestedQuantity);
+        }
+
+        #endregion
+
+        /// <summary>
+        /// Private helper method to get a cart with all its related data by cart ID
+        /// </summary>
+        /// <param name="cartId">The ID of the cart to retrieve</param>
+        /// <returns>The cart with all related data, or null if not found</returns>
+        /// <remarks>
+        /// This method loads the cart with user info, items, product sizes, products, and sizes.
+        /// It's used internally to reload a cart after modifications to ensure all relations are loaded.
+        /// </remarks>
+        private async Task<CartResponse> GetFullCartAsync(int cartId)
+        {
+            var cart = await _context.Carts
+                .AsNoTracking()
+                .Include(c => c.User)
+                .Include(c => c.Items)
+                .ThenInclude(i => i.ProductSize)
+                .ThenInclude(ps => ps.Product)
+                .Include(c => c.Items)
+                .ThenInclude(i => i.ProductSize)
+                .ThenInclude(ps => ps.Size)
+                .FirstOrDefaultAsync(c => c.Id == cartId);
+
+            if (cart == null)
+                return null;
+
             return MapToResponse(cart);
         }
 
-        protected override IQueryable<Database.Cart> ApplyFilter(IQueryable<Database.Cart> query, CartSearchObject search)
-        {
-            // Filter by user ID
-            if (search.UserId.HasValue)
-            {
-                query = query.Where(c => c.UserId == search.UserId.Value);
-            }
-
-            // Filter by date range
-            if (search.FromDate.HasValue)
-            {
-                query = query.Where(c => c.CreatedAt >= search.FromDate.Value);
-            }
-
-            if (search.ToDate.HasValue)
-            {
-                query = query.Where(c => c.CreatedAt <= search.ToDate.Value);
-            }
-
-            return query;
-        }
-
-        protected override async Task BeforeInsert(Database.Cart entity, CartUpsertRequest request)
-        {
-            // Check if the user exists
-            var userExists = await _context.Users.AnyAsync(u => u.Id == request.UserId);
-            if (!userExists)
-                throw new Exception($"User with ID {request.UserId} not found");
-
-            entity.CreatedAt = DateTime.UtcNow;
-        }
-
-        protected override async Task BeforeUpdate(Database.Cart entity, CartUpsertRequest request)
-        {
-            // Check if the user exists
-            var userExists = await _context.Users.AnyAsync(u => u.Id == request.UserId);
-            if (!userExists)
-                throw new Exception($"User with ID {request.UserId} not found");
-
-            entity.UpdatedAt = DateTime.UtcNow;
-        }
-
-        protected override Database.Cart MapInsertToEntity(Database.Cart entity, CartUpsertRequest request)
-        {
-            entity = _mapper.Map(request, entity);
-            
-            // Map cart items separately
-            if (request.Items != null && request.Items.Any())
-            {
-                entity.Items = request.Items.Select(item => new CartItem
-                {
-                    ProductSizeId = item.ProductSizeId,
-                    Quantity = item.Quantity,
-                    AddedAt = DateTime.UtcNow
-                }).ToList();
-            }
-            
-            return entity;
-        }
-
-        protected override Database.Cart MapUpdateToEntity(Database.Cart entity, CartUpsertRequest request)
-        {
-            entity = _mapper.Map(request, entity);
-            
-            // Handle cart items update separately in specific methods
-            
-            return entity;
-        }
-
+        /// <summary>
+        /// Maps a Cart entity to a CartResponse object
+        /// </summary>
+        /// <param name="entity">The Cart entity to map</param>
+        /// <returns>A CartResponse object with all cart data mapped</returns>
+        /// <remarks>
+        /// This method:
+        /// 1. Maps the base properties using Mapster
+        /// 2. Calculates the total amount
+        /// 3. Maps user information
+        /// 4. Maps each cart item with its product information
+        /// </remarks>
         private CartResponse MapToResponse(Database.Cart entity)
         {
             var response = _mapper.Map<CartResponse>(entity);
