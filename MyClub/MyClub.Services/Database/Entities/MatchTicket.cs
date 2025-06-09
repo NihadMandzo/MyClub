@@ -19,6 +19,8 @@ namespace MyClub.Services.Database
         [Column(TypeName = "decimal(10,2)")]
         public decimal Price { get; set; }
         
+        public bool IsActive { get; set; } = true;
+        
         // Match relationship
         public int MatchId { get; set; }
         

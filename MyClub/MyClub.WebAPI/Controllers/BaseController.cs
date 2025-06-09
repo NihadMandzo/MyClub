@@ -1,13 +1,15 @@
 using System;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using MyClub.Model.Responses;
 using MyClub.Model.SearchObjects;
 using MyClub.Services;
+using MyClub.Services.Interfaces;
 
-namespace MyClub.WebAPI.Controllers
+namespace MyClub.WebAPI
 {
     [ApiController]
-    [Route("[controller]")]
+    [Route("api/[controller]")]
     public class BaseController<T, TSearch> : ControllerBase where T : class where TSearch : BaseSearchObject, new()
     {
         private readonly IService<T, TSearch> _service;
@@ -20,7 +22,12 @@ namespace MyClub.WebAPI.Controllers
         [HttpGet]
         public virtual async Task<PagedResult<T>> Get([FromQuery] TSearch? search = null)
         {
-            return await _service.GetAsync(search ?? new TSearch());
+            Console.WriteLine($"BaseController.Get called for type {typeof(T).Name}");
+            search = search ?? new TSearch();
+            search.RetrieveAll = true; // Override to get all data in base controller
+            var result = await _service.GetAsync(search);
+            Console.WriteLine($"BaseController.Get returned {result.Data.Count} items");
+            return result;
         }
 
         [HttpGet("{id}")]
@@ -28,7 +35,5 @@ namespace MyClub.WebAPI.Controllers
         {
             return await _service.GetByIdAsync(id);
         }
-
-        
     }
 }

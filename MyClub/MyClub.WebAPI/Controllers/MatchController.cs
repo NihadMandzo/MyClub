@@ -4,12 +4,16 @@ using MyClub.Model.Responses;
 using MyClub.Model.SearchObjects;
 using MyClub.Services;
 using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
+using System.Threading.Tasks;
+using System.Linq;
+using System;
 
-namespace MyClub.WebAPI.Controllers
+namespace MyClub.WebAPI
 {
     [ApiController]
-    [Route("[controller]")]
-    public class MatchController : BaseCRUDController<MatchResponse, MatchSearchObject, MatchUpsertRequest, MatchUpsertRequest>
+    [Route("api/[controller]")]
+    public class MatchController : BaseCRUDController<MatchResponse, BaseSearchObject, MatchUpsertRequest, MatchUpsertRequest>
     {
         private readonly IMatchService _matchService;
 
@@ -24,12 +28,6 @@ namespace MyClub.WebAPI.Controllers
             return Ok(await _matchService.GetUpcomingMatchesAsync(clubId, count));
         }
 
-        [HttpGet("recent")]
-        public async Task<IActionResult> GetRecentMatches([FromQuery] int? clubId = null, [FromQuery] int? count = null)
-        {
-            return Ok(await _matchService.GetRecentMatchesAsync(clubId, count));
-        }
-
         [HttpPatch("{id}/result")]
         [Authorize(Policy = "AdminOnly")]
         public async Task<IActionResult> UpdateMatchResult(int id, [FromBody] UpdateMatchResultRequest request)
@@ -42,6 +40,64 @@ namespace MyClub.WebAPI.Controllers
         public async Task<IActionResult> UpdateMatchStatus(int id, [FromBody] UpdateMatchStatusRequest request)
         {
             return Ok(await _matchService.UpdateMatchStatusAsync(id, request.Status));
+        }
+
+        [HttpGet("available")]
+        public async Task<IActionResult> GetAvailableMatches([FromQuery] BaseSearchObject search)
+        {
+            if (search == null)
+                search = new BaseSearchObject();
+            
+            // Use the dedicated service method instead of filtering in memory
+            var result = await _matchService.GetAvailableMatchesAsync(search);
+            return Ok(result);
+        }
+
+        [HttpPost("{matchId}/tickets/{ticketId}/purchase")]
+        [Authorize]
+        public async Task<ActionResult<UserTicketResponse>> PurchaseTicket(int matchId, int ticketId, [FromBody] TicketPurchaseRequest request)
+        {
+            // Get the user ID from the auth token
+            int userId = GetUserIdFromToken();
+            
+            // Set the match ticket ID from the route
+            request.MatchTicketId = ticketId;
+            request.UserId = userId;
+            
+            var result = await _matchService.PurchaseTicketAsync(request);
+            return Ok(result);
+        }
+
+        [HttpGet("user-tickets")]
+        [Authorize]
+        public async Task<IActionResult> GetUserTickets([FromQuery] bool upcoming = false)
+        {
+            // Get the user ID from the auth token
+            int userId = GetUserIdFromToken();
+            
+            var result = await _matchService.GetUserTicketsAsync(userId, upcoming);
+            return Ok(result);
+        }
+
+        [HttpPost("validate-ticket")]
+        [Authorize(Policy = "AdminOnly")]
+        public async Task<ActionResult<QRValidationResponse>> ValidateTicket([FromBody] QRValidationRequest request)
+        {
+            var result = await _matchService.ValidateQRCodeAsync(request);
+            return Ok(result);
+        }
+
+        // Helper method to get user ID from token
+        private int GetUserIdFromToken()
+        {
+            // Get the user ID from the claims
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier) ?? User.FindFirst("sub");
+            if (userIdClaim != null && int.TryParse(userIdClaim.Value, out int userId))
+            {
+                return userId;
+            }
+            
+            throw new UnauthorizedAccessException("User ID not found in token");
         }
     }
 

@@ -2,14 +2,14 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using MyClub.Model.SearchObjects;
 using MyClub.Services;
+using System.Threading.Tasks;
 
-namespace MyClub.WebAPI.Controllers
+namespace MyClub.WebAPI
 {
-
     public class BaseCRUDController<T, TSearch, TInsert, TUpdate> : BaseController<T, TSearch>  
     where T : class where TSearch : BaseSearchObject, new() where TInsert : class where TUpdate : class
     {
-        private readonly ICRUDService<T, TSearch, TInsert, TUpdate> _service;
+        protected readonly ICRUDService<T, TSearch, TInsert, TUpdate> _service;
 
         public BaseCRUDController(ICRUDService<T, TSearch, TInsert, TUpdate> service) : base(service)
         {
@@ -33,6 +33,5 @@ namespace MyClub.WebAPI.Controllers
         {
             return Ok(await _service.DeleteAsync(id));
         }
-
     }
 }

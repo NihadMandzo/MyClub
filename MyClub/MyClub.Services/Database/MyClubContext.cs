@@ -56,8 +56,7 @@ namespace MyClub.Services.Database
         public DbSet<MatchTicket> MatchTickets { get; set; }
         public DbSet<UserTicket> UserTickets { get; set; }
 
-        // League Table
-        public DbSet<LeagueTable> LeagueTable { get; set; }
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -294,12 +293,6 @@ namespace MyClub.Services.Database
                 .HasForeignKey(c => c.LogoImageId)
                 .OnDelete(DeleteBehavior.NoAction);
 
-            // LeagueTable-Logo relationship
-            modelBuilder.Entity<LeagueTable>()
-                .HasOne(lt => lt.LogoImage)
-                .WithMany()
-                .HasForeignKey(lt => lt.LogoImageId)
-                .OnDelete(DeleteBehavior.NoAction);
 
             modelBuilder.Entity<Product>()
                 .HasOne(p => p.Category)

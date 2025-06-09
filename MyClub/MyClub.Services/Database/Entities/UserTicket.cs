@@ -19,6 +19,12 @@ namespace MyClub.Services.Database
         [Required]
         public DateTime PurchaseDate { get; set; } = DateTime.UtcNow;
         
+        [MaxLength(500)]
+        public string QRCode { get; set; }
+        
+        [MaxLength(50)]
+        public string Status { get; set; } = "Valid";
+        
         // User relationship
         public int UserId { get; set; }
         

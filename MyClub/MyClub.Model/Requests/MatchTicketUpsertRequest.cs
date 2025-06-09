@@ -19,5 +19,7 @@ namespace MyClub.Model.Requests
         
         [Required(ErrorMessage = "Stadium sector is required")]
         public int StadiumSectorId { get; set; }
+        
+        public bool IsActive { get; set; } = true;
     }
 } 

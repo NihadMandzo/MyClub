@@ -1,9 +1,12 @@
 using System;
+using System.Linq;
+using System.Threading.Tasks;
 using MapsterMapper;
 using Microsoft.EntityFrameworkCore;
 using MyClub.Model.Responses;
 using MyClub.Model.SearchObjects;
 using MyClub.Services.Database;
+using MyClub.Services.Interfaces;
 
 namespace MyClub.Services
 {

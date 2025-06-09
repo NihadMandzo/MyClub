@@ -1,5 +1,7 @@
 using System;
+using System.Threading.Tasks;
 using MyClub.Model.SearchObjects;
+
 namespace MyClub.Services
 {
     public interface ICRUDService<T, TSearch, TInsert, TUpdate> : IService<T, TSearch>

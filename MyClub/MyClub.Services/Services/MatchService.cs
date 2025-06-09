@@ -3,41 +3,49 @@ using MyClub.Model.Requests;
 using MyClub.Model.Responses;
 using MyClub.Model.SearchObjects;
 using MyClub.Services.Database;
+using MyClub.Services.Interfaces;
 using MapsterMapper;
 using System;
+using System.Security.Cryptography;
+using System.Text;
+using System.Linq;
+using System.Threading.Tasks;
+using MyClub.Model;
 
 namespace MyClub.Services
 {
-    public class MatchService : BaseCRUDService<MatchResponse, MatchSearchObject, MatchUpsertRequest, MatchUpsertRequest, Database.Match>, IMatchService
+    public class MatchService : BaseCRUDService<MatchResponse, BaseSearchObject, MatchUpsertRequest, MatchUpsertRequest, Database.Match>, IMatchService
     {
         private readonly MyClubContext _context;
+        private readonly IMapper _mapper;
 
         public MatchService(MyClubContext context, IMapper mapper) 
             : base(context, mapper)
         {
             _context = context;
+            _mapper = mapper;
         }
 
-        public override async Task<PagedResult<MatchResponse>> GetAsync(MatchSearchObject search)
+        public override async Task<PagedResult<MatchResponse>> GetAsync(BaseSearchObject search)
         {
             var query = _context.Matches
                 .AsNoTracking()
                 .Include(m => m.Club)
                 .AsQueryable();
 
-            // Apply filters
-            query = ApplyFilter(query, search);
+            // Apply filters based on BaseSearchObject
+            query = ApplyBaseFilter(query, search);
 
-            // Include tickets if requested
-            if (search.IncludeTickets == true)
-            {
-                query = query.Include(m => m.Tickets)
-                    .ThenInclude(t => t.StadiumSector);
-            }
+            // Include tickets
+            query = query.Include(m => m.Tickets)
+                .ThenInclude(t => t.StadiumSector)
+                .ThenInclude(s => s.StadiumSide);
 
-            int totalCount = 0;
-            
+            // Order by match date
+            query = query.OrderBy(m => m.MatchDate);
+
             // Get total count if requested
+            int totalCount = 0;
             if (search.IncludeTotalCount)
             {
                 totalCount = await query.CountAsync();
@@ -63,6 +71,26 @@ namespace MyClub.Services
                 PageSize = pageSize
             };
         }
+        
+        private IQueryable<Database.Match> ApplyBaseFilter(IQueryable<Database.Match> query, BaseSearchObject search)
+        {
+            // Apply text search filter
+            if (!string.IsNullOrWhiteSpace(search.FTS))
+            {
+                string searchTerm = search.FTS.Trim().ToLower();
+                query = query.Where(m => 
+                    m.OpponentName.ToLower().Contains(searchTerm) || 
+                    m.Status.ToLower().Contains(searchTerm) ||
+                    m.Location.ToLower().Contains(searchTerm) ||
+                    m.Club.Name.ToLower().Contains(searchTerm)
+                );
+            }
+            
+            // Make sure we're returning matches
+            Console.WriteLine($"Query will return {query.Count()} matches");
+            
+            return query;
+        }
 
         public override async Task<MatchResponse?> GetByIdAsync(int id)
         {
@@ -71,6 +99,7 @@ namespace MyClub.Services
                 .Include(m => m.Club)
                 .Include(m => m.Tickets)
                 .ThenInclude(t => t.StadiumSector)
+                .ThenInclude(s => s.StadiumSide)
                 .FirstOrDefaultAsync(m => m.Id == id);
 
             if (entity == null)
@@ -112,47 +141,14 @@ namespace MyClub.Services
             return matches.Select(m => MapToResponse(m)).ToList();
         }
 
-        public async Task<List<MatchResponse>> GetRecentMatchesAsync(int? clubId = null, int? count = null)
-        {
-            // Create a simple IQueryable first
-            IQueryable<Database.Match> baseQuery = _context.Matches
-                .AsNoTracking()
-                .Include(m => m.Club)
-                .Include(m => m.Tickets)
-                .ThenInclude(t => t.StadiumSector)
-                .Where(m => m.MatchDate <= DateTime.UtcNow && m.HomeGoals.HasValue && m.AwayGoals.HasValue);
-                
-            // Apply club filter if needed
-            if (clubId.HasValue)
-            {
-                baseQuery = baseQuery.Where(m => m.ClubId == clubId.Value);
-            }
-            
-            // Order the query
-            var orderedQuery = baseQuery.OrderByDescending(m => m.MatchDate);
-            
-            // Apply limit if needed
-            if (count.HasValue)
-            {
-                baseQuery = orderedQuery.Take(count.Value);
-            }
-            else 
-            {
-                baseQuery = orderedQuery;
-            }
-
-            var matches = await baseQuery.ToListAsync();
-            return matches.Select(m => MapToResponse(m)).ToList();
-        }
-
+        // This method is kept for compatibility with existing code
         public async Task<MatchResponse> UpdateMatchResultAsync(int matchId, int homeGoals, int awayGoals)
         {
+            // We don't track match results in the new system, just update the status
             var match = await _context.Matches.FindAsync(matchId);
             if (match == null)
                 throw new Exception($"Match with ID {matchId} not found");
 
-            match.HomeGoals = homeGoals;
-            match.AwayGoals = awayGoals;
             match.Status = "Completed";
 
             await _context.SaveChangesAsync();
@@ -169,57 +165,6 @@ namespace MyClub.Services
 
             await _context.SaveChangesAsync();
             return await GetByIdAsync(matchId);
-        }
-
-        protected override IQueryable<Database.Match> ApplyFilter(IQueryable<Database.Match> query, MatchSearchObject search)
-        {
-            // Filter by club ID
-            if (search.ClubId.HasValue)
-            {
-                query = query.Where(m => m.ClubId == search.ClubId.Value);
-            }
-
-            // Filter by date range
-            if (search.FromDate.HasValue)
-            {
-                query = query.Where(m => m.MatchDate >= search.FromDate.Value);
-            }
-
-            if (search.ToDate.HasValue)
-            {
-                query = query.Where(m => m.MatchDate <= search.ToDate.Value);
-            }
-
-            // Filter by home/away matches
-            if (search.IsHomeMatch.HasValue)
-            {
-                query = query.Where(m => m.IsHomeMatch == search.IsHomeMatch.Value);
-            }
-
-            // Filter by status
-            if (!string.IsNullOrWhiteSpace(search.Status))
-            {
-                query = query.Where(m => m.Status == search.Status);
-            }
-
-            // Filter for upcoming matches
-            if (search.UpcomingOnly == true)
-            {
-                query = query.Where(m => m.MatchDate > DateTime.UtcNow);
-            }
-
-            // Filter by text search
-            if (!string.IsNullOrWhiteSpace(search.FTS))
-            {
-                string searchTerm = search.FTS.Trim().ToLower();
-                query = query.Where(m => 
-                    m.OpponentName.ToLower().Contains(searchTerm) || 
-                    m.Status.ToLower().Contains(searchTerm) ||
-                    m.Club.Name.ToLower().Contains(searchTerm)
-                );
-            }
-
-            return query;
         }
 
         public override async Task<MatchResponse> CreateAsync(MatchUpsertRequest request)
@@ -243,7 +188,8 @@ namespace MyClub.Services
                             TotalQuantity = ticketRequest.TotalQuantity,
                             AvailableQuantity = ticketRequest.AvailableQuantity,
                             Price = ticketRequest.Price,
-                            StadiumSectorId = ticketRequest.StadiumSectorId
+                            StadiumSectorId = ticketRequest.StadiumSectorId,
+                            IsActive = ticketRequest.IsActive
                         };
                         
                         await _context.MatchTickets.AddAsync(ticket);
@@ -293,7 +239,8 @@ namespace MyClub.Services
                             TotalQuantity = ticketRequest.TotalQuantity,
                             AvailableQuantity = ticketRequest.AvailableQuantity,
                             Price = ticketRequest.Price,
-                            StadiumSectorId = ticketRequest.StadiumSectorId
+                            StadiumSectorId = ticketRequest.StadiumSectorId,
+                            IsActive = ticketRequest.IsActive
                         };
                         
                         await _context.MatchTickets.AddAsync(ticket);
@@ -309,6 +256,242 @@ namespace MyClub.Services
                 await transaction.RollbackAsync();
                 throw;
             }
+        }
+
+        public async Task<UserTicketResponse> PurchaseTicketAsync(TicketPurchaseRequest request)
+        {
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                // Get the match ticket
+                var matchTicket = await _context.MatchTickets
+                    .Include(mt => mt.Match)
+                    .Include(mt => mt.StadiumSector)
+                    .ThenInclude(ss => ss.StadiumSide)
+                    .FirstOrDefaultAsync(mt => mt.Id == request.MatchTicketId);
+                
+                if (matchTicket == null)
+                    throw new Exception($"Match ticket with ID {request.MatchTicketId} not found");
+                
+                // Check if the ticket is active
+                if (!matchTicket.IsActive)
+                    throw new Exception("The selected tickets are not available for purchase");
+                
+                // Check if there are enough tickets available
+                if (matchTicket.AvailableQuantity < request.Quantity)
+                    throw new Exception($"Not enough tickets available. Requested: {request.Quantity}, Available: {matchTicket.AvailableQuantity}");
+                
+                // Get the user
+                var user = await _context.Users.FindAsync(request.UserId);
+                if (user == null)
+                    throw new Exception($"User with ID {request.UserId} not found");
+                
+                // Generate QR code data
+                string qrCodeData = GenerateQRCodeData(request.UserId, matchTicket.Match.Id, matchTicket.StadiumSectorId, request.Quantity);
+                
+                // Create the user ticket
+                var userTicket = new UserTicket
+                {
+                    UserId = request.UserId,
+                    MatchTicketId = request.MatchTicketId,
+                    Quantity = request.Quantity,
+                    TotalPrice = matchTicket.Price * request.Quantity,
+                    PurchaseDate = DateTime.UtcNow,
+                    QRCode = qrCodeData,
+                    Status = "Valid"
+                };
+                
+                // Update available tickets
+                matchTicket.AvailableQuantity -= request.Quantity;
+                
+                // Save changes
+                _context.UserTickets.Add(userTicket);
+                _context.MatchTickets.Update(matchTicket);
+                await _context.SaveChangesAsync();
+                
+                await transaction.CommitAsync();
+                
+                // Return the response
+                return new UserTicketResponse
+                {
+                    Id = userTicket.Id,
+                    Quantity = userTicket.Quantity,
+                    TotalPrice = userTicket.TotalPrice,
+                    PurchaseDate = userTicket.PurchaseDate,
+                    QRCodeData = qrCodeData,
+                    MatchId = matchTicket.Match.Id,
+                    OpponentName = matchTicket.Match.OpponentName,
+                    MatchDate = matchTicket.Match.MatchDate,
+                    Location = matchTicket.Match.Location,
+                    SectorCode = matchTicket.StadiumSector.Code,
+                    StadiumSide = matchTicket.StadiumSector.StadiumSide.Name
+                };
+            }
+            catch (Exception)
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+        }
+
+        public async Task<PagedResult<UserTicketResponse>> GetUserTicketsAsync(int userId, bool upcomingOnly = false)
+        {
+            var query = _context.UserTickets
+                .AsNoTracking()
+                .Include(ut => ut.User)
+                .Include(ut => ut.MatchTicket)
+                .ThenInclude(mt => mt.Match)
+                .Include(ut => ut.MatchTicket.StadiumSector)
+                .ThenInclude(ss => ss.StadiumSide)
+                .Where(ut => ut.UserId == userId)
+                .AsQueryable();
+                
+            // Filter for upcoming matches only if requested
+            if (upcomingOnly)
+            {
+                query = query.Where(ut => ut.MatchTicket.Match.MatchDate > DateTime.UtcNow);
+            }
+            
+            // Order by match date (upcoming first, then past)
+            query = query.OrderBy(ut => ut.MatchTicket.Match.MatchDate < DateTime.UtcNow ? 1 : 0)
+                .ThenBy(ut => ut.MatchTicket.Match.MatchDate);
+            // Get total count
+            int totalCount = await query.CountAsync();
+            
+            // Get all tickets - no pagination for simplicity as requested
+            var list = await query.ToListAsync();
+            
+            // Map to response
+            var response = list.Select(ut => new UserTicketResponse
+            {
+                Id = ut.Id,
+                Quantity = ut.Quantity,
+                TotalPrice = ut.TotalPrice,
+                PurchaseDate = ut.PurchaseDate,
+                QRCodeData = ut.QRCode,
+                MatchId = ut.MatchTicket.Match.Id,
+                OpponentName = ut.MatchTicket.Match.OpponentName,
+                MatchDate = ut.MatchTicket.Match.MatchDate,
+                Location = ut.MatchTicket.Match.Location,
+                SectorCode = ut.MatchTicket.StadiumSector.Code,
+                StadiumSide = ut.MatchTicket.StadiumSector.StadiumSide.Name
+            }).ToList();
+            
+            // Create the paged result
+            return new PagedResult<UserTicketResponse>
+            {
+                Data = response,
+                TotalCount = totalCount,
+                CurrentPage = 0,
+                PageSize = response.Count
+            };
+        }
+        
+        public async Task<QRValidationResponse> ValidateQRCodeAsync(QRValidationRequest request)
+        {
+            try
+            {
+                // Find user ticket by QR code
+                var userTicket = await _context.UserTickets
+                    .Include(ut => ut.User)
+                    .Include(ut => ut.MatchTicket)
+                    .ThenInclude(mt => mt.Match)
+                    .Include(ut => ut.MatchTicket.StadiumSector)
+                    .ThenInclude(ss => ss.StadiumSide)
+                    .FirstOrDefaultAsync(ut => ut.QRCode == request.QRCodeData);
+                
+                if (userTicket == null)
+                    return new QRValidationResponse { IsValid = false, Message = "Ticket not found" };
+                
+                // Check if the ticket has already been used
+                if (userTicket.Status != "Valid")
+                    return new QRValidationResponse { IsValid = false, Message = $"Ticket is {userTicket.Status}" };
+                
+                // Check if the match is in the future
+                if (userTicket.MatchTicket.Match.MatchDate < DateTime.UtcNow)
+                    return new QRValidationResponse { IsValid = false, Message = "Match has already taken place" };
+                
+                // Mark the ticket as used
+                userTicket.Status = "Used";
+                await _context.SaveChangesAsync();
+                
+                // Return success
+                return new QRValidationResponse
+                {
+                    IsValid = true,
+                    Message = "Ticket is valid",
+                    TicketDetails = new UserTicketDetails
+                    {
+                        TicketId = userTicket.Id,
+                        Username = userTicket.User.Username,
+                        Quantity = userTicket.Quantity,
+                        MatchInfo = $"{userTicket.MatchTicket.Match.OpponentName} on {userTicket.MatchTicket.Match.MatchDate:g}",
+                        SectorInfo = $"{userTicket.MatchTicket.StadiumSector.StadiumSide.Name} - {userTicket.MatchTicket.StadiumSector.Code}",
+                        PurchaseDate = userTicket.PurchaseDate
+                    }
+                };
+            }
+            catch (Exception ex)
+            {
+                return new QRValidationResponse { IsValid = false, Message = $"Error validating QR code: {ex.Message}" };
+            }
+        }
+
+        public async Task<PagedResult<MatchResponse>> GetAvailableMatchesAsync(BaseSearchObject search)
+        {
+            // Create query for matches with available tickets
+            var now = DateTime.UtcNow;
+            
+            // Start with getting all matches and include necessary related entities
+            var query = _context.Matches
+                .AsNoTracking()
+                .Include(m => m.Club)
+                .Include(m => m.Tickets)
+                    .ThenInclude(t => t.StadiumSector)
+                    .ThenInclude(s => s.StadiumSide)
+                .Where(m => m.MatchDate > now) // Only upcoming matches
+                .Where(m => m.Tickets.Any(t => t.IsActive && t.AvailableQuantity > 0)) // With available tickets
+                .AsQueryable();
+
+            // Apply any text search
+            if (!string.IsNullOrWhiteSpace(search.FTS))
+            {
+                string searchTerm = search.FTS.Trim().ToLower();
+                query = query.Where(m => 
+                    m.OpponentName.ToLower().Contains(searchTerm) || 
+                    m.Status.ToLower().Contains(searchTerm) ||
+                    m.Location.ToLower().Contains(searchTerm) ||
+                    m.Club.Name.ToLower().Contains(searchTerm)
+                );
+            }
+
+            // Order by match date
+            query = query.OrderBy(m => m.MatchDate);
+
+            // Get total count
+            int totalCount = await query.CountAsync();
+            
+            // Apply pagination
+            int pageSize = search.PageSize ?? 10;
+            int currentPage = search.Page ?? 0;
+            
+            if (!search.RetrieveAll)
+            {
+                query = query.Skip(currentPage * pageSize).Take(pageSize);
+            }
+
+            var list = await query.ToListAsync();
+            
+            Console.WriteLine($"Available matches query returned {list.Count} matches");
+            
+            // Map to response
+            return new PagedResult<MatchResponse>
+            {
+                Data = list.Select(x => MapToResponse(x)).ToList(),
+                TotalCount = totalCount,
+                CurrentPage = currentPage,
+                PageSize = pageSize
+            };
         }
 
         protected override async Task BeforeInsert(Database.Match entity, MatchUpsertRequest request)
@@ -363,11 +546,10 @@ namespace MyClub.Services
         protected override Database.Match MapInsertToEntity(Database.Match entity, MatchUpsertRequest request)
         {
             entity.MatchDate = request.MatchDate;
-            entity.IsHomeMatch = request.IsHomeMatch;
             entity.OpponentName = request.OpponentName;
-            entity.HomeGoals = request.HomeGoals;
-            entity.AwayGoals = request.AwayGoals;
+            entity.Location = request.Location;
             entity.Status = request.Status;
+            entity.Description = request.Description;
             entity.ClubId = request.ClubId;
             entity.Tickets = new List<MatchTicket>();
             
@@ -377,11 +559,10 @@ namespace MyClub.Services
         protected override Database.Match MapUpdateToEntity(Database.Match entity, MatchUpsertRequest request)
         {
             entity.MatchDate = request.MatchDate;
-            entity.IsHomeMatch = request.IsHomeMatch;
             entity.OpponentName = request.OpponentName;
-            entity.HomeGoals = request.HomeGoals;
-            entity.AwayGoals = request.AwayGoals;
+            entity.Location = request.Location;
             entity.Status = request.Status;
+            entity.Description = request.Description;
             entity.ClubId = request.ClubId;
             
             return entity;
@@ -393,17 +574,6 @@ namespace MyClub.Services
             
             // Add club name
             response.ClubName = entity.Club?.Name;
-            
-            // Determine result string
-            if (entity.HomeGoals.HasValue && entity.AwayGoals.HasValue)
-            {
-                string homeTeam = entity.IsHomeMatch ? entity.Club?.Name : entity.OpponentName;
-                string awayTeam = entity.IsHomeMatch ? entity.OpponentName : entity.Club?.Name;
-                int homeGoals = entity.IsHomeMatch ? entity.HomeGoals.Value : entity.AwayGoals.Value;
-                int awayGoals = entity.IsHomeMatch ? entity.AwayGoals.Value : entity.HomeGoals.Value;
-                
-                response.Result = $"{homeTeam} {homeGoals} - {awayGoals} {awayTeam}";
-            }
             
             // Map tickets
             if (entity.Tickets != null)
@@ -417,11 +587,40 @@ namespace MyClub.Services
                     Price = t.Price,
                     StadiumSectorId = t.StadiumSectorId,
                     SectorName = t.StadiumSector?.Code,
-                    SectorColor = null // StadiumSector doesn't have a Color property, so set to null
+                    SideName = t.StadiumSector?.StadiumSide?.Name,
+                    IsActive = t.IsActive
                 }).ToList();
             }
             
             return response;
+        }
+        
+        private string GenerateQRCodeData(int userId, int matchId, int sectorId, int quantity)
+        {
+            // Create a unique ticket identifier with important details
+            string ticketData = $"{userId}|{matchId}|{sectorId}|{quantity}|{DateTime.UtcNow.Ticks}";
+            
+            // Generate a hash for verification and make it part of the QR code
+            string hash = GenerateHash(ticketData);
+            
+            return $"{ticketData}|{hash}";
+        }
+        
+        private string GenerateHash(string input)
+        {
+            using (SHA256 sha256 = SHA256.Create())
+            {
+                byte[] bytes = Encoding.UTF8.GetBytes(input);
+                byte[] hashBytes = sha256.ComputeHash(bytes);
+                
+                // Convert to short string representation
+                return Convert.ToBase64String(hashBytes).Substring(0, 16);
+            }
+        }
+
+        protected override IQueryable<Match> ApplyFilter(IQueryable<Match> query, BaseSearchObject search)
+        {
+            return ApplyBaseFilter(query, search);
         }
     }
 }
