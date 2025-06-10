@@ -13,9 +13,16 @@ namespace MyClub.Services.Database
         [Required]
         public int Year { get; set; }
         
+        [Required]
+        [MaxLength(100)]
+        public string Name { get; set; } = string.Empty;
+        
         public string Description { get; set; }
         
         public int TotalMembers { get; set; } = 0;
+        
+        [Required]
+        public int TargetMembers { get; set; } = 0;
         
         [Required]
         [Column(TypeName = "decimal(10,2)")]
@@ -25,11 +32,19 @@ namespace MyClub.Services.Database
         public DateTime StartDate { get; set; }
         
         [Required]
-        public DateTime EndDate { get; set; }
+        public DateTime EndDate { get; set; } = new DateTime(DateTime.Now.Year, 12, 31);
         
         public string Benefits { get; set; }
         
+        // Image relationship
+        public int? ImageId { get; set; }
+        
+        [ForeignKey("ImageId")]
+        public virtual Asset Image { get; set; }
+        
+        public bool IsActive { get; set; } = true;
+        
         // Navigation collections
-        public virtual ICollection<UserMembership> UserMemberships { get; set; }
+        public virtual ICollection<UserMembership> UserMemberships { get; set; } = new List<UserMembership>();
     }
 } 

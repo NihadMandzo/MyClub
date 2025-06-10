@@ -27,6 +27,8 @@ builder.Services.AddTransient<IClubService, ClubService>();
 builder.Services.AddTransient<PlayerService, PlayerService>();
 builder.Services.AddTransient<ICartService, CartService>();
 builder.Services.AddTransient<IMatchService, MatchService>();
+builder.Services.AddTransient<IMembershipCardService, MembershipCardService>();
+builder.Services.AddTransient<IUserMembershipService, UserMembershipService>();
 
 
 // Add HttpContextAccessor

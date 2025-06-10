@@ -107,7 +107,7 @@ namespace MyClub.Services.Database
             // Configure UserMembership relationships explicitly
             modelBuilder.Entity<UserMembership>()
                 .HasOne(um => um.User)
-                .WithMany()
+                .WithMany(u => u.Memberships)
                 .HasForeignKey(um => um.UserId)
                 .OnDelete(DeleteBehavior.NoAction);
 
@@ -291,6 +291,13 @@ namespace MyClub.Services.Database
                 .HasOne(c => c.LogoImage)
                 .WithMany()
                 .HasForeignKey(c => c.LogoImageId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            // MembershipCard-Image relationship
+            modelBuilder.Entity<MembershipCard>()
+                .HasOne(mc => mc.Image)
+                .WithMany()
+                .HasForeignKey(mc => mc.ImageId)
                 .OnDelete(DeleteBehavior.NoAction);
 
 

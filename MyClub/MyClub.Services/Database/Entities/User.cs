@@ -52,5 +52,6 @@ namespace MyClub.Services.Database
         // Navigation collections
         public virtual ICollection<Order> Orders { get; set; }
         public virtual ICollection<Cart> Carts { get; set; }
+        public virtual ICollection<UserMembership> Memberships { get; set; } = new List<UserMembership>();
     }
 }
