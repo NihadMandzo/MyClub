@@ -24,7 +24,7 @@ builder.Services.AddTransient<INewsService, NewsService>();
 builder.Services.AddTransient<ICommentService, CommentService>();
 builder.Services.AddTransient<IStadiumSectorService, StadiumSectorService>();
 builder.Services.AddTransient<IClubService, ClubService>();
-builder.Services.AddTransient<PlayerService, PlayerService>();
+builder.Services.AddTransient<IPlayerInterface, PlayerService>();
 builder.Services.AddTransient<ICartService, CartService>();
 builder.Services.AddTransient<IMatchService, MatchService>();
 builder.Services.AddTransient<IMembershipCardService, MembershipCardService>();
