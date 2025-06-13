@@ -1,0 +1,15 @@
+using MyClub.Model.Requests;
+using MyClub.Model.Responses;
+using MyClub.Model.SearchObjects;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+
+namespace MyClub.Services.Interfaces
+{
+    public interface IOrderService : IService<OrderResponse, OrderSearchObject>
+    {
+        Task<OrderResponse> PlaceOrder(OrderInsertRequest request);
+        Task<OrderResponse> ChangeOrderState(int orderId, OrderStateUpdateRequest request);
+    }
+} 
