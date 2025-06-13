@@ -56,6 +56,9 @@ namespace MyClub.Services.Database
         public DbSet<MatchTicket> MatchTickets { get; set; }
         public DbSet<UserTicket> UserTickets { get; set; }
 
+        // Payments
+        public DbSet<Payment> Payments { get; set; }
+
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)

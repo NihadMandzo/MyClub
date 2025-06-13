@@ -24,6 +24,10 @@ namespace MyClub.Services.Database
         
         [MaxLength(50)]
         public string Status { get; set; } = "Valid";
+        public Guid PaymentId { get; set; }
+
+        [ForeignKey("PaymentId")]
+        public virtual Payment Payment { get; set; }
         
         // User relationship
         public int UserId { get; set; }

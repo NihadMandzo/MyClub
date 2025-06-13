@@ -9,7 +9,6 @@ namespace MyClub.WebAPI.Controllers
 {
     [ApiController]
     [Route("[controller]")]
-    [Authorize] // Ensure all cart operations require authentication
     public class CartController : ControllerBase
     {
         private readonly ICartService _cartService;

@@ -28,19 +28,6 @@ namespace MyClub.WebAPI
             return Ok(await _matchService.GetUpcomingMatchesAsync(clubId, count));
         }
 
-        [HttpPatch("{id}/result")]
-        [Authorize(Policy = "AdminOnly")]
-        public async Task<IActionResult> UpdateMatchResult(int id, [FromBody] UpdateMatchResultRequest request)
-        {
-            return Ok(await _matchService.UpdateMatchResultAsync(id, request.HomeGoals, request.AwayGoals));
-        }
-
-        [HttpPatch("{id}/status")]
-        [Authorize(Policy = "AdminOnly")]
-        public async Task<IActionResult> UpdateMatchStatus(int id, [FromBody] UpdateMatchStatusRequest request)
-        {
-            return Ok(await _matchService.UpdateMatchStatusAsync(id, request.Status));
-        }
 
         [HttpGet("available")]
         public async Task<IActionResult> GetAvailableMatches([FromQuery] BaseSearchObject search)
@@ -53,14 +40,12 @@ namespace MyClub.WebAPI
             return Ok(result);
         }
 
-        [HttpPost("{matchId}/tickets/{ticketId}/purchase")]
-        [Authorize]
-        public async Task<ActionResult<UserTicketResponse>> PurchaseTicket(int matchId, int ticketId, [FromBody] TicketPurchaseRequest request)
+        [HttpPost("tickets/{ticketId}/purchase")]
+        public async Task<ActionResult<UserTicketResponse>> PurchaseTicket(int ticketId, [FromBody] TicketPurchaseRequest request)
         {
             // Get the user ID from the auth token
             int userId = GetUserIdFromToken();
-            
-            // Set the match ticket ID from the route
+
             request.MatchTicketId = ticketId;
             request.UserId = userId;
             
@@ -69,7 +54,6 @@ namespace MyClub.WebAPI
         }
 
         [HttpGet("user-tickets")]
-        [Authorize]
         public async Task<IActionResult> GetUserTickets([FromQuery] bool upcoming = false)
         {
             // Get the user ID from the auth token
@@ -80,7 +64,6 @@ namespace MyClub.WebAPI
         }
 
         [HttpPost("validate-ticket")]
-        [Authorize(Policy = "AdminOnly")]
         public async Task<ActionResult<QRValidationResponse>> ValidateTicket([FromBody] QRValidationRequest request)
         {
             var result = await _matchService.ValidateQRCodeAsync(request);

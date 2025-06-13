@@ -16,7 +16,6 @@ namespace MyClub.WebAPI.Controllers
         }
         
         [HttpPost]
-        [Authorize(Policy = "AdminOnly")]
         public override async Task<IActionResult> Create([FromForm] ProductUpsertRequest request)
         {
             ProcessSizeArrays(request);
@@ -24,7 +23,6 @@ namespace MyClub.WebAPI.Controllers
         }
         
         [HttpPut("{id}")]
-        [Authorize(Policy = "AdminOnly")]
         public override async Task<IActionResult> Update(int id, [FromForm] ProductUpsertRequest request)
         {
             ProcessSizeArrays(request);

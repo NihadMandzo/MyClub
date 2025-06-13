@@ -42,7 +42,6 @@ namespace MyClub.WebAPI.Controllers
         }
 
         [HttpGet("{id}/stats")]
-        [Authorize(Policy = "AdminOnly")]
         public async Task<IActionResult> GetCampaignStats(int id)
         {
             var result = await _service.GetCampaignStatsAsync(id);
@@ -54,21 +53,18 @@ namespace MyClub.WebAPI.Controllers
         }
 
         [HttpPost]
-        [Authorize(Policy = "AdminOnly")]
         public override async Task<IActionResult> Create([FromForm] MembershipCardUpsertRequest request)
         {
             return Ok(await _service.CreateAsync(request));
         }
 
         [HttpPut("{id}")]
-        [Authorize(Policy = "AdminOnly")]
         public override async Task<IActionResult> Update(int id, [FromForm] MembershipCardUpsertRequest request)
         {
             return Ok(await _service.UpdateAsync(id, request));
         }
 
         [HttpDelete("{id}")]
-        [Authorize(Policy = "AdminOnly")]
         public override async Task<IActionResult> Delete(int id)
         {
             return Ok(await _service.DeleteAsync(id));

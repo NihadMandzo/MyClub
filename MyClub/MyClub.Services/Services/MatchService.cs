@@ -141,31 +141,6 @@ namespace MyClub.Services
             return matches.Select(m => MapToResponse(m)).ToList();
         }
 
-        // This method is kept for compatibility with existing code
-        public async Task<MatchResponse> UpdateMatchResultAsync(int matchId, int homeGoals, int awayGoals)
-        {
-            // We don't track match results in the new system, just update the status
-            var match = await _context.Matches.FindAsync(matchId);
-            if (match == null)
-                throw new Exception($"Match with ID {matchId} not found");
-
-            match.Status = "Completed";
-
-            await _context.SaveChangesAsync();
-            return await GetByIdAsync(matchId);
-        }
-
-        public async Task<MatchResponse> UpdateMatchStatusAsync(int matchId, string status)
-        {
-            var match = await _context.Matches.FindAsync(matchId);
-            if (match == null)
-                throw new Exception($"Match with ID {matchId} not found");
-
-            match.Status = status;
-
-            await _context.SaveChangesAsync();
-            return await GetByIdAsync(matchId);
-        }
 
         public override async Task<MatchResponse> CreateAsync(MatchUpsertRequest request)
         {
@@ -286,6 +261,23 @@ namespace MyClub.Services
                 if (user == null)
                     throw new Exception($"User with ID {request.UserId} not found");
                 
+                // Calculate total price
+                decimal totalPrice = matchTicket.Price * request.Quantity;
+                
+                // Create a payment record first
+                var payment = new Payment
+                {
+                    Id = Guid.NewGuid(),
+                    Amount = totalPrice,
+                    Method = "Card", // Default method, should be passed from request
+                    Status = "Succeeded", // Assuming payment is successful immediately
+                    CreatedAt = DateTime.UtcNow,
+                    CompletedAt = DateTime.UtcNow
+                };
+                
+                _context.Payments.Add(payment);
+                await _context.SaveChangesAsync();
+                
                 // Generate QR code data
                 string qrCodeData = GenerateQRCodeData(request.UserId, matchTicket.Match.Id, matchTicket.StadiumSectorId, request.Quantity);
                 
@@ -295,10 +287,11 @@ namespace MyClub.Services
                     UserId = request.UserId,
                     MatchTicketId = request.MatchTicketId,
                     Quantity = request.Quantity,
-                    TotalPrice = matchTicket.Price * request.Quantity,
+                    TotalPrice = totalPrice,
                     PurchaseDate = DateTime.UtcNow,
                     QRCode = qrCodeData,
-                    Status = "Valid"
+                    Status = "Valid",
+                    PaymentId = payment.Id // Link to the payment record
                 };
                 
                 // Update available tickets

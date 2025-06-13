@@ -13,11 +13,15 @@ namespace MyClub.Services.Database
         public int MembershipCardId { get; set; }
         
         [ForeignKey("UserId")]
-        public virtual User User { get; set; }
+        public virtual User? User { get; set; }
         
         [ForeignKey("MembershipCardId")]
-        public virtual MembershipCard MembershipCard { get; set; }
+        public virtual MembershipCard? MembershipCard { get; set; }
         
+        public Guid PaymentId { get; set; }
+
+        [ForeignKey("PaymentId")]
+        public virtual Payment? Payment { get; set; }
         public DateTime JoinDate { get; set; } = DateTime.UtcNow;
         
         // For friend purchase
@@ -57,11 +61,6 @@ namespace MyClub.Services.Database
         public bool IsShipped { get; set; } = false;
         
         public DateTime? ShippedDate { get; set; }
-        
-        // Payment information
-        [Required]
-        [Column(TypeName = "decimal(10,2)")]
-        public decimal PaymentAmount { get; set; }
         
         public bool IsPaid { get; set; } = false;
         

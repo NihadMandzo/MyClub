@@ -3,52 +3,66 @@ using System.ComponentModel.DataAnnotations;
 
 namespace MyClub.Model.Requests
 {
-    public class UserMembershipUpsertRequest
+    public enum MembershipOperationType
+    {
+        NewPurchase,
+        Renewal,
+        GiftPurchase
+    }
+
+    public class UserMembershipUpsertRequest : PaymentRequest
     {
         [Required]
-        public int UserId { get; set; }
-        
+        public MembershipOperationType OperationType { get; set; }
+
         [Required]
         public int MembershipCardId { get; set; }
-        
-        public bool IsRenewal { get; set; } = false;
-        
+
+        // Only required for Renewal
         public int? PreviousMembershipId { get; set; }
-        
+
+        public ShippingRequest? Shipping { get; set; }
+
+        // Only required for GiftPurchase
         [MaxLength(50)]
-        public string RecipientFirstName { get; set; }
-        
+        public string? RecipientFirstName { get; set; }
+
         [MaxLength(50)]
-        public string RecipientLastName { get; set; }
-        
+        public string? RecipientLastName { get; set; }
+
         [EmailAddress]
         [MaxLength(100)]
-        public string RecipientEmail { get; set; }
-        
+        public string? RecipientEmail { get; set; }
+
         public bool PhysicalCardRequested { get; set; } = false;
-        
-        [MaxLength(100)]
-        public string ShippingAddress { get; set; }
-        
-        [MaxLength(50)]
-        public string ShippingCity { get; set; }
-        
-        [MaxLength(20)]
-        public string ShippingPostalCode { get; set; }
-        
-        [MaxLength(50)]
-        public string ShippingCountry { get; set; }
-        
-        public bool IsShipped { get; set; } = false;
-        
-        public DateTime? ShippedDate { get; set; }
-        
+
+
+        // Payment information
         [Required]
         [Range(0.01, double.MaxValue)]
         public decimal PaymentAmount { get; set; }
-        
-        public bool IsPaid { get; set; } = false;
-        
-        public DateTime? PaymentDate { get; set; }
+
+        public bool Validate()
+        {
+            switch (OperationType)
+            {
+                case MembershipOperationType.Renewal:
+                    if (!PreviousMembershipId.HasValue)
+                        throw new ValidationException("PreviousMembershipId is required for renewal operations");
+                    break;
+
+                case MembershipOperationType.GiftPurchase:
+                    if (string.IsNullOrEmpty(RecipientFirstName) || 
+                        string.IsNullOrEmpty(RecipientLastName) || 
+                        string.IsNullOrEmpty(RecipientEmail))
+                        throw new ValidationException("Recipient information is required for gift purchases");
+                    break;
+            }
+
+            if (PhysicalCardRequested && Shipping == null)
+                throw new ValidationException("Shipping information is required when physical card is requested");
+
+            return true;
+        }
     }
 } 

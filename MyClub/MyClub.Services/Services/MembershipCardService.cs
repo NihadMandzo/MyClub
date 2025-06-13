@@ -382,7 +382,7 @@ namespace MyClub.Services.Services
                 RenewedMemberships = campaign.UserMemberships.Count(um => um.IsRenewal),
                 PhysicalCardsRequested = campaign.UserMemberships.Count(um => um.PhysicalCardRequested),
                 PhysicalCardsShipped = campaign.UserMemberships.Count(um => um.IsShipped),
-                TotalRevenue = campaign.UserMemberships.Sum(um => um.PaymentAmount)
+                TotalRevenue = campaign.UserMemberships.Sum(um => um.Payment?.Amount ?? 0)
             };
             
             return stats;

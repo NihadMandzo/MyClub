@@ -28,7 +28,12 @@ namespace MyClub.Services.Database
         
         [ForeignKey("UserId")]
         public virtual User User { get; set; }
-        
+
+        public Guid PaymentId { get; set; }
+
+        [ForeignKey("PaymentId")]
+        public virtual Payment Payment { get; set; }
+
         [Required]
         public DateTime OrderDate { get; set; } = DateTime.UtcNow;
         

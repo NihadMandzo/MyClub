@@ -29,7 +29,7 @@ builder.Services.AddTransient<ICartService, CartService>();
 builder.Services.AddTransient<IMatchService, MatchService>();
 builder.Services.AddTransient<IMembershipCardService, MembershipCardService>();
 builder.Services.AddTransient<IUserMembershipService, UserMembershipService>();
-
+builder.Services.AddTransient<IPaymentService, PaymentService>();
 
 // Add HttpContextAccessor
 builder.Services.AddHttpContextAccessor();

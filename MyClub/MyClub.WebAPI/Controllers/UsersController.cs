@@ -20,7 +20,6 @@ namespace MyClub.WebAPI.Controllers
             _userService = userService;
         }
 
-        [Authorize]
         [HttpGet]
         public override async Task<PagedResult<UserResponse>> Get([FromQuery] UserSearchObject search)
         {
@@ -28,7 +27,6 @@ namespace MyClub.WebAPI.Controllers
             return result;
         }
 
-        [Authorize]
         [HttpGet("me")]
         public async Task<IActionResult> GetMe()
         {
@@ -36,7 +34,6 @@ namespace MyClub.WebAPI.Controllers
             return Ok(result);
         }
 
-        [Authorize]
         [HttpGet("{id}")]
         public override async Task<UserResponse?> GetById(int id)
         {
@@ -44,7 +41,6 @@ namespace MyClub.WebAPI.Controllers
             return result;
         }   
 
-        [Authorize] 
         [HttpPut("{id}")]
         public override async Task<IActionResult> Update(int id, [FromBody] UserUpsertRequest request)
         {
@@ -52,7 +48,6 @@ namespace MyClub.WebAPI.Controllers
             return Ok(result);
         }
 
-        [Authorize]
         [HttpDelete("{id}")]
         public override async Task<IActionResult> Delete(int id)
         {
@@ -60,7 +55,6 @@ namespace MyClub.WebAPI.Controllers
             return Ok(result);
         }
 
-        [Authorize]
         [HttpPost("change-password")]
         public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
         {
@@ -68,6 +62,7 @@ namespace MyClub.WebAPI.Controllers
             return Ok(result);
         }
 
+        [AllowAnonymous]
         [HttpPost("login")]
         public async Task<IActionResult> Authenticate([FromBody] LoginRequest request)
         {
@@ -75,6 +70,7 @@ namespace MyClub.WebAPI.Controllers
             return Ok(result);
         }
 
+        [AllowAnonymous]
         [HttpPost("register")]
         public override async Task<IActionResult> Create([FromBody] UserUpsertRequest request)
         {
