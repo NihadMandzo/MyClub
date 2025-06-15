@@ -42,8 +42,10 @@ namespace MyClub.Services.Database
         [Column(TypeName = "decimal(18,2)")]
         public decimal TotalAmount { get; set; }
         
-        [MaxLength(500)]
-        public string ShippingAddress { get; set; } = string.Empty;
+        public int? ShippingDetailsId { get; set; }
+        
+        [ForeignKey("ShippingDetailsId")]
+        public virtual ShippingDetails ShippingDetails { get; set; }
         
         [MaxLength(100)]
         public string PaymentMethod { get; set; } = string.Empty;

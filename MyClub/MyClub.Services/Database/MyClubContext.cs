@@ -58,6 +58,9 @@ namespace MyClub.Services.Database
 
         // Payments
         public DbSet<Payment> Payments { get; set; }
+        
+        // Shipping
+        public DbSet<ShippingDetails> ShippingDetails { get; set; }
 
 
 
@@ -309,6 +312,19 @@ namespace MyClub.Services.Database
                 .WithMany(c => c.Products)
                 .HasForeignKey(p => p.CategoryId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            // Configure ShippingDetails relationships
+            modelBuilder.Entity<Order>()
+                .HasOne(o => o.ShippingDetails)
+                .WithMany(sd => sd.Orders)
+                .HasForeignKey(o => o.ShippingDetailsId)
+                .OnDelete(DeleteBehavior.NoAction);
+                
+            modelBuilder.Entity<UserMembership>()
+                .HasOne(um => um.ShippingDetails)
+                .WithMany(sd => sd.UserMemberships)
+                .HasForeignKey(um => um.ShippingDetailsId)
+                .OnDelete(DeleteBehavior.NoAction);
 
             modelBuilder.Entity<Color>().SeedData();
             modelBuilder.Entity<Size>().SeedData();

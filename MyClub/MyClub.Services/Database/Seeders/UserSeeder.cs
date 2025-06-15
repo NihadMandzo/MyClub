@@ -16,6 +16,10 @@ public static class UserSeeder
         // Generate password hash and salt for user
         string userSalt;
         string userHash = HashPassword("user123", out userSalt);
+
+        // Generate password hash and salt for user1
+        string user1Salt;
+        string user1Hash = HashPassword("nihad123", out user1Salt);
        
         entity.HasData(
             new User {  
@@ -36,6 +40,16 @@ public static class UserSeeder
                 Username = "user",
                 PasswordHash = userHash, 
                 PasswordSalt = userSalt,
+                RoleId = 2 
+            },
+            new User { 
+                Id = 3, 
+                FirstName = "Nihad", 
+                LastName = "Kurtic", 
+                Email = "nihad@myclub.com", 
+                Username = "nihad123",
+                PasswordHash = user1Hash, 
+                PasswordSalt = user1Salt,
                 RoleId = 2 
             }
         );

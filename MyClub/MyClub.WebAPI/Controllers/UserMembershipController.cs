@@ -108,6 +108,33 @@ namespace MyClub.WebAPI.Controllers
             }
         }
 
+        [HttpGet("has-active-membership")]
+        [Authorize]
+        public async Task<IActionResult> HasActiveMembership()
+        {
+            var userId = JwtTokenManager.GetUserIdFromToken(HttpContext.Request.Headers["Authorization"].ToString());
+            var hasActiveMembership = await _service.HasActiveUserMembershipAsync(userId);
+            
+            return Ok(new { 
+                HasActiveMembership = hasActiveMembership,
+                DiscountPercentage = hasActiveMembership ? DiscountHelper.MEMBERSHIP_DISCOUNT_PERCENTAGE * 100 : 0
+            });
+        }
         
+        [HttpGet("calculate-discount")]
+        [Authorize]
+        public async Task<IActionResult> CalculateDiscount([FromQuery] decimal originalPrice)
+        {
+            var userId = JwtTokenManager.GetUserIdFromToken(HttpContext.Request.Headers["Authorization"].ToString());
+            var discountedPrice = await _service.CalculateDiscountedPriceAsync(userId, originalPrice);
+            
+            return Ok(new {
+                OriginalPrice = originalPrice,
+                DiscountedPrice = discountedPrice,
+                DiscountAmount = originalPrice - discountedPrice,
+                DiscountPercentage = originalPrice != 0 ? 
+                    Math.Round(((originalPrice - discountedPrice) / originalPrice) * 100, 2) : 0
+            });
+        }
     }
 } 

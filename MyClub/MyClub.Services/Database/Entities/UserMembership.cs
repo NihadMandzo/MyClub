@@ -45,17 +45,10 @@ namespace MyClub.Services.Database
         public bool PhysicalCardRequested { get; set; } = false;
         
         // Address information for card delivery
-        [MaxLength(100)]
-        public string ShippingAddress { get; set; } = string.Empty;
+        public int? ShippingDetailsId { get; set; }
         
-        [MaxLength(50)]
-        public string ShippingCity { get; set; } = string.Empty;
-        
-        [MaxLength(20)]
-        public string ShippingPostalCode { get; set; } = string.Empty;
-        
-        [MaxLength(50)]
-        public string ShippingCountry { get; set; } = string.Empty;
+        [ForeignKey("ShippingDetailsId")]
+        public virtual ShippingDetails? ShippingDetails { get; set; }
         
         // Delivery status
         public bool IsShipped { get; set; } = false;

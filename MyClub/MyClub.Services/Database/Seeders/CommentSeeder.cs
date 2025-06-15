@@ -23,7 +23,7 @@ namespace MyClub.Services.Database.Seeders
                     Content = "Atmosfera je bila fenomenalna, navijači su bili sjajni.",
                     CreatedAt = new DateTime(2025, 5, 31, 14, 30, 0, DateTimeKind.Utc),
                     NewsId = 1,
-                    UserId = 2
+                    UserId = 3
                 },
                 new Comment
                 {
@@ -31,7 +31,7 @@ namespace MyClub.Services.Database.Seeders
                     Content = "Odbrana je bila kao zid! Sjajan posao momci!",
                     CreatedAt = new DateTime(2025, 5, 31, 15, 0, 0, DateTimeKind.Utc),
                     NewsId = 1,
-                    UserId = 2
+                    UserId = 3
                 },
 
                 // Comments for the second news (Novi dresovi za novu sezonu)

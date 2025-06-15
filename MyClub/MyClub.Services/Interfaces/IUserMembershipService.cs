@@ -13,5 +13,7 @@ namespace MyClub.Services.Interfaces
         Task<UserMembershipResponse> PurchaseMembershipAsync(UserMembershipUpsertRequest request);
         Task<UserMembershipCardResponse> GetUserMembershipCardAsync(int membershipId);
         Task<bool> MarkAsShippedAsync(int membershipId);
+        Task<bool> HasActiveUserMembershipAsync(int userId);
+        Task<decimal> CalculateDiscountedPriceAsync(int userId, decimal originalPrice);
     }
 } 

@@ -159,6 +159,12 @@ namespace MyClub.Services.Services
 
             // Validate the request
             request.Validate();
+            
+            // Validate the payment amount matches the membership card price
+            if (Math.Abs(request.PaymentAmount - membershipCard.Price) > 0.1m)
+            {
+                throw new Exception($"Payment amount ({request.PaymentAmount}) does not match membership price ({membershipCard.Price})");
+            }
 
             // Check for existing membership (except for gift purchases)
             if (request.OperationType != MembershipOperationType.GiftPurchase)
@@ -186,22 +192,23 @@ namespace MyClub.Services.Services
             }
             
             // Create a payment record first
-            string paymentId;
+            Guid paymentId;
             try
             {
-                // Use the payment service to create a payment
-                if (request.Method.ToLower() == "stripe")
+                // Create payment record
+                var payment = new Payment
                 {
-                    paymentId = await _paymentService.CreateStripePaymentAsync(request);
-                }
-                else if (request.Method.ToLower() == "paypal")
-                {
-                    paymentId = await _paymentService.CreatePayPalPaymentAsync(request);
-                }
-                else
-                {
-                    throw new Exception($"Unsupported payment method: {request.Method}");
-                }
+                    Id = Guid.NewGuid(),
+                    Amount = request.PaymentAmount,
+                    Method = request.Method,
+                    Status = "Completed",
+                    CreatedAt = DateTime.UtcNow,
+                    CompletedAt = DateTime.UtcNow
+                };
+                _context.Payments.Add(payment);
+                await _context.SaveChangesAsync();
+                
+                paymentId = payment.Id;
             }
             catch (Exception ex)
             {
@@ -219,7 +226,7 @@ namespace MyClub.Services.Services
                 PhysicalCardRequested = request.PhysicalCardRequested,
                 IsPaid = true,
                 PaymentDate = DateTime.UtcNow,
-                PaymentId = Guid.Parse(paymentId) // Link to the payment record
+                PaymentId = paymentId // Link to the payment record
             };
 
             // Add recipient information for gift purchases
@@ -233,27 +240,44 @@ namespace MyClub.Services.Services
             // Add shipping information if physical card is requested
             if (request.PhysicalCardRequested)
             {
+                ShippingDetails shippingDetails = null;
+                
                 if (request.OperationType == MembershipOperationType.Renewal && request.Shipping == null)
                 {
                     // For renewals, use previous address if not updating
                     var previousMembership = await _context.UserMemberships
+                        .Include(um => um.ShippingDetails)
                         .FirstOrDefaultAsync(um => um.Id == request.PreviousMembershipId);
                         
-                    if (previousMembership != null)
+                    if (previousMembership?.ShippingDetails != null)
                     {
-                        userMembership.ShippingAddress = previousMembership.ShippingAddress;
-                        userMembership.ShippingCity = previousMembership.ShippingCity;
-                        userMembership.ShippingPostalCode = previousMembership.ShippingPostalCode;
-                        userMembership.ShippingCountry = previousMembership.ShippingCountry;
+                        // Create new shipping details based on previous membership
+                        shippingDetails = new ShippingDetails
+                        {
+                            ShippingAddress = previousMembership.ShippingDetails.ShippingAddress,
+                            ShippingCity = previousMembership.ShippingDetails.ShippingCity,
+                            ShippingPostalCode = previousMembership.ShippingDetails.ShippingPostalCode,
+                            ShippingCountry = previousMembership.ShippingDetails.ShippingCountry
+                        };
                     }
                 }
                 else if (request.Shipping != null)
                 {
                     // Use new shipping information
-                    userMembership.ShippingAddress = request.Shipping.ShippingAddress;
-                    userMembership.ShippingCity = request.Shipping.ShippingCity;
-                    userMembership.ShippingPostalCode = request.Shipping.ShippingPostalCode;
-                    userMembership.ShippingCountry = request.Shipping.ShippingCountry;
+                    shippingDetails = new ShippingDetails
+                    {
+                        ShippingAddress = request.Shipping.ShippingAddress,
+                        ShippingCity = request.Shipping.ShippingCity,
+                        ShippingPostalCode = request.Shipping.ShippingPostalCode,
+                        ShippingCountry = request.Shipping.ShippingCountry
+                    };
+                }
+                
+                if (shippingDetails != null)
+                {
+                    _context.Set<ShippingDetails>().Add(shippingDetails);
+                    await _context.SaveChangesAsync();
+                    userMembership.ShippingDetailsId = shippingDetails.Id;
                 }
             }
             
@@ -272,6 +296,10 @@ namespace MyClub.Services.Services
                 
             await _context.Entry(userMembership)
                 .Reference(um => um.MembershipCard)
+                .LoadAsync();
+                
+            await _context.Entry(userMembership)
+                .Reference(um => um.ShippingDetails)
                 .LoadAsync();
                 
             return MapToResponse(userMembership);
@@ -351,10 +379,10 @@ namespace MyClub.Services.Services
                     ? $"{entity.RecipientFirstName} {entity.RecipientLastName}" 
                     : string.Empty,
                 RecipientEmail = entity.RecipientEmail,
-                ShippingAddress = entity.ShippingAddress,
-                ShippingCity = entity.ShippingCity,
-                ShippingPostalCode = entity.ShippingPostalCode,
-                ShippingCountry = entity.ShippingCountry,
+                ShippingAddress = entity.ShippingDetails?.ShippingAddress ?? string.Empty,
+                ShippingCity = entity.ShippingDetails?.ShippingCity ?? string.Empty,
+                ShippingPostalCode = entity.ShippingDetails?.ShippingPostalCode ?? string.Empty,
+                ShippingCountry = entity.ShippingDetails?.ShippingCountry ?? string.Empty,
                 IsShipped = entity.IsShipped,
                 ShippedDate = entity.ShippedDate,
                 PaymentAmount = entity.Payment?.Amount ?? 0,
@@ -380,6 +408,16 @@ namespace MyClub.Services.Services
             }
 
             return JwtTokenManager.GetUserIdFromToken(authHeader);
+        }
+
+        public async Task<bool> HasActiveUserMembershipAsync(int userId)
+        {
+            return await DiscountHelper.HasActiveUserMembership(_context, userId);
+        }
+        
+        public async Task<decimal> CalculateDiscountedPriceAsync(int userId, decimal originalPrice)
+        {
+            return await DiscountHelper.ApplyMembershipDiscountIfApplicable(_context, userId, originalPrice);
         }
     }
 } 
