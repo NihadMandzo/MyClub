@@ -14,7 +14,7 @@ using MyClub.Services.Helpers;
 
 namespace MyClub.Services.Services
 {
-    public class UserMembershipService : BaseCRUDService<UserMembershipResponse, UserMembershipSearchObject, UserMembershipUpsertRequest, UserMembershipUpsertRequest, UserMembership>, IUserMembershipService
+    public class UserMembershipService : BaseService<UserMembershipResponse, UserMembershipSearchObject, UserMembership>, IUserMembershipService
     {
         private readonly MyClubContext _context;
         private readonly IHttpContextAccessor _httpContextAccessor;
@@ -117,7 +117,7 @@ namespace MyClub.Services.Services
             return MapToResponse(entity);
         }
 
-        public async Task<List<UserMembershipResponse>> GetUserMembershipsAsync(int userId)
+        public async Task<PagedResult<UserMembershipResponse>> GetUserMembershipsAsync(int userId)
         {
             var memberships = await _context.UserMemberships
                 .AsNoTracking()
@@ -128,7 +128,13 @@ namespace MyClub.Services.Services
                 .ThenByDescending(um => um.JoinDate)
                 .ToListAsync();
 
-            return memberships.Select(MapToResponse).ToList();
+            return new PagedResult<UserMembershipResponse>
+            {
+                Data = memberships.Select(MapToResponse).ToList(),
+                TotalCount = memberships.Count,
+                CurrentPage = 1,
+                PageSize = memberships.Count
+            };
         }
 
         public async Task<UserMembershipResponse> PurchaseMembershipAsync(UserMembershipUpsertRequest request)

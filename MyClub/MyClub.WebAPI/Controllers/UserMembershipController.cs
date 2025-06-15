@@ -11,7 +11,7 @@ namespace MyClub.WebAPI.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class UserMembershipController : BaseCRUDController<UserMembershipResponse, UserMembershipSearchObject, UserMembershipUpsertRequest, UserMembershipUpsertRequest>
+    public class UserMembershipController : BaseController<UserMembershipResponse, UserMembershipSearchObject>
     {
         private readonly IUserMembershipService _service;
 
@@ -108,23 +108,6 @@ namespace MyClub.WebAPI.Controllers
             }
         }
 
-        // Admin CRUD operations - override base methods to add authorization
-        [HttpPost]
-        public override async Task<IActionResult> Create([FromBody] UserMembershipUpsertRequest request)
-        {
-            return await base.Create(request);
-        }
-
-        [HttpPut("{id}")]
-        public override async Task<IActionResult> Update(int id, [FromBody] UserMembershipUpsertRequest request)
-        {
-            return await base.Update(id, request);
-        }
-
-        [HttpDelete("{id}")]
-        public override async Task<IActionResult> Delete(int id)
-        {
-            return await base.Delete(id);
-        }
+        
     }
 } 

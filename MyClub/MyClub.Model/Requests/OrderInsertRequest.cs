@@ -8,11 +8,15 @@ namespace MyClub.Model.Requests
     {
         [Required]
         public string ShippingAddress { get; set; }
-        
+
         [Required]
         public string PaymentMethod { get; set; }
-        
+
+        [Required]
+        public decimal TotalAmount { get; set; }
+
         public string Notes { get; set; }
+
         
         [Required]
         public List<OrderItemInsertRequest> Items { get; set; }

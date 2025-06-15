@@ -8,6 +8,5 @@ namespace MyClub.Model.Requests
         [Required]
         public OrderStatus NewStatus { get; set; }
         
-        public string Notes { get; set; }
     }
 } 

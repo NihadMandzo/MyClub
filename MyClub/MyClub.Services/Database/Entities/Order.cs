@@ -37,7 +37,7 @@ namespace MyClub.Services.Database
         [Required]
         public DateTime OrderDate { get; set; } = DateTime.UtcNow;
         
-        public OrderStatus Status { get; set; } = OrderStatus.Pending;
+        public string  Status { get; set; } = OrderStatus.Pending.ToString();
         
         [Column(TypeName = "decimal(18,2)")]
         public decimal TotalAmount { get; set; }

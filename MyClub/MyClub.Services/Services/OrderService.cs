@@ -9,6 +9,7 @@ using MyClub.Services.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
 
 namespace MyClub.Services.Services
@@ -18,6 +19,7 @@ namespace MyClub.Services.Services
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly IUserService _userService;
         private readonly IPaymentService _paymentService;
+        private readonly MyClubContext _context;
 
         public OrderService(
             MyClubContext context, 
@@ -30,6 +32,7 @@ namespace MyClub.Services.Services
             _httpContextAccessor = httpContextAccessor;
             _userService = userService;
             _paymentService = paymentService;
+            _context = context;
         }
 
 
@@ -59,14 +62,47 @@ namespace MyClub.Services.Services
 
         public async Task<OrderResponse> PlaceOrder(OrderInsertRequest request)
         {
-            await Task.CompletedTask;
+            var userId = int.Parse(_httpContextAccessor.HttpContext.User.FindFirst(ClaimTypes.NameIdentifier).Value);
+            var user = await _userService.GetByIdAsync(userId);
+            if (user == null)
+            {
+                throw new KeyNotFoundException($"User with ID {userId} not found");
+            }
+
+            var order = new Database.Order(){
+                OrderNumber = Guid.NewGuid().ToString(),
+                UserId = userId,
+                OrderDate = DateTime.UtcNow,
+                Status = Database.OrderStatus.Pending.ToString(),
+                TotalAmount = request.TotalAmount,
+                ShippingAddress = request.ShippingAddress,
+                PaymentMethod = request.PaymentMethod,
+                ShippedDate = null,
+                DeliveredDate = null,
+                Notes = request.Notes,
+                OrderItems = request.Items.Select(x => new Database.OrderItem(){
+                    ProductSizeId = x.ProductSizeId,
+                    Quantity = x.Quantity,
+                }).ToList()
+            };
+
+            _context.Orders.Add(order);
+            await _context.SaveChangesAsync();
+
             return null;
         }
 
         public async Task<OrderResponse> ChangeOrderState(int orderId, OrderStateUpdateRequest request)
         {
-            await Task.CompletedTask;
-            return null;
+            var order = await _context.Orders.FirstOrDefaultAsync(x => x.Id == orderId);
+            if (order == null)
+            {
+                throw new KeyNotFoundException($"Order with ID {orderId} not found");
+            }
+            order.Status = request.NewStatus.ToString();
+            await _context.SaveChangesAsync();
+
+            return MapToResponse(order);
         }
     }
 } 
