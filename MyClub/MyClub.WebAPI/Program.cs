@@ -31,6 +31,7 @@ builder.Services.AddTransient<IMembershipCardService, MembershipCardService>();
 builder.Services.AddTransient<IUserMembershipService, UserMembershipService>();
 builder.Services.AddTransient<IPaymentService, PaymentService>();
 builder.Services.AddTransient<IOrderService, OrderService>();
+builder.Services.AddTransient<IAdminDashboardService, AdminDashboardService>();
 
 // Add HttpContextAccessor
 builder.Services.AddHttpContextAccessor();
