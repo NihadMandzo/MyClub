@@ -376,7 +376,7 @@ namespace MyClub.Services.Services
                 Id = campaign.Id,
                 Name = campaign.Name,
                 Year = campaign.Year,
-                TotalMembers = campaign.TotalMembers,
+                TotalMembers = campaign.UserMemberships.Count,
                 TargetMembers = campaign.TargetMembers,
                 NewMemberships = campaign.UserMemberships.Count(um => !um.IsRenewal),
                 RenewedMemberships = campaign.UserMemberships.Count(um => um.IsRenewal),

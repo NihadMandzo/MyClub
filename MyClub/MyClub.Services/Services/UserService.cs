@@ -16,6 +16,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using MyClub.Services.Helpers;
 using Microsoft.AspNetCore.Http;
+using MyClub.Services.Helpers;
 
 namespace MyClub.Services
 {
@@ -436,6 +437,25 @@ namespace MyClub.Services
                 throw new UserException("User not found", 404);
 
             return _mapper.Map<UserResponse>(user);
+        }
+
+        public async Task<bool> HasActiveUserMembership()
+        {
+            var httpContext = _httpContextAccessor.HttpContext;
+            if (httpContext == null)
+                throw new UserException("No HTTP context available");
+
+            string? authHeader = httpContext.Request.Headers["Authorization"].ToString();
+            if (string.IsNullOrEmpty(authHeader))
+                throw new UserException("User is not authenticated", 401);
+
+            int userId = JwtTokenManager.GetUserIdFromToken(authHeader);
+
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null)
+                throw new UserException("User not found", 404);
+
+            return await _context.UserMemberships.AnyAsync(um => um.UserId == userId && um.MembershipCard.IsActive && um.MembershipCard.StartDate <= DateTime.UtcNow && um.MembershipCard.EndDate >= DateTime.UtcNow);
         }
     }
 }

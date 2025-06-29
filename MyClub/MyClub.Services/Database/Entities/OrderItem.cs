@@ -27,10 +27,7 @@ namespace MyClub.Services.Database
         [Column(TypeName = "decimal(18,2)")]
         public decimal UnitPrice { get; set; }
         
-        [Column(TypeName = "decimal(18,2)")]
-        public decimal? Discount { get; set; }
-        
         [NotMapped]
-        public decimal Subtotal => Quantity * UnitPrice - (Discount ?? 0);
+        public decimal Subtotal => Quantity * UnitPrice;
     }
 } 

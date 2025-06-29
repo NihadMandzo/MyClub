@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using MyClub.Model.Requests;
 
 namespace MyClub.Model.Requests
 {
-    public class OrderInsertRequest
+    public class OrderInsertRequest : PaymentRequest
     {
         [Required]
         public string ShippingAddress { get; set; }
@@ -18,14 +20,7 @@ namespace MyClub.Model.Requests
         [Required]
         public string ShippingCountry { get; set; }
 
-        [Required]
-        public string PaymentMethod { get; set; }
-
-        [Required]
-        public decimal TotalAmount { get; set; }
-
         public string Notes { get; set; }
-
         
         [Required]
         public List<OrderItemInsertRequest> Items { get; set; }
@@ -39,5 +34,9 @@ namespace MyClub.Model.Requests
         [Required]
         [Range(1, int.MaxValue)]
         public int Quantity { get; set; }
+
+        [Required]
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal UnitPrice { get; set; }
     }
 } 

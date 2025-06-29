@@ -233,98 +233,102 @@ namespace MyClub.Services
             }
         }
 
+
+
         public async Task<UserTicketResponse> PurchaseTicketAsync(TicketPurchaseRequest request)
         {
-            using var transaction = await _context.Database.BeginTransactionAsync();
-            try
-            {
-                // Get the match ticket
-                var matchTicket = await _context.MatchTickets
-                    .Include(mt => mt.Match)
-                    .Include(mt => mt.StadiumSector)
-                    .ThenInclude(ss => ss.StadiumSide)
-                    .FirstOrDefaultAsync(mt => mt.Id == request.MatchTicketId);
+        //     using var transaction = await _context.Database.BeginTransactionAsync();
+        //     try
+        //     {
+        //         // Get the match ticket
+        //         var matchTicket = await _context.MatchTickets
+        //             .Include(mt => mt.Match)
+        //             .Include(mt => mt.StadiumSector)
+        //             .ThenInclude(ss => ss.StadiumSide)
+        //             .FirstOrDefaultAsync(mt => mt.Id == request.MatchTicketId);
                 
-                if (matchTicket == null)
-                    throw new Exception($"Match ticket with ID {request.MatchTicketId} not found");
+        //         if (matchTicket == null)
+        //             throw new Exception($"Match ticket with ID {request.MatchTicketId} not found");
                 
-                // Check if the ticket is active
-                if (!matchTicket.IsActive)
-                    throw new Exception("The selected tickets are not available for purchase");
+        //         // Check if the ticket is active
+        //         if (!matchTicket.IsActive)
+        //             throw new Exception("The selected tickets are not available for purchase");
                 
-                // Check if there are enough tickets available
-                if (matchTicket.AvailableQuantity < request.Quantity)
-                    throw new Exception($"Not enough tickets available. Requested: {request.Quantity}, Available: {matchTicket.AvailableQuantity}");
+        //         // Check if there are enough tickets available
+        //         if (matchTicket.AvailableQuantity < request.Quantity)
+        //             throw new Exception($"Not enough tickets available. Requested: {request.Quantity}, Available: {matchTicket.AvailableQuantity}");
                 
-                // Get the user
-                var user = await _context.Users.FindAsync(request.UserId);
-                if (user == null)
-                    throw new Exception($"User with ID {request.UserId} not found");
+        //         // Get the user
+        //         var user = await _context.Users.FindAsync(request.UserId);
+        //         if (user == null)
+        //             throw new Exception($"User with ID {request.UserId} not found");
                 
-                // Calculate total price
-                decimal totalPrice = matchTicket.Price * request.Quantity;
+        //         // Calculate total price
+        //         decimal totalPrice = matchTicket.Price * request.Quantity;
                 
-                // Create a payment record first
-                var payment = new Payment
-                {
-                    Id = Guid.NewGuid(),
-                    Amount = totalPrice,
-                    Method = "Card", // Default method, should be passed from request
-                    Status = "Succeeded", // Assuming payment is successful immediately
-                    CreatedAt = DateTime.UtcNow,
-                    CompletedAt = DateTime.UtcNow
-                };
+        //         // Create a payment record first
+        //         var payment = new Payment
+        //         {
+        //             Id = Guid.NewGuid(),
+        //             Amount = totalPrice,
+        //             Method = "Card", // Default method, should be passed from request
+        //             Status = "Succeeded", // Assuming payment is successful immediately
+        //             CreatedAt = DateTime.UtcNow,
+        //             CompletedAt = DateTime.UtcNow
+        //         };
                 
-                _context.Payments.Add(payment);
-                await _context.SaveChangesAsync();
+        //         _context.Payments.Add(payment);
+        //         await _context.SaveChangesAsync();
                 
-                // Generate QR code data
-                string qrCodeData = GenerateQRCodeData(request.UserId, matchTicket.Match.Id, matchTicket.StadiumSectorId, request.Quantity);
+        //         // Generate QR code data
+        //         string qrCodeData = GenerateQRCodeData(request.UserId, matchTicket.Match.Id, matchTicket.StadiumSectorId, request.Quantity);
                 
-                // Create the user ticket
-                var userTicket = new UserTicket
-                {
-                    UserId = request.UserId,
-                    MatchTicketId = request.MatchTicketId,
-                    Quantity = request.Quantity,
-                    TotalPrice = totalPrice,
-                    PurchaseDate = DateTime.UtcNow,
-                    QRCode = qrCodeData,
-                    Status = "Valid",
-                    PaymentId = payment.Id // Link to the payment record
-                };
+        //         // Create the user ticket
+        //         var userTicket = new UserTicket
+        //         {
+        //             UserId = request.UserId,
+        //             MatchTicketId = request.MatchTicketId,
+        //             Quantity = request.Quantity,
+        //             TotalPrice = totalPrice,
+        //             PurchaseDate = DateTime.UtcNow,
+        //             QRCode = qrCodeData,
+        //             Status = "Valid",
+        //             PaymentId = payment.Id // Link to the payment record
+        //         };
                 
-                // Update available tickets
-                matchTicket.AvailableQuantity -= request.Quantity;
+        //         // Update available tickets
+        //         matchTicket.AvailableQuantity -= request.Quantity;
                 
-                // Save changes
-                _context.UserTickets.Add(userTicket);
-                _context.MatchTickets.Update(matchTicket);
-                await _context.SaveChangesAsync();
+        //         // Save changes
+        //         _context.UserTickets.Add(userTicket);
+        //         _context.MatchTickets.Update(matchTicket);
+        //         await _context.SaveChangesAsync();
                 
-                await transaction.CommitAsync();
+        //         await transaction.CommitAsync();
                 
-                // Return the response
-                return new UserTicketResponse
-                {
-                    Id = userTicket.Id,
-                    Quantity = userTicket.Quantity,
-                    TotalPrice = userTicket.TotalPrice,
-                    PurchaseDate = userTicket.PurchaseDate,
-                    QRCodeData = qrCodeData,
-                    MatchId = matchTicket.Match.Id,
-                    OpponentName = matchTicket.Match.OpponentName,
-                    MatchDate = matchTicket.Match.MatchDate,
-                    Location = matchTicket.Match.Location,
-                    SectorCode = matchTicket.StadiumSector.Code,
-                    StadiumSide = matchTicket.StadiumSector.StadiumSide.Name
-                };
-            }
-            catch (Exception)
-            {
-                await transaction.RollbackAsync();
-                throw;
-            }
+        //         // Return the response
+        //         return new UserTicketResponse
+        //         {
+        //             Id = userTicket.Id,
+        //             Quantity = userTicket.Quantity,
+        //             TotalPrice = userTicket.TotalPrice,
+        //             PurchaseDate = userTicket.PurchaseDate,
+        //             QRCodeData = qrCodeData,
+        //             MatchId = matchTicket.Match.Id,
+        //             OpponentName = matchTicket.Match.OpponentName,
+        //             MatchDate = matchTicket.Match.MatchDate,
+        //             Location = matchTicket.Match.Location,
+        //             SectorCode = matchTicket.StadiumSector.Code,
+        //             StadiumSide = matchTicket.StadiumSector.StadiumSide.Name
+        //         };
+        //     }
+        //     catch (Exception)
+        //     {
+        //         await transaction.RollbackAsync();
+        //         throw;
+        //     }
+
+        return null;
         }
 
         public async Task<PagedResult<UserTicketResponse>> GetUserTicketsAsync(int userId, bool upcomingOnly = false)

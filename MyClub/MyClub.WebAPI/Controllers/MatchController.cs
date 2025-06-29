@@ -47,7 +47,7 @@ namespace MyClub.WebAPI
             int userId = GetUserIdFromToken();
 
             request.MatchTicketId = ticketId;
-            request.UserId = userId;
+
             
             var result = await _matchService.PurchaseTicketAsync(request);
             return Ok(result);

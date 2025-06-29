@@ -9,7 +9,8 @@ namespace MyClub.Services.Interfaces
 {
     public interface IOrderService : IService<OrderResponse, OrderSearchObject>
     {
-        Task<OrderResponse> PlaceOrder(OrderInsertRequest request);
+        Task<PaymentResponse> PlaceOrder(OrderInsertRequest request);
+        Task<OrderResponse> ConfirmOrder(ConfirmOrderRequest request);
         Task<OrderResponse> ChangeOrderState(int orderId, OrderStateUpdateRequest request);
     }
 } 

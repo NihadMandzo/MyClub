@@ -1,13 +1,12 @@
 using MyClub.Model.Requests;
+using MyClub.Model.Responses;
 
 namespace MyClub.Services.Interfaces
 {
     public interface IPaymentService
     {
-        Task<string> CreateStripePaymentAsync(PaymentRequest request);
+        Task<PaymentResponse> CreateStripePaymentAsync(PaymentRequest request);
         Task<string> CreatePayPalPaymentAsync(PaymentRequest request);
-        Task HandleWebhookAsync(string provider, object payload);
-        Task<Payment> GetPaymentByIdAsync(Guid paymentId);
-        Task UpdatePaymentStatusAsync(Guid paymentId, string status);
+        Task<bool> ConfirmStripePayment(Guid transactionId);
     }
 } 

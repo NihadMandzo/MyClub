@@ -12,5 +12,6 @@ namespace MyClub.Services
         Task<bool> ChangePasswordAsync(ChangePasswordRequest request);
         Task<AuthResponse> AuthenticateAsync(LoginRequest request);
         Task<UserResponse> GetMeAsync();
+        Task<bool> HasActiveUserMembership();
     }
 } 

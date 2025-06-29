@@ -40,5 +40,12 @@ namespace MyClub.WebAPI.Controllers
         {
             return Ok(await _orderService.ChangeOrderState(id, request));
         }
+
+        [HttpPost("confirm")]
+        [Authorize]
+        public async Task<ActionResult<OrderResponse>> ConfirmOrder([FromBody] ConfirmOrderRequest request)
+        {
+            return Ok(await _orderService.ConfirmOrder(request));
+        }
     }
 } 

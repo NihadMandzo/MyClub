@@ -4,6 +4,9 @@ using MyClub.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using MyClub.Services.Database;
 using Microsoft.Extensions.Logging;
+using MyClub.Model.Responses;
+using Stripe;
+using Microsoft.Extensions.Configuration;
 
 namespace MyClub.Services
 {
@@ -11,119 +14,52 @@ namespace MyClub.Services
     {
         private readonly MyClubContext _context;
         private readonly ILogger<PaymentService> _logger;
-
-        public PaymentService(MyClubContext context, ILogger<PaymentService> logger)
+        private readonly IConfiguration _configuration;
+        public PaymentService(MyClubContext context, ILogger<PaymentService> logger, IConfiguration configuration)
         {
             _context = context;
             _logger = logger;
+            _configuration = configuration;
+            StripeConfiguration.ApiKey = _configuration.GetSection("Stripe:SecretKey").Value;
         }
 
-        public async Task<string> CreateStripePaymentAsync(PaymentRequest request)
+        public async Task<PaymentResponse> CreateStripePaymentAsync(PaymentRequest request)
         {
-            try
+
+            var options = new PaymentIntentCreateOptions
             {
-                var payment = new Payment
+                Amount = (long)(request.Amount * 100),
+                Currency = "BAM",
+                AutomaticPaymentMethods = new PaymentIntentAutomaticPaymentMethodsOptions
                 {
-                    Id = Guid.NewGuid(),
-                    Amount = request.Amount,
-                    Method = "Stripe",
-                    Status = "Pending",
-                    CreatedAt = DateTime.UtcNow
-                };
+                    Enabled = true,
+                },
+            };
+            var service = new PaymentIntentService();
+            PaymentIntent paymentIntent = service.Create(options);
 
-                _context.Payments.Add(payment);
-                await _context.SaveChangesAsync();
-
-                // TODO: Implement Stripe payment creation logic
-                // This would typically involve:
-                // 1. Creating a Stripe PaymentIntent
-                // 2. Updating the payment record with Stripe-specific data
-                // 3. Returning the client secret or payment URL
-
-                return payment.Id.ToString();
-            }
-            catch (Exception ex)
+            return new PaymentResponse
             {
-                _logger.LogError(ex, "Error creating Stripe payment");
-                throw;
-            }
+                clientSecret = paymentIntent.ClientSecret,
+                transactionId = paymentIntent.Id
+            };
         }
 
         public async Task<string> CreatePayPalPaymentAsync(PaymentRequest request)
         {
-            try
-            {
-                var payment = new Payment
-                {
-                    Id = Guid.NewGuid(),
-                    Amount = request.Amount,
-                    Method = "PayPal",
-                    Status = "Pending",
-                    CreatedAt = DateTime.UtcNow
-                };
-
-                _context.Payments.Add(payment);
-                await _context.SaveChangesAsync();
-
-                // TODO: Implement PayPal payment creation logic
-                // This would typically involve:
-                // 1. Creating a PayPal order
-                // 2. Updating the payment record with PayPal-specific data
-                // 3. Returning the PayPal approval URL
-
-                return payment.Id.ToString();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error creating PayPal payment");
-                throw;
-            }
+            return null;
         }
 
-        public async Task HandleWebhookAsync(string provider, object payload)
+        public async Task<bool> ConfirmStripePayment(Guid transactionId)
         {
-            try
+            var paymentIntent = await _context.Payments.FirstOrDefaultAsync(x => x.TransactionId == transactionId);
+            if (paymentIntent == null)
             {
-                switch (provider.ToLower())
-                {
-                    case "stripe":
-                        // TODO: Implement Stripe webhook handling
-                        break;
-                    case "paypal":
-                        // TODO: Implement PayPal webhook handling
-                        break;
-                    default:
-                        throw new ArgumentException($"Unsupported payment provider: {provider}");
-                }
+                throw new KeyNotFoundException($"Payment with ID {transactionId} not found");
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error handling {provider} webhook");
-                throw;
-            }
-        }
-
-        public async Task<Payment> GetPaymentByIdAsync(Guid paymentId)
-        {
-            return await _context.Payments
-                .FirstOrDefaultAsync(p => p.Id == paymentId);
-        }
-
-        public async Task UpdatePaymentStatusAsync(Guid paymentId, string status)
-        {
-            var payment = await _context.Payments.FindAsync(paymentId);
-            if (payment == null)
-            {
-                throw new KeyNotFoundException($"Payment with ID {paymentId} not found");
-            }
-
-            payment.Status = status;
-            if (status == "Succeeded" || status == "Failed")
-            {
-                payment.CompletedAt = DateTime.UtcNow;
-            }
-
+            paymentIntent.Status = "Completed";
             await _context.SaveChangesAsync();
+            return true;
         }
     }
-} 
+}
