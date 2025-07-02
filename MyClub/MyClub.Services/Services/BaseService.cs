@@ -11,7 +11,7 @@ using MyClub.Services.Interfaces;
 namespace MyClub.Services
 {
 
-    public abstract class BaseService<T, TSearch, TEntity> : IService<T, TSearch> where T : class where TSearch : BaseSearchObject where TEntity : class
+    public abstract class  BaseService<T, TSearch, TEntity> : IService<T, TSearch> where T : class where TSearch : BaseSearchObject where TEntity : class
     {
         private readonly MyClubContext _context;
         protected readonly IMapper _mapper;

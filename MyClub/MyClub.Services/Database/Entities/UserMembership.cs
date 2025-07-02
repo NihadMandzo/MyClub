@@ -18,7 +18,7 @@ namespace MyClub.Services.Database
         [ForeignKey("MembershipCardId")]
         public virtual MembershipCard? MembershipCard { get; set; }
         
-        public Guid PaymentId { get; set; }
+        public int PaymentId { get; set; }
 
         [ForeignKey("PaymentId")]
         public virtual Payment? Payment { get; set; }

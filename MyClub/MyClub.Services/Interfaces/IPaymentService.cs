@@ -7,6 +7,6 @@ namespace MyClub.Services.Interfaces
     {
         Task<PaymentResponse> CreateStripePaymentAsync(PaymentRequest request);
         Task<string> CreatePayPalPaymentAsync(PaymentRequest request);
-        Task<bool> ConfirmStripePayment(Guid transactionId);
+        Task<bool> ConfirmStripePayment(string transactionId);
     }
 } 

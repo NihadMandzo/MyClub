@@ -50,7 +50,7 @@ namespace MyClub.Services
             return null;
         }
 
-        public async Task<bool> ConfirmStripePayment(Guid transactionId)
+        public async Task<bool> ConfirmStripePayment(string transactionId)
         {
             var paymentIntent = await _context.Payments.FirstOrDefaultAsync(x => x.TransactionId == transactionId);
             if (paymentIntent == null)

@@ -47,5 +47,12 @@ namespace MyClub.WebAPI.Controllers
         {
             return Ok(await _orderService.ConfirmOrder(request));
         }
+
+        [HttpGet("{id}")]
+        [Authorize]
+        public override async Task<OrderResponse?> GetById(int id)
+        {
+            return await _orderService.GetByIdAsync(id);
+        }
     }
 } 

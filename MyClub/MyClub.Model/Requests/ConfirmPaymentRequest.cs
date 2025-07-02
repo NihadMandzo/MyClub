@@ -2,8 +2,8 @@ using System;
 
 namespace MyClub.Model.Requests
 {
-    public class ConfirmOrderRequest : OrderInsertRequest
+    public class ConfirmOrderRequest 
     {
-        public Guid TransactionId { get; set; }
+        public string TransactionId { get; set; }
     }
 }

@@ -8,7 +8,10 @@ namespace MyClub.Services
     public class Payment
     {
         [Key]
-        public Guid TransactionId { get; set; }
+        public int Id { get; set; }
+
+        [Required]
+        public string TransactionId { get; set; }
 
         [Required]
         [Column(TypeName = "decimal(18,2)")]

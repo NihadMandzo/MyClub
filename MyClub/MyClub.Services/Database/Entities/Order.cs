@@ -20,24 +20,20 @@ namespace MyClub.Services.Database
         [Key]
         public int Id { get; set; }
         
-        [Required]
-        [MaxLength(20)]
-        public string OrderNumber { get; set; } = string.Empty;
-        
         public int UserId { get; set; }
         
         [ForeignKey("UserId")]
         public virtual User User { get; set; }
 
-        public Guid PaymentId { get; set; }
+        public int? PaymentId { get; set; }
 
         [ForeignKey("PaymentId")]
-        public virtual Payment Payment { get; set; }
+        public virtual Payment? Payment { get; set; }
 
         [Required]
         public DateTime OrderDate { get; set; } = DateTime.UtcNow;
         
-        public string  Status { get; set; } = OrderStatus.Pending.ToString();
+        public OrderStatus Status { get; set; } = OrderStatus.Pending;
         
         [Column(TypeName = "decimal(18,2)")]
         public decimal TotalAmount { get; set; }

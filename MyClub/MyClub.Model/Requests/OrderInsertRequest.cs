@@ -8,6 +8,8 @@ namespace MyClub.Model.Requests
 {
     public class OrderInsertRequest : PaymentRequest
     {
+
+        
         [Required]
         public string ShippingAddress { get; set; }
         
@@ -38,5 +40,6 @@ namespace MyClub.Model.Requests
         [Required]
         [Column(TypeName = "decimal(18,2)")]
         public decimal UnitPrice { get; set; }
+
     }
 } 

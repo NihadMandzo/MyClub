@@ -11,7 +11,7 @@ namespace MyClub.WebAPI
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize]
+    //[Authorize]
     public class BaseController<T, TSearch> : ControllerBase where T : class where TSearch : BaseSearchObject, new()
     {
         private readonly IService<T, TSearch> _service;

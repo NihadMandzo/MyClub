@@ -19,7 +19,7 @@ namespace MyClub.Model.Responses
         public string OrderNumber { get; set; }
         public int UserId { get; set; }
         public string UserFullName { get; set; }
-        public Guid? PaymentId { get; set; }
+        public int? PaymentId { get; set; }
         public DateTime OrderDate { get; set; }
         public OrderStatus Status { get; set; }
         public decimal TotalAmount { get; set; }

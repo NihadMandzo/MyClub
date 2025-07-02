@@ -7,6 +7,5 @@ namespace MyClub.Model.SearchObjects
     {
         public int? UserId { get; set; }
         public OrderStatus? Status { get; set; }
-        public string OrderNumber { get; set; }
     }
 } 
