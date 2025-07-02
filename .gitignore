@@ -402,3 +402,4 @@ FodyWeavers.xsd
 
 *.vscode/
 .vscode/
+MyClub/MyClub.WebAPI/appsettings.json
