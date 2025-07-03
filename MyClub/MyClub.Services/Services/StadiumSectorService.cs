@@ -30,9 +30,38 @@ namespace MyClub.Services.Services
 
         public async Task<PagedResult<StadiumSector>> GetStadiumSectorsAsync(BaseSearchObject search)
         {
-            var query = _context.StadiumSectors.AsQueryable();
+            var query = _context.StadiumSectors
+                .Include(s => s.StadiumSide)
+                .AsQueryable();
+                
+            // Apply filters
             query = ApplyFilter(query, search);
-            return await GetAsync(search);
+            
+            // Get total count before pagination
+            int totalCount = 0;
+            if (search.IncludeTotalCount)
+            {
+                totalCount = await query.CountAsync();
+            }
+            
+            // Apply pagination
+            int pageSize = search.PageSize ?? 10;
+            int currentPage = search.Page ?? 0;
+            
+            if (!search.RetrieveAll)
+            {
+                query = query.Skip(currentPage * pageSize).Take(pageSize);
+            }
+            
+            var list = await query.ToListAsync();
+            
+            return new PagedResult<StadiumSector>
+            {
+                Data = list,
+                TotalCount = totalCount,
+                CurrentPage = currentPage,
+                PageSize = pageSize
+            };
         }
 
     }

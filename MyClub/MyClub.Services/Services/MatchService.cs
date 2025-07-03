@@ -352,10 +352,11 @@ namespace MyClub.Services
             // Order by match date (upcoming first, then past)
             query = query.OrderBy(ut => ut.MatchTicket.Match.MatchDate < DateTime.UtcNow ? 1 : 0)
                 .ThenBy(ut => ut.MatchTicket.Match.MatchDate);
+                
             // Get total count
             int totalCount = await query.CountAsync();
             
-            // Get all tickets - no pagination for simplicity as requested
+            // Get all tickets - no pagination for user tickets as they're typically few
             var list = await query.ToListAsync();
             
             // Map to response
@@ -374,13 +375,13 @@ namespace MyClub.Services
                 StadiumSide = ut.MatchTicket.StadiumSector.StadiumSide.Name
             }).ToList();
             
-            // Create the paged result
+            // Create the paged result with proper pagination metadata
             return new PagedResult<UserTicketResponse>
             {
                 Data = response,
                 TotalCount = totalCount,
                 CurrentPage = 0,
-                PageSize = response.Count
+                PageSize = totalCount > 0 ? totalCount : 10
             };
         }
         

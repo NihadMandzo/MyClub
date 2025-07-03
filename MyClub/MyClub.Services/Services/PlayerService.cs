@@ -23,6 +23,44 @@ namespace MyClub.Services.Services
             _blobStorageService = blobStorageService;
         }
 
+        public override async Task<PagedResult<PlayerResponse>> GetAsync(PlayerSearchObject search)
+        {
+            var query = _context.Players
+                .AsNoTracking()
+                .Include(x => x.Club)
+                .Include(x => x.Image)
+                .AsQueryable();
+                
+            // Apply filters
+            query = ApplyFilter(query, search);
+            
+            // Get total count before pagination
+            int totalCount = 0;
+            if (search.IncludeTotalCount)
+            {
+                totalCount = await query.CountAsync();
+            }
+            
+            // Apply pagination
+            int pageSize = search.PageSize ?? 10;
+            int currentPage = search.Page ?? 0;
+            
+            if (!search.RetrieveAll)
+            {
+                query = query.Skip(currentPage * pageSize).Take(pageSize);
+            }
+            
+            var list = await query.ToListAsync();
+            
+            return new PagedResult<PlayerResponse>
+            {
+                Data = list.Select(MapToResponse).ToList(),
+                TotalCount = totalCount,
+                CurrentPage = currentPage,
+                PageSize = pageSize
+            };
+        }
+
         protected override IQueryable<Player> ApplyFilter(IQueryable<Player> query, PlayerSearchObject search)
         {
             var filteredQuery = base.ApplyFilter(query, search);

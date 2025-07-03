@@ -119,21 +119,23 @@ namespace MyClub.Services.Services
 
         public async Task<PagedResult<UserMembershipResponse>> GetUserMembershipsAsync(int userId)
         {
-            var memberships = await _context.UserMemberships
+            var query = _context.UserMemberships
                 .AsNoTracking()
                 .Include(um => um.User)
                 .Include(um => um.MembershipCard)
                 .Where(um => um.UserId == userId)
                 .OrderByDescending(um => um.MembershipCard.Year)
-                .ThenByDescending(um => um.JoinDate)
-                .ToListAsync();
+                .ThenByDescending(um => um.JoinDate);
+                
+            var totalCount = await query.CountAsync();
+            var memberships = await query.ToListAsync();
 
             return new PagedResult<UserMembershipResponse>
             {
                 Data = memberships.Select(MapToResponse).ToList(),
-                TotalCount = memberships.Count,
-                CurrentPage = 1,
-                PageSize = memberships.Count
+                TotalCount = totalCount,
+                CurrentPage = 0,
+                PageSize = totalCount > 0 ? totalCount : 10
             };
         }
 

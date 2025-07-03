@@ -106,22 +106,31 @@ namespace MyClub.Services.Services
             
             query = ApplyFilter(query, search);
 
-            var totalCount = await query.CountAsync();
-
-            if (search?.Page.HasValue == true && search?.PageSize.HasValue == true)
+            // Get total count before pagination
+            int totalCount = 0;
+            if (search?.IncludeTotalCount ?? true)
             {
-                query = query.Skip(search.Page.Value * search.PageSize.Value).Take(search.PageSize.Value);
+                totalCount = await query.CountAsync();
+            }
+            
+            // Apply pagination
+            int pageSize = search?.PageSize ?? 10;
+            int currentPage = search?.Page ?? 0;
+            
+            if (!(search?.RetrieveAll ?? false))
+            {
+                query = query.Skip(currentPage * pageSize).Take(pageSize);
             }
 
             var list = await query.ToListAsync();
 
-            var result = new PagedResult<CommentResponse>
+            return new PagedResult<CommentResponse>
             {
                 Data = list.Select(x => MapToResponse(x)).ToList(),
-                TotalCount = totalCount
+                TotalCount = totalCount,
+                CurrentPage = currentPage,
+                PageSize = pageSize
             };
-
-            return result;
         }
     }
 }

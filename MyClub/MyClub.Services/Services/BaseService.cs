@@ -25,23 +25,29 @@ namespace MyClub.Services
         public virtual async Task<PagedResult<T>> GetAsync(TSearch search){
             var query = _context.Set<TEntity>().AsQueryable();
             query = ApplyFilter(query, search);
+            
+            int totalCount = 0;
+            // Get total count if requested
             if(search.IncludeTotalCount){
-                var totalCount = await query.CountAsync();
+                totalCount = await query.CountAsync();
             }
+            
+            // Apply pagination
+            int pageSize = search.PageSize ?? 10;
+            int currentPage = search.Page ?? 0;
+            
             if(!search.RetrieveAll){
-                if(search.Page.HasValue)
-                {
-                    query = query.Skip((search.Page.Value) * search.PageSize.Value);
-                }
-                if(search.PageSize.HasValue){
-                    query = query.Take(search.PageSize.Value);
-                }
+                query = query.Skip(currentPage * pageSize).Take(pageSize);
             }
+            
             var list = await query.ToListAsync();
+            
             return new PagedResult<T>
             {
                 Data = list.Select(MapToResponse).ToList(),
-                TotalCount = await query.CountAsync()
+                TotalCount = totalCount,
+                CurrentPage = currentPage,
+                PageSize = pageSize
             };
         }
         protected virtual IQueryable<TEntity> ApplyFilter(IQueryable<TEntity> query, TSearch search){

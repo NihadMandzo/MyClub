@@ -39,8 +39,6 @@ namespace MyClub.Services.Services
             return MapToResponse(entity);
         }
 
-
-
         protected override ClubResponse MapToResponse(Club entity)
         {
             if (entity == null)
@@ -99,36 +97,45 @@ namespace MyClub.Services.Services
         {
             var query = _context.Clubs.AsQueryable();
 
-            // Apply search filters if any
-            if (!string.IsNullOrEmpty(search.FTS))
+            // Apply search filters
+            query = ApplyFilter(query, search);
+
+            // Get total count before pagination
+            int totalCount = 0;
+            if (search.IncludeTotalCount)
             {
-                query = query.Where(c => c.Name.Contains(search.FTS) || c.Description.Contains(search.FTS));
+                totalCount = await query.CountAsync();
             }
-
-
-
+            
+            // Apply pagination
+            int pageSize = search.PageSize ?? 10;
+            int currentPage = search.Page ?? 0;
+            
             if (!search.RetrieveAll)
             {
-                if (search.Page.HasValue)
-                {
-                    query = query.Skip((search.Page.Value) * search.PageSize.Value);
-                }
-                if (search.PageSize.HasValue)
-                {
-                    query = query.Take(search.PageSize.Value);
-                }
+                query = query.Skip(currentPage * pageSize).Take(pageSize);
             }
 
             var list = await query.ToListAsync();
-            var items = list;
-            var totalCount = search.IncludeTotalCount ? await query.CountAsync() : items.Count;
 
             return new PagedResult<ClubResponse>
             {
-                Data = items.Select(MapToResponse).ToList(),
-                TotalCount = totalCount
+                Data = list.Select(MapToResponse).ToList(),
+                TotalCount = totalCount,
+                CurrentPage = currentPage,
+                PageSize = pageSize
             };
         }
+
+        protected override IQueryable<Club> ApplyFilter(IQueryable<Club> query, BaseSearchObject search)
+        {
+            if (!string.IsNullOrWhiteSpace(search?.FTS))
+            {
+                query = query.Where(c => c.Name.Contains(search.FTS) || c.Description.Contains(search.FTS));
+            }
+            return query;
+        }
+
         public override async Task<ClubResponse> UpdateAsync(int id, ClubRequest request)
         {
             var entity = await _context.Clubs.FindAsync(id);
@@ -141,16 +148,6 @@ namespace MyClub.Services.Services
             await _context.SaveChangesAsync();
 
             return MapToResponse(entity);
-        }
-
-        
-        protected override IQueryable<Club> ApplyFilter(IQueryable<Club> query, BaseSearchObject search)
-        {
-            if (!string.IsNullOrWhiteSpace(search?.FTS))
-            {
-                query = query.Where(c => c.Name.Contains(search.FTS) || c.Description.Contains(search.FTS));
-            }
-            return query;
         }
 
         public override async Task<bool> DeleteAsync(int id)

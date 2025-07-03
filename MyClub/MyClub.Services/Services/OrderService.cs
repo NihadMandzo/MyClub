@@ -56,17 +56,20 @@ namespace MyClub.Services.Services
             // Apply filters
             query = ApplyFilter(query, search);
             
+            // Get total count before pagination
+            int totalCount = 0;
+            if (search.IncludeTotalCount)
+            {
+                totalCount = await query.CountAsync();
+            }
+            
             // Apply pagination
+            int pageSize = search.PageSize ?? 10;
+            int currentPage = search.Page ?? 0;
+            
             if (!search.RetrieveAll)
             {
-                if (search.Page.HasValue)
-                {
-                    query = query.Skip((search.Page.Value) * search.PageSize.Value);
-                }
-                if (search.PageSize.HasValue)
-                {
-                    query = query.Take(search.PageSize.Value);
-                }
+                query = query.Skip(currentPage * pageSize).Take(pageSize);
             }
             
             var list = await query.ToListAsync();
@@ -74,9 +77,9 @@ namespace MyClub.Services.Services
             return new PagedResult<OrderResponse>
             {
                 Data = list.Select(MapToResponse).ToList(),
-                TotalCount = await query.CountAsync(),
-                CurrentPage = search.Page ?? 0,
-                PageSize = search.PageSize ?? 10
+                TotalCount = totalCount,
+                CurrentPage = currentPage,
+                PageSize = pageSize
             };
         }
 
