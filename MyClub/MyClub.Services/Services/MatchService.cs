@@ -34,7 +34,7 @@ namespace MyClub.Services
                 .AsQueryable();
 
             // Apply filters based on BaseSearchObject
-            query = ApplyBaseFilter(query, search);
+            query = ApplyFilter(query, search);
 
             // Include tickets
             query = query.Include(m => m.Tickets)
@@ -72,25 +72,6 @@ namespace MyClub.Services
             };
         }
         
-        private IQueryable<Database.Match> ApplyBaseFilter(IQueryable<Database.Match> query, BaseSearchObject search)
-        {
-            // Apply text search filter
-            if (!string.IsNullOrWhiteSpace(search.FTS))
-            {
-                string searchTerm = search.FTS.Trim().ToLower();
-                query = query.Where(m => 
-                    m.OpponentName.ToLower().Contains(searchTerm) || 
-                    m.Status.ToLower().Contains(searchTerm) ||
-                    m.Location.ToLower().Contains(searchTerm) ||
-                    m.Club.Name.ToLower().Contains(searchTerm)
-                );
-            }
-            
-            // Make sure we're returning matches
-            Console.WriteLine($"Query will return {query.Count()} matches");
-            
-            return query;
-        }
 
         public override async Task<MatchResponse?> GetByIdAsync(int id)
         {
@@ -618,7 +599,27 @@ namespace MyClub.Services
 
         protected override IQueryable<Match> ApplyFilter(IQueryable<Match> query, BaseSearchObject search)
         {
-            return ApplyBaseFilter(query, search);
+             // Apply text search filter
+            if (!string.IsNullOrWhiteSpace(search.FTS))
+            {
+                string searchTerm = search.FTS.Trim().ToLower();
+                query = query.Where(m => 
+                    m.OpponentName.ToLower().Contains(searchTerm) || 
+                    m.Status.ToLower().Contains(searchTerm) ||
+                    m.Location.ToLower().Contains(searchTerm) ||
+                    m.Club.Name.ToLower().Contains(searchTerm)
+                );
+            }
+            
+            // Make sure we're returning matches
+            Console.WriteLine($"Query will return {query.Count()} matches");
+            
+            return query;
+        }
+
+        public async Task<UserTicketResponse> ConfirmPurchaseTicketAsync(string transactionId)
+        {
+            return null;
         }
     }
 }

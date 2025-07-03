@@ -11,6 +11,7 @@ namespace MyClub.Services
         Task<List<MatchResponse>> GetUpcomingMatchesAsync(int? clubId = null, int? count = null);
 
         Task<UserTicketResponse> PurchaseTicketAsync(TicketPurchaseRequest request);
+        Task<UserTicketResponse> ConfirmPurchaseTicketAsync(string transactionId);
         Task<PagedResult<UserTicketResponse>> GetUserTicketsAsync(int userId, bool upcomingOnly = false);
         Task<QRValidationResponse> ValidateQRCodeAsync(QRValidationRequest request);
         Task<PagedResult<MatchResponse>> GetAvailableMatchesAsync(BaseSearchObject search);

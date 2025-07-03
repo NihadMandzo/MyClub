@@ -139,173 +139,179 @@ namespace MyClub.Services.Services
             };
         }
 
+        // public async Task<UserMembershipResponse> PurchaseMembershipAsync(UserMembershipUpsertRequest request)
+        // {
+        //     // Get the current user ID from the token
+        //     var userId = GetCurrentUserId();
+            
+        //     // Get the membership card
+        //     var membershipCard = await _context.MembershipCards
+        //         .FirstOrDefaultAsync(mc => mc.Id == request.MembershipCardId);
+                
+        //     if (membershipCard == null)
+        //     {
+        //         throw new Exception("Membership card not found");
+        //     }
+            
+        //     // Check if the membership card is active
+        //     if (!membershipCard.IsActive)
+        //     {
+        //         throw new Exception("This membership campaign is no longer active");
+        //     }
+
+        //     // Validate the request
+        //     request.Validate();
+            
+        //     // Validate the payment amount matches the membership card price
+        //     if (Math.Abs(request.PaymentAmount - membershipCard.Price) > 0.1m)
+        //     {
+        //         throw new Exception($"Payment amount ({request.PaymentAmount}) does not match membership price ({membershipCard.Price})");
+        //     }
+
+        //     // Check for existing membership (except for gift purchases)
+        //     if (request.OperationType != MembershipOperationType.GiftPurchase)
+        //     {
+        //         var existingMembership = await _context.UserMemberships
+        //             .Where(um => um.UserId == userId && um.MembershipCardId == request.MembershipCardId)
+        //             .FirstOrDefaultAsync();
+                    
+        //         if (existingMembership != null)
+        //         {
+        //             throw new Exception("You already have a membership for this campaign");
+        //         }
+        //     }
+
+        //     // For renewals, verify the previous membership
+        //     if (request.OperationType == MembershipOperationType.Renewal)
+        //     {
+        //         var previousMembership = await _context.UserMemberships
+        //             .FirstOrDefaultAsync(um => um.Id == request.PreviousMembershipId && um.UserId == userId);
+                    
+        //         if (previousMembership == null)
+        //         {
+        //             throw new Exception("Previous membership not found");
+        //         }
+        //     }
+            
+        //     // Create a payment record first
+        //     Guid paymentId;
+        //     try
+        //     {
+        //         // Create payment record
+        //         var payment = new Payment
+        //         {
+        //             Id = Guid.NewGuid(),
+        //             Amount = request.PaymentAmount,
+        //             Method = request.Method,
+        //             Status = "Completed",
+        //             CreatedAt = DateTime.UtcNow,
+        //             CompletedAt = DateTime.UtcNow
+        //         };
+        //         _context.Payments.Add(payment);
+        //         await _context.SaveChangesAsync();
+                
+        //         paymentId = payment.Id;
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         throw new Exception($"Failed to process payment: {ex.Message}");
+        //     }
+            
+        //     // Create the user membership
+        //     var userMembership = new UserMembership
+        //     {
+        //         UserId = userId,
+        //         MembershipCardId = request.MembershipCardId,
+        //         JoinDate = DateTime.UtcNow,
+        //         IsRenewal = request.OperationType == MembershipOperationType.Renewal,
+        //         PreviousMembershipId = request.PreviousMembershipId,
+        //         PhysicalCardRequested = request.PhysicalCardRequested,
+        //         IsPaid = true,
+        //         PaymentDate = DateTime.UtcNow,
+        //         PaymentId = paymentId // Link to the payment record
+        //     };
+
+        //     // Add recipient information for gift purchases
+        //     if (request.OperationType == MembershipOperationType.GiftPurchase)
+        //     {
+        //         userMembership.RecipientFirstName = request.RecipientFirstName;
+        //         userMembership.RecipientLastName = request.RecipientLastName;
+        //         userMembership.RecipientEmail = request.RecipientEmail;
+        //     }
+            
+        //     // Add shipping information if physical card is requested
+        //     if (request.PhysicalCardRequested)
+        //     {
+        //         ShippingDetails shippingDetails = null;
+                
+        //         if (request.OperationType == MembershipOperationType.Renewal && request.Shipping == null)
+        //         {
+        //             // For renewals, use previous address if not updating
+        //             var previousMembership = await _context.UserMemberships
+        //                 .Include(um => um.ShippingDetails)
+        //                 .FirstOrDefaultAsync(um => um.Id == request.PreviousMembershipId);
+                        
+        //             if (previousMembership?.ShippingDetails != null)
+        //             {
+        //                 // Create new shipping details based on previous membership
+        //                 shippingDetails = new ShippingDetails
+        //                 {
+        //                     ShippingAddress = previousMembership.ShippingDetails.ShippingAddress,
+        //                     ShippingCity = previousMembership.ShippingDetails.ShippingCity,
+        //                     ShippingPostalCode = previousMembership.ShippingDetails.ShippingPostalCode,
+        //                     ShippingCountry = previousMembership.ShippingDetails.ShippingCountry
+        //                 };
+        //             }
+        //         }
+        //         else if (request.Shipping != null)
+        //         {
+        //             // Use new shipping information
+        //             shippingDetails = new ShippingDetails
+        //             {
+        //                 ShippingAddress = request.Shipping.ShippingAddress,
+        //                 ShippingCity = request.Shipping.ShippingCity,
+        //                 ShippingPostalCode = request.Shipping.ShippingPostalCode,
+        //                 ShippingCountry = request.Shipping.ShippingCountry
+        //             };
+        //         }
+                
+        //         if (shippingDetails != null)
+        //         {
+        //             _context.Set<ShippingDetails>().Add(shippingDetails);
+        //             await _context.SaveChangesAsync();
+        //             userMembership.ShippingDetailsId = shippingDetails.Id;
+        //         }
+        //     }
+            
+        //     // Add the user membership
+        //     _context.UserMemberships.Add(userMembership);
+            
+        //     // Update the membership card total members
+        //     membershipCard.TotalMembers += 1;
+            
+        //     await _context.SaveChangesAsync();
+            
+        //     // Load related entities for the response
+        //     await _context.Entry(userMembership)
+        //         .Reference(um => um.User)
+        //         .LoadAsync();
+                
+        //     await _context.Entry(userMembership)
+        //         .Reference(um => um.MembershipCard)
+        //         .LoadAsync();
+                
+        //     await _context.Entry(userMembership)
+        //         .Reference(um => um.ShippingDetails)
+        //         .LoadAsync();
+                
+        //     return MapToResponse(userMembership);
+        // }
+
         public async Task<UserMembershipResponse> PurchaseMembershipAsync(UserMembershipUpsertRequest request)
         {
-            // // Get the current user ID from the token
-            // var userId = GetCurrentUserId();
-            
-            // // Get the membership card
-            // var membershipCard = await _context.MembershipCards
-            //     .FirstOrDefaultAsync(mc => mc.Id == request.MembershipCardId);
-                
-            // if (membershipCard == null)
-            // {
-            //     throw new Exception("Membership card not found");
-            // }
-            
-            // // Check if the membership card is active
-            // if (!membershipCard.IsActive)
-            // {
-            //     throw new Exception("This membership campaign is no longer active");
-            // }
-
-            // // Validate the request
-            // request.Validate();
-            
-            // // Validate the payment amount matches the membership card price
-            // if (Math.Abs(request.PaymentAmount - membershipCard.Price) > 0.1m)
-            // {
-            //     throw new Exception($"Payment amount ({request.PaymentAmount}) does not match membership price ({membershipCard.Price})");
-            // }
-
-            // // Check for existing membership (except for gift purchases)
-            // if (request.OperationType != MembershipOperationType.GiftPurchase)
-            // {
-            //     var existingMembership = await _context.UserMemberships
-            //         .Where(um => um.UserId == userId && um.MembershipCardId == request.MembershipCardId)
-            //         .FirstOrDefaultAsync();
-                    
-            //     if (existingMembership != null)
-            //     {
-            //         throw new Exception("You already have a membership for this campaign");
-            //     }
-            // }
-
-            // // For renewals, verify the previous membership
-            // if (request.OperationType == MembershipOperationType.Renewal)
-            // {
-            //     var previousMembership = await _context.UserMemberships
-            //         .FirstOrDefaultAsync(um => um.Id == request.PreviousMembershipId && um.UserId == userId);
-                    
-            //     if (previousMembership == null)
-            //     {
-            //         throw new Exception("Previous membership not found");
-            //     }
-            // }
-            
-            // // Create a payment record first
-            // Guid paymentId;
-            // try
-            // {
-            //     // Create payment record
-            //     var payment = new Payment
-            //     {
-            //         Id = Guid.NewGuid(),
-            //         Amount = request.PaymentAmount,
-            //         Method = request.Method,
-            //         Status = "Completed",
-            //         CreatedAt = DateTime.UtcNow,
-            //         CompletedAt = DateTime.UtcNow
-            //     };
-            //     _context.Payments.Add(payment);
-            //     await _context.SaveChangesAsync();
-                
-            //     paymentId = payment.Id;
-            // }
-            // catch (Exception ex)
-            // {
-            //     throw new Exception($"Failed to process payment: {ex.Message}");
-            // }
-            
-            // // Create the user membership
-            // var userMembership = new UserMembership
-            // {
-            //     UserId = userId,
-            //     MembershipCardId = request.MembershipCardId,
-            //     JoinDate = DateTime.UtcNow,
-            //     IsRenewal = request.OperationType == MembershipOperationType.Renewal,
-            //     PreviousMembershipId = request.PreviousMembershipId,
-            //     PhysicalCardRequested = request.PhysicalCardRequested,
-            //     IsPaid = true,
-            //     PaymentDate = DateTime.UtcNow,
-            //     PaymentId = paymentId // Link to the payment record
-            // };
-
-            // // Add recipient information for gift purchases
-            // if (request.OperationType == MembershipOperationType.GiftPurchase)
-            // {
-            //     userMembership.RecipientFirstName = request.RecipientFirstName;
-            //     userMembership.RecipientLastName = request.RecipientLastName;
-            //     userMembership.RecipientEmail = request.RecipientEmail;
-            // }
-            
-            // // Add shipping information if physical card is requested
-            // if (request.PhysicalCardRequested)
-            // {
-            //     ShippingDetails shippingDetails = null;
-                
-            //     if (request.OperationType == MembershipOperationType.Renewal && request.Shipping == null)
-            //     {
-            //         // For renewals, use previous address if not updating
-            //         var previousMembership = await _context.UserMemberships
-            //             .Include(um => um.ShippingDetails)
-            //             .FirstOrDefaultAsync(um => um.Id == request.PreviousMembershipId);
-                        
-            //         if (previousMembership?.ShippingDetails != null)
-            //         {
-            //             // Create new shipping details based on previous membership
-            //             shippingDetails = new ShippingDetails
-            //             {
-            //                 ShippingAddress = previousMembership.ShippingDetails.ShippingAddress,
-            //                 ShippingCity = previousMembership.ShippingDetails.ShippingCity,
-            //                 ShippingPostalCode = previousMembership.ShippingDetails.ShippingPostalCode,
-            //                 ShippingCountry = previousMembership.ShippingDetails.ShippingCountry
-            //             };
-            //         }
-            //     }
-            //     else if (request.Shipping != null)
-            //     {
-            //         // Use new shipping information
-            //         shippingDetails = new ShippingDetails
-            //         {
-            //             ShippingAddress = request.Shipping.ShippingAddress,
-            //             ShippingCity = request.Shipping.ShippingCity,
-            //             ShippingPostalCode = request.Shipping.ShippingPostalCode,
-            //             ShippingCountry = request.Shipping.ShippingCountry
-            //         };
-            //     }
-                
-            //     if (shippingDetails != null)
-            //     {
-            //         _context.Set<ShippingDetails>().Add(shippingDetails);
-            //         await _context.SaveChangesAsync();
-            //         userMembership.ShippingDetailsId = shippingDetails.Id;
-            //     }
-            // }
-            
-            // // Add the user membership
-            // _context.UserMemberships.Add(userMembership);
-            
-            // // Update the membership card total members
-            // membershipCard.TotalMembers += 1;
-            
-            // await _context.SaveChangesAsync();
-            
-            // // Load related entities for the response
-            // await _context.Entry(userMembership)
-            //     .Reference(um => um.User)
-            //     .LoadAsync();
-                
-            // await _context.Entry(userMembership)
-            //     .Reference(um => um.MembershipCard)
-            //     .LoadAsync();
-                
-            // await _context.Entry(userMembership)
-            //     .Reference(um => um.ShippingDetails)
-            //     .LoadAsync();
-                
-            // return MapToResponse(userMembership);
-            return null;
+            // Get the current user ID from the token
+            var userId = GetCurrentUserId();
+            return null;   
         }
 
         public async Task<UserMembershipCardResponse> GetUserMembershipCardAsync(int membershipId)
@@ -411,6 +417,11 @@ namespace MyClub.Services.Services
             }
 
             return JwtTokenManager.GetUserIdFromToken(authHeader);
+        }
+
+        public async Task<UserMembershipResponse> ConfirmPurchaseMembershipAsync(string transactionId)
+        {
+            return null;
         }
 
     }
