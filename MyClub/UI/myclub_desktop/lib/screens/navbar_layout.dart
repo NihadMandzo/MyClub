@@ -87,7 +87,7 @@ class NavbarLayout extends StatelessWidget {
                 PopupMenuItem(
                   enabled: false,
                   child: Text(
-                    "User: ${authProvider.user?.username ?? "Guest"}",
+                    "User: ${authProvider.username ?? "Guest"}",
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                     ),

@@ -1,13 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
+import 'providers/user_provider.dart';
 import 'screens/login_screen.dart';
 import 'screens/main_layout.dart';
 
 void main() {
   runApp(
-    ChangeNotifierProvider(
-      create: (context) => AuthProvider(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (context) => AuthProvider()),
+        ChangeNotifierProxyProvider<AuthProvider, UserProvider>(
+          create: (context) => UserProvider(),
+          update: (context, auth, userProvider) {
+            userProvider!.setContext(context);
+            return userProvider;
+          },
+        ),
+      ],
       child: const MyApp(),
     ),
   );

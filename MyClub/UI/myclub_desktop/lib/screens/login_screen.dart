@@ -23,7 +23,6 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _login() async {
-    Navigator.of(context).pushReplacementNamed('/dashboard');
     if (_formKey.currentState!.validate()) {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final success = await authProvider.login(
@@ -32,6 +31,7 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (success && mounted) {
+        Navigator.of(context).pushReplacementNamed('/dashboard');
       }
     }
   }

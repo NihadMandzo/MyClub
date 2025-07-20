@@ -1,52 +1,83 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import '../models/user.dart';
+import 'package:http/http.dart' as http;
+import 'package:myclub_desktop/models/auth_response.dart';
 
-class AuthProvider extends ChangeNotifier {
-  User? _user;
-  bool _isLoading = false;
-  String? _errorMessage;
-
-  User? get user => _user;
-  bool get isLoading => _isLoading;
-  String? get errorMessage => _errorMessage;
-  bool get isAuthenticated => _user != null;
+class AuthProvider with ChangeNotifier {
+  String? username;
+  String? password;
+  String? token;
+  int? userId;
+  String? roleName;
+  int? roleId;
+  AuthResponse? authResponse;
+  String? errorMessage;
+  bool isLoading = false;
 
   Future<bool> login(String username, String password) async {
-    _isLoading = true;
-    _errorMessage = null;
+    this.username = username;
+    this.password = password;
+    
+    errorMessage = null;
+    isLoading = true;
     notifyListeners();
 
     try {
-      // Here you would typically make an API call to your backend
-      // For now, we'll simulate a successful login with dummy data
-      await Future.delayed(const Duration(seconds: 1));
+      var url = const String.fromEnvironment("baseUrl", 
+          defaultValue: "http://localhost:5206/api/Users/") + "login";
+      var uri = Uri.parse(url);
+
+      print("Login URL: $uri");
+      var response = await http.post(
+        uri,
+        headers: {"Content-Type": "application/json"},
+        body: json.encode({
+          "username": username,
+          "password": password
+        }),
+      );
+
+      print("Login response code: ${response.statusCode}");
+      print("Login response body: ${response.body}");
       
-      if (username == 'admin' && password == 'password') {
-        _user = User(
-          id: 1,
-          username: username,
-          email: 'admin@myclub.com',
-          token: 'dummy_token',
-        );
-        _isLoading = false;
+      if (response.statusCode == 200) {
+        var jsonResponse = json.decode(response.body);
+        authResponse = AuthResponse.fromJson(jsonResponse);
+        
+        token = authResponse!.token;
+        userId = authResponse!.userId;
+        roleId = authResponse!.roleId;
+        roleName = authResponse!.roleName;
+        
+        print("Login successful: Token received");
+        isLoading = false;
         notifyListeners();
         return true;
-      } else {
-        _errorMessage = 'Invalid username or password';
-        _isLoading = false;
-        notifyListeners();
-        return false;
       }
-    } catch (e) {
-      _errorMessage = 'An error occurred during login';
-      _isLoading = false;
+      
+      errorMessage = "Invalid username or password (${response.statusCode})";
+      isLoading = false;
       notifyListeners();
+      return false;
+    } catch (e) {
+      errorMessage = "Connection error: $e";
+      isLoading = false;
+      notifyListeners();
+      print("Login error: $e");
       return false;
     }
   }
 
   void logout() {
-    _user = null;
+    username = null;
+    password = null;
+    token = null;
+    userId = null;
+    roleId = null;
+    roleName = null;
+    authResponse = null;
     notifyListeners();
   }
+
+  bool get isAuthenticated => token != null;
 }

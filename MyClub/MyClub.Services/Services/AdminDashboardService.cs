@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
@@ -20,21 +21,31 @@ namespace MyClub.Services.Services
 
         public async Task<List<DashboardMembershipPerMonthResponse>> MembershipPerMonth()
         {
-            var result = await _context.UserMemberships
+            var rawData = await _context.UserMemberships
                 .Where(um => um.JoinDate >= DateTime.Now.AddMonths(-12))
-                .GroupBy(um => new { 
-                    Year = um.JoinDate.Year, 
-                    Month = um.JoinDate.Month 
-                })
-                .Select(g => new DashboardMembershipPerMonthResponse
+                .GroupBy(um => new
                 {
-                    Month = $"{g.Key.Year:0000}-{g.Key.Month:00}",
-                    Year = g.Key.Year,
-                    MonthName = System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(g.Key.Month),
+                    Year = um.JoinDate.Year,
+                    Month = um.JoinDate.Month
+                })
+                .Select(g => new
+                {
+                    g.Key.Year,
+                    g.Key.Month,
                     Count = g.Count()
                 })
-                .OrderBy(x => x.Month)
                 .ToListAsync();
+
+            var result = rawData
+                .Select(g => new DashboardMembershipPerMonthResponse
+                {
+                    Month = $"{g.Year:0000}-{g.Month:00}",
+                    Year = g.Year,
+                    MonthName = CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(g.Month),
+                    Count = g.Count
+                })
+                .OrderBy(x => x.Month)
+                .ToList();
 
             return result;
         }
@@ -42,51 +53,69 @@ namespace MyClub.Services.Services
         public async Task<List<DashboardSalesByCategoryResponse>> SalesPerCategory()
         {
             var totalRevenue = await _context.OrderItems
-                .Include(oi => oi.ProductSize)
-                .ThenInclude(ps => ps.Product)
-                .ThenInclude(p => p.Category)
                 .SumAsync(oi => oi.UnitPrice * oi.Quantity);
 
-            var result = await _context.OrderItems
+            var rawData = await _context.OrderItems
                 .Include(oi => oi.ProductSize)
-                .ThenInclude(ps => ps.Product)
-                .ThenInclude(p => p.Category)
-                .GroupBy(oi => new { 
+                    .ThenInclude(ps => ps.Product)
+                        .ThenInclude(p => p.Category)
+                .GroupBy(oi => new
+                {
                     CategoryId = oi.ProductSize.Product.CategoryId,
-                    CategoryName = oi.ProductSize.Product.Category.Name 
+                    CategoryName = oi.ProductSize.Product.Category.Name
                 })
+                .Select(g => new
+                {
+                    g.Key.CategoryId,
+                    g.Key.CategoryName,
+                    TotalSold = g.Sum(oi => oi.Quantity),
+                    TotalRevenue = g.Sum(oi => oi.UnitPrice * oi.Quantity)
+                })
+                .ToListAsync();
+
+            var result = rawData
                 .Select(g => new DashboardSalesByCategoryResponse
                 {
-                    CategoryId = g.Key.CategoryId,
-                    CategoryName = g.Key.CategoryName,
-                    TotalSold = g.Sum(oi => oi.Quantity),
-                    TotalRevenue = g.Sum(oi => oi.UnitPrice * oi.Quantity),
-                    Percentage = totalRevenue > 0 ? (decimal)(g.Sum(oi => oi.UnitPrice * oi.Quantity) * 100m / totalRevenue) : 0
+                    CategoryId = g.CategoryId,
+                    CategoryName = g.CategoryName,
+                    TotalSold = g.TotalSold,
+                    TotalRevenue = g.TotalRevenue,
+                    Percentage = totalRevenue > 0 ? (g.TotalRevenue * 100m / totalRevenue) : 0
                 })
                 .OrderByDescending(x => x.TotalRevenue)
-                .ToListAsync();
+                .ToList();
 
             return result;
         }
 
         public async Task<List<DashboardRevenuePerMonthResponse>> RevenuePerMonth()
         {
-            var result = await _context.Orders
+            var rawData = await _context.Orders
                 .Where(o => o.OrderDate >= DateTime.Now.AddMonths(-12))
-                .GroupBy(o => new { 
-                    Year = o.OrderDate.Year, 
-                    Month = o.OrderDate.Month 
+                .GroupBy(o => new
+                {
+                    Year = o.OrderDate.Year,
+                    Month = o.OrderDate.Month
                 })
+                .Select(g => new
+                {
+                    g.Key.Year,
+                    g.Key.Month,
+                    TotalAmount = g.Sum(o => o.TotalAmount)
+                })
+                .ToListAsync();
+
+            var result = rawData
                 .Select(g => new DashboardRevenuePerMonthResponse
                 {
-                    Month = $"{g.Key.Year:0000}-{g.Key.Month:00}",
-                    Year = g.Key.Year,
-                    MonthName = System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(g.Key.Month),
-                    TotalAmount = g.Sum(o => o.TotalAmount),
+                    Month = $"{g.Year:0000}-{g.Month:00}",
+                    Year = g.Year,
+                    MonthName = CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(g.Month),
+                    TotalAmount = g.TotalAmount,
                     Currency = "BAM"
                 })
                 .OrderBy(x => x.Month)
-                .ToListAsync();
+                .ToList();
 
             return result;
         }
@@ -116,15 +145,16 @@ namespace MyClub.Services.Services
 
         public async Task<DashboardMostSoldProductResponse> MostSoldProduct()
         {
-            var result = await _context.OrderItems
+            var rawData = await _context.OrderItems
                 .Include(oi => oi.ProductSize)
-                .ThenInclude(ps => ps.Product)
-                .ThenInclude(p => p.Category)
+                    .ThenInclude(ps => ps.Product)
+                        .ThenInclude(p => p.Category)
                 .Include(oi => oi.ProductSize)
-                .ThenInclude(ps => ps.Product)
-                .ThenInclude(p => p.ProductAssets)
-                .ThenInclude(pa => pa.Asset)
-                .GroupBy(oi => new { 
+                    .ThenInclude(ps => ps.Product)
+                        .ThenInclude(p => p.ProductAssets)
+                            .ThenInclude(pa => pa.Asset)
+                .GroupBy(oi => new
+                {
                     ProductId = oi.ProductSize.Product.Id,
                     ProductName = oi.ProductSize.Product.Name,
                     CategoryName = oi.ProductSize.Product.Category.Name,
@@ -132,26 +162,39 @@ namespace MyClub.Services.Services
                         .Select(pa => pa.Asset.Url)
                         .FirstOrDefault()
                 })
-                .Select(g => new DashboardMostSoldProductResponse
+                .Select(g => new
                 {
-                    ProductId = g.Key.ProductId,
-                    ProductName = g.Key.ProductName,
-                    Category = g.Key.CategoryName,
+                    g.Key.ProductId,
+                    g.Key.ProductName,
+                    g.Key.CategoryName,
+                    g.Key.ImageUrl,
                     TotalSold = g.Sum(oi => oi.Quantity),
-                    TotalRevenue = g.Sum(oi => oi.UnitPrice * oi.Quantity),
-                    ImageUrl = g.Key.ImageUrl
+                    TotalRevenue = g.Sum(oi => oi.UnitPrice * oi.Quantity)
                 })
                 .OrderByDescending(x => x.TotalSold)
                 .FirstOrDefaultAsync();
 
-            return result ?? new DashboardMostSoldProductResponse
+            if (rawData == null)
             {
-                ProductId = 0,
-                ProductName = "No products sold",
-                Category = "N/A",
-                TotalSold = 0,
-                TotalRevenue = 0,
-                ImageUrl = null
+                return new DashboardMostSoldProductResponse
+                {
+                    ProductId = 0,
+                    ProductName = "No products sold",
+                    Category = "N/A",
+                    TotalSold = 0,
+                    TotalRevenue = 0,
+                    ImageUrl = null
+                };
+            }
+
+            return new DashboardMostSoldProductResponse
+            {
+                ProductId = rawData.ProductId,
+                ProductName = rawData.ProductName,
+                Category = rawData.CategoryName,
+                TotalSold = rawData.TotalSold,
+                TotalRevenue = rawData.TotalRevenue,
+                ImageUrl = rawData.ImageUrl
             };
         }
 
@@ -177,7 +220,5 @@ namespace MyClub.Services.Services
                 PercentageChange = percentageChange
             };
         }
-
-    
     }
 }

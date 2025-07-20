@@ -330,18 +330,18 @@ namespace MyClub.Services
                 .FirstOrDefaultAsync(u => u.Username == request.Username);
             
             if(user == null)
-                return null;
+                throw new UserException("Invalid username or password", 401);
             
             if(!VerifyPassword(request.Password, user.PasswordSalt, user.PasswordHash))
-                return null;
-            
+                throw new UserException("Invalid username or password", 401);
+
             // Update last login time
             user.LastLogin = DateTime.UtcNow;
             await _context.SaveChangesAsync();
             
             var token = GenerateToken(user);
             if(token == null)
-                return null;
+                throw new UserException("Failed to generate token", 500);
             
             var response = new AuthResponse{    
                 UserId = user.Id,
