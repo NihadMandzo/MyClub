@@ -12,12 +12,12 @@ namespace MyClub.Services.Database.Seeders
                 new StadiumSector { Id = 2, Code = "A2", Capacity = 100, StadiumSideId = 1 },
                 new StadiumSector { Id = 3, Code = "B1", Capacity = 100, StadiumSideId = 2 },
                 new StadiumSector { Id = 4, Code = "B2", Capacity = 100, StadiumSideId = 2 },
-                new StadiumSector { Id = 6, Code = "C1", Capacity = 100, StadiumSideId = 3 },
-                new StadiumSector { Id = 7, Code = "C2", Capacity = 100, StadiumSideId = 3 },
-                new StadiumSector { Id = 8, Code = "C3", Capacity = 100, StadiumSideId = 3 },
-                new StadiumSector { Id = 9, Code = "D1", Capacity = 100, StadiumSideId = 4 },
-                new StadiumSector { Id = 10, Code = "D2", Capacity = 100, StadiumSideId = 4 },
-                new StadiumSector { Id = 11, Code = "D3", Capacity = 100, StadiumSideId = 4 }
+                new StadiumSector { Id = 5, Code = "C1", Capacity = 100, StadiumSideId = 3 },
+                new StadiumSector { Id = 6, Code = "C2", Capacity = 100, StadiumSideId = 3 },
+                new StadiumSector { Id = 7, Code = "C3", Capacity = 100, StadiumSideId = 3 },
+                new StadiumSector { Id = 8, Code = "D1", Capacity = 100, StadiumSideId = 4 },
+                new StadiumSector { Id =9, Code = "D2", Capacity = 100, StadiumSideId = 4 },
+                new StadiumSector { Id = 10, Code = "D3", Capacity = 100, StadiumSideId = 4 }
             );
         }
     }

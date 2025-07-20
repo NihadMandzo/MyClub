@@ -18,7 +18,7 @@ namespace MyClub.Services
         public decimal Amount { get; set; }
 
         [Required]
-        [StringLength(10)]
+        [StringLength(20)]
         public string Method { get; set; }
 
         [Required]

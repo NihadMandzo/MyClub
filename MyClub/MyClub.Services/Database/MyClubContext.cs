@@ -107,9 +107,6 @@ namespace MyClub.Services.Database
                 .HasForeignKey(na => na.AssetId)
                 .OnDelete(DeleteBehavior.NoAction);
 
-            modelBuilder.Entity<UserMembership>()
-                .HasKey(um => new { um.UserId, um.MembershipCardId });
-
             // Configure UserMembership relationships explicitly
             modelBuilder.Entity<UserMembership>()
                 .HasOne(um => um.User)
@@ -342,6 +339,16 @@ namespace MyClub.Services.Database
             modelBuilder.Entity<ProductSize>().SeedData();
             modelBuilder.Entity<Club>().SeedData();
             modelBuilder.Entity<Player>().SeedData();
+            
+            // Add new seeders
+            modelBuilder.Entity<ShippingDetails>().SeedData();
+            modelBuilder.Entity<Payment>().SeedData();
+            modelBuilder.Entity<MembershipCard>().SeedData();
+            modelBuilder.Entity<Match>().SeedData();
+            modelBuilder.Entity<MatchTicket>().SeedData();
+            modelBuilder.Entity<UserMembership>().SeedData();
+            modelBuilder.Entity<Order>().SeedData();
+            modelBuilder.Entity<OrderItem>().SeedData();
         }
     }
 }
