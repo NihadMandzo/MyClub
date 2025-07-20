@@ -23,7 +23,7 @@ namespace MyClub.WebAPI.Controllers
         /// <summary>
         /// Get memberships count per month for the last 12 months
         /// </summary>
-        [HttpGet("memberships-per-month")]
+        [HttpGet("MembershipPerMonth")]
         public async Task<ActionResult<List<DashboardMembershipPerMonthResponse>>> GetMembershipsPerMonth()
         {
             try
@@ -40,7 +40,7 @@ namespace MyClub.WebAPI.Controllers
         /// <summary>
         /// Get sales data grouped by product category
         /// </summary>
-        [HttpGet("sales-per-category")]
+        [HttpGet("salesPerCategory")]
         public async Task<ActionResult<List<DashboardSalesByCategoryResponse>>> GetSalesPerCategory()
         {
             try
@@ -57,7 +57,7 @@ namespace MyClub.WebAPI.Controllers
         /// <summary>
         /// Get revenue per month for the last 12 months
         /// </summary>
-        [HttpGet("revenue-per-month")]
+        [HttpGet("RevenuePerMonth")]
         public async Task<ActionResult<List<DashboardRevenuePerMonthResponse>>> GetRevenuePerMonth()
         {
             try
@@ -74,7 +74,7 @@ namespace MyClub.WebAPI.Controllers
         /// <summary>
         /// Get total membership count with monthly comparison
         /// </summary>
-        [HttpGet("membership-count")]
+        [HttpGet("MembershipCount")]
         public async Task<ActionResult<DashboardCountResponse>> GetMembershipCount()
         {
             try
@@ -91,7 +91,7 @@ namespace MyClub.WebAPI.Controllers
         /// <summary>
         /// Get the most sold product
         /// </summary>
-        [HttpGet("most-sold-product")]
+        [HttpGet("MostSoldProduct")]
         public async Task<ActionResult<DashboardMostSoldProductResponse>> GetMostSoldProduct()
         {
             try
@@ -108,7 +108,7 @@ namespace MyClub.WebAPI.Controllers
         /// <summary>
         /// Get total order count with monthly comparison
         /// </summary>
-        [HttpGet("order-count")]
+        [HttpGet("OrderCount")]
         public async Task<ActionResult<DashboardCountResponse>> GetOrderCount()
         {
             try

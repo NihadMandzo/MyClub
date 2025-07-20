@@ -17,10 +17,10 @@ class DashboardMostSoldProductResponse {
 
   factory DashboardMostSoldProductResponse.fromJson(Map<String, dynamic> json) {
     return DashboardMostSoldProductResponse(
-      productId: json['productId'],
-      productName: json['productName'],
-      category: json['category'],
-      totalSold: json['totalSold'],
+      productId: json['productId'] ?? 0,
+      productName: json['productName'] ?? 'Unknown',
+      category: json['category'] ?? 'Unknown',
+      totalSold: json['totalSold'] ?? 0,
       totalRevenue: json['totalRevenue']?.toDouble() ?? 0.0,
       imageUrl: json['imageUrl'],
     );

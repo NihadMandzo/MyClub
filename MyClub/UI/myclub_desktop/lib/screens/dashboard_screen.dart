@@ -56,27 +56,59 @@ class _DashboardContentState extends State<_DashboardContent> {
     });
 
     try {
-      final futures = await Future.wait([
-        _dashboardProvider.getOrderCount(),
-        _dashboardProvider.getMembershipCount(),
-        _dashboardProvider.getMostSoldProduct(),
-        _dashboardProvider.getMembershipPerMonth(),
-        _dashboardProvider.getSalesPerCategory(),
-        _dashboardProvider.getRevenuePerMonth(),
-      ]);
+      // Load each data item separately to better identify issues
+      try {
+        _ordersCount = await _dashboardProvider.getOrderCount();
+        print("Successfully loaded order count data");
+      } catch (e) {
+        print("Error loading order count: $e");
+      }
+      
+      try {
+        _membershipCount = await _dashboardProvider.getMembershipCount();
+        print("Successfully loaded membership count data");
+      } catch (e) {
+        print("Error loading membership count: $e");
+      }
+      
+      try {
+        _mostSoldProduct = await _dashboardProvider.getMostSoldProduct();
+        print("Successfully loaded most sold product data");
+      } catch (e) {
+        print("Error loading most sold product: $e");
+      }
+      
+      try {
+        _membershipPerMonth = await _dashboardProvider.getMembershipPerMonth();
+        print("Successfully loaded membership per month data");
+      } catch (e) {
+        print("Error loading membership per month: $e");
+      }
+      
+      try {
+        _salesByCategory = await _dashboardProvider.getSalesPerCategory();
+        print("Successfully loaded sales by category data");
+      } catch (e) {
+        print("Error loading sales by category: $e");
+      }
+      
+      try {
+        _revenuePerMonth = await _dashboardProvider.getRevenuePerMonth();
+        print("Successfully loaded revenue per month data");
+      } catch (e) {
+        print("Error loading revenue per month: $e");
+      }
 
       setState(() {
-        _ordersCount = futures[0] as DashboardCountResponse;
-        _membershipCount = futures[1] as DashboardCountResponse;
-        _mostSoldProduct = futures[2] as DashboardMostSoldProductResponse;
-        _membershipPerMonth = futures[3] as List<DashboardMembershipPerMonthResponse>;
-        _salesByCategory = futures[4] as List<DashboardSalesByCategoryResponse>;
-        _revenuePerMonth = futures[5] as List<DashboardRevenuePerMonthResponse>;
         _isLoading = false;
       });
     } catch (e) {
+      print("General error in _loadData: $e");
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error loading dashboard data: $e')),
+        SnackBar(
+          content: Text('Error loading dashboard data: $e'),
+          duration: Duration(seconds: 10),
+        ),
       );
       setState(() {
         _isLoading = false;

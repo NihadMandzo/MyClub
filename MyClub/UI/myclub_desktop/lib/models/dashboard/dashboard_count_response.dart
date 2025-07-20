@@ -13,9 +13,9 @@ class DashboardCountResponse {
 
   factory DashboardCountResponse.fromJson(Map<String, dynamic> json) {
     return DashboardCountResponse(
-      totalCount: json['totalCount'],
-      thisMonth: json['thisMonth'],
-      lastMonth: json['lastMonth'],
+      totalCount: json['totalCount'] ?? 0,
+      thisMonth: json['thisMonth'] ?? 0,
+      lastMonth: json['lastMonth'] ?? 0,
       percentageChange: json['percentageChange']?.toDouble() ?? 0.0,
     );
   }
