@@ -41,6 +41,9 @@ dependencies:
   # HTTP client
   http: ^1.2.1
   fl_chart: ^1.0.0
+  # Image handling
+  file_picker: ^6.1.1
+  flutter_dropzone: ^3.0.7
 
 dev_dependencies:
   flutter_test:

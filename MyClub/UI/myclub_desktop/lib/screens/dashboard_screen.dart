@@ -6,6 +6,8 @@ import 'package:myclub_desktop/models/dashboard/dashboard_most_sold_product_resp
 import 'package:myclub_desktop/models/dashboard/dashboard_revenue_per_month_response.dart';
 import 'package:myclub_desktop/models/dashboard/dashboard_sales_by_category_response.dart';
 import 'package:myclub_desktop/providers/admin_dashboard_provider.dart';
+import 'package:myclub_desktop/utilities/dialog_utility.dart';
+import 'package:myclub_desktop/utilities/notification_utility.dart';
 import 'package:provider/provider.dart';
 
 class DashboardScreen extends StatelessWidget {
@@ -34,7 +36,7 @@ class _DashboardContent extends StatefulWidget {
 class _DashboardContentState extends State<_DashboardContent> {
   late AdminDashboardProvider _dashboardProvider;
   bool _isLoading = true;
-  
+
   // Dashboard data
   DashboardCountResponse? _ordersCount;
   DashboardCountResponse? _membershipCount;
@@ -51,77 +53,46 @@ class _DashboardContentState extends State<_DashboardContent> {
   }
 
   Future<void> _loadData() async {
-    setState(() {
-      _isLoading = true;
-    });
+    if (!mounted) return;
+    setState(() => _isLoading = true);
 
     try {
-      // Load each data item separately to better identify issues
-      try {
-        _ordersCount = await _dashboardProvider.getOrderCount();
-        print("Successfully loaded order count data");
-      } catch (e) {
-        print("Error loading order count: $e");
-      }
-      
-      try {
-        _membershipCount = await _dashboardProvider.getMembershipCount();
-        print("Successfully loaded membership count data");
-      } catch (e) {
-        print("Error loading membership count: $e");
-      }
-      
-      try {
-        _mostSoldProduct = await _dashboardProvider.getMostSoldProduct();
-        print("Successfully loaded most sold product data");
-      } catch (e) {
-        print("Error loading most sold product: $e");
-      }
-      
-      try {
-        _membershipPerMonth = await _dashboardProvider.getMembershipPerMonth();
-        print("Successfully loaded membership per month data");
-      } catch (e) {
-        print("Error loading membership per month: $e");
-      }
-      
-      try {
-        _salesByCategory = await _dashboardProvider.getSalesPerCategory();
-        print("Successfully loaded sales by category data");
-      } catch (e) {
-        print("Error loading sales by category: $e");
-      }
-      
-      try {
-        _revenuePerMonth = await _dashboardProvider.getRevenuePerMonth();
-        print("Successfully loaded revenue per month data");
-      } catch (e) {
-        print("Error loading revenue per month: $e");
-      }
+      // Fetch all data in parallel
+      final results = await Future.wait([
+        _dashboardProvider.getOrderCount(),
+        _dashboardProvider.getMembershipCount(),
+        _dashboardProvider.getMostSoldProduct(),
+        _dashboardProvider.getMembershipPerMonth(),
+        _dashboardProvider.getSalesPerCategory(),
+        _dashboardProvider.getRevenuePerMonth(),
+      ]);
 
+      if (!mounted) return;
       setState(() {
+        _ordersCount = results[0] as DashboardCountResponse;
+        _membershipCount = results[1] as DashboardCountResponse;
+        _mostSoldProduct = results[2] as DashboardMostSoldProductResponse;
+        _membershipPerMonth = results[3] as List<DashboardMembershipPerMonthResponse>;
+        _salesByCategory = results[4] as List<DashboardSalesByCategoryResponse>;
+        _revenuePerMonth = results[5] as List<DashboardRevenuePerMonthResponse>;
         _isLoading = false;
       });
     } catch (e) {
-      print("General error in _loadData: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error loading dashboard data: $e'),
-          duration: Duration(seconds: 10),
-        ),
+      debugPrint("General error in _loadData: $e");
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      NotificationUtility.showError(
+        context,
+        message: 'Greška pri učitavanju podataka: $e',
+        duration: const Duration(seconds: 10),
       );
-      setState(() {
-        _isLoading = false;
-      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     return Padding(
@@ -131,7 +102,7 @@ class _DashboardContentState extends State<_DashboardContent> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Dashboard',
+              'Analiza',
               style: TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
@@ -150,7 +121,7 @@ class _DashboardContentState extends State<_DashboardContent> {
                 const SizedBox(width: 16),
                 Expanded(
                   child: _buildCountCard(
-                    'Ukupan broj korisnika',
+                    'Ukupan broj članova',
                     _membershipCount?.totalCount.toString() ?? '0',
                     Colors.blue,
                   ),
@@ -160,21 +131,15 @@ class _DashboardContentState extends State<_DashboardContent> {
             const SizedBox(height: 16),
             Row(
               children: [
-                Expanded(
-                  child: _buildMostSoldProduct(),
-                ),
+                Expanded(child: _buildMostSoldProduct()),
               ],
             ),
             const SizedBox(height: 24),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: _buildMembershipChart(),
-                ),
-                Expanded(
-                  child: _buildSalesByCategoryChart(),
-                ),
+                Expanded(child: _buildMembershipChart()),
+                Expanded(child: _buildSalesByCategoryChart()),
               ],
             ),
             const SizedBox(height: 24),
@@ -491,11 +456,38 @@ class _DashboardContentState extends State<_DashboardContent> {
       return const Center(child: Text('No revenue data available'));
     }
 
-    final spots = _revenuePerMonth!.asMap().entries.map((entry) {
-      final index = entry.key;
-      final data = entry.value;
-      return FlSpot(index.toDouble(), data.totalAmount);
-    }).toList();
+    // Create a map with month indices for proper sorting (1-based for months)
+    final Map<String, int> monthIndices = {
+      'Januar': 1, 'Februar': 2, 'Mart': 3, 'April': 4,
+      'Maj': 5, 'Juni': 6, 'Juli': 7, 'August': 8,
+      'Septembar': 9, 'Oktobar': 10, 'Novembar': 11, 'Decembar': 12
+    };
+    
+    // Process data - use Map to ensure each month appears only once
+    Map<String, double> processedData = {};
+    
+    // Group revenue by month name
+    for (var data in _revenuePerMonth!) {
+      // If we've already seen this month, add to its revenue
+      if (processedData.containsKey(data.monthName)) {
+        processedData[data.monthName] = processedData[data.monthName]! + data.totalAmount;
+      } else {
+        processedData[data.monthName] = data.totalAmount;
+      }
+    }
+    
+    // Convert to a list for display
+    List<MapEntry<String, double>> monthRevenueList = processedData.entries.toList();
+    
+    // Sort by calendar month order
+    monthRevenueList.sort((a, b) {
+      int aIndex = monthIndices[a.key] ?? 999;
+      int bIndex = monthIndices[b.key] ?? 999;
+      return aIndex.compareTo(bIndex);
+    });
+    
+    // Get currency symbol
+    final String currency = _revenuePerMonth!.isNotEmpty ? _revenuePerMonth![0].currency : '';
 
     return Container(
       height: 300,
@@ -515,21 +507,47 @@ class _DashboardContentState extends State<_DashboardContent> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Zarada po mjesecima',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-            ),
+          Row(
+            children: [
+              const Text(
+                'Zarada po mjesecima',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '($currency)',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w400,
+                  color: Colors.grey,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 16),
           Expanded(
-            child: LineChart(
-              LineChartData(
-                gridData: FlGridData(
-                  show: true,
-                  drawVerticalLine: false,
-                  horizontalInterval: 100,
+            child: BarChart(
+              BarChartData(
+                alignment: BarChartAlignment.spaceAround,
+                maxY: monthRevenueList.isEmpty 
+                    ? 100
+                    : monthRevenueList.map((e) => e.value).reduce((a, b) => a > b ? a : b) * 1.2,
+                barTouchData: BarTouchData(
+                  touchTooltipData: BarTouchTooltipData(
+                    tooltipPadding: const EdgeInsets.all(8),
+                    getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                      return BarTooltipItem(
+                        '${monthRevenueList[group.x.toInt()].key}: ${rod.toY.round()} $currency',
+                        const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      );
+                    },
+                  ),
                 ),
                 titlesData: FlTitlesData(
                   show: true,
@@ -539,7 +557,7 @@ class _DashboardContentState extends State<_DashboardContent> {
                       reservedSize: 40,
                       getTitlesWidget: (value, meta) {
                         return Text(
-                          '${value.toInt()} ${_revenuePerMonth!.isNotEmpty ? _revenuePerMonth![0].currency : ''}',
+                          '${value.toInt()}',
                           style: const TextStyle(
                             color: Color(0xff68737d),
                             fontSize: 10,
@@ -558,11 +576,11 @@ class _DashboardContentState extends State<_DashboardContent> {
                     sideTitles: SideTitles(
                       showTitles: true,
                       getTitlesWidget: (value, meta) {
-                        if (value.toInt() >= 0 && value.toInt() < _revenuePerMonth!.length) {
+                        if (value.toInt() >= 0 && value.toInt() < monthRevenueList.length) {
                           return Padding(
                             padding: const EdgeInsets.only(top: 8.0),
                             child: Text(
-                              _revenuePerMonth![value.toInt()].monthName.substring(0, 3),
+                              monthRevenueList[value.toInt()].key.substring(0, 3),
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 10,
@@ -576,28 +594,33 @@ class _DashboardContentState extends State<_DashboardContent> {
                     ),
                   ),
                 ),
+                gridData: FlGridData(
+                  show: true,
+                  drawVerticalLine: false,
+                  horizontalInterval: 100,
+                ),
                 borderData: FlBorderData(
                   show: true,
                   border: Border.all(color: const Color(0xff37434d), width: 1),
                 ),
-                minX: 0,
-                maxX: (_revenuePerMonth!.length - 1).toDouble(),
-                minY: 0,
-                maxY: _revenuePerMonth!.map((e) => e.totalAmount).reduce((a, b) => a > b ? a : b) * 1.2,
-                lineBarsData: [
-                  LineChartBarData(
-                    spots: spots,
-                    isCurved: true,
-                    color: Colors.blue,
-                    barWidth: 3,
-                    isStrokeCapRound: true,
-                    dotData: FlDotData(show: false),
-                    belowBarData: BarAreaData(
-                      show: true,
-                      color: Colors.blue.withOpacity(0.2),
-                    ),
-                  ),
-                ],
+                barGroups: monthRevenueList.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final data = entry.value;
+                  return BarChartGroupData(
+                    x: index,
+                    barRods: [
+                      BarChartRodData(
+                        toY: data.value,
+                        color: Colors.blue,
+                        width: 20,
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(6),
+                          topRight: Radius.circular(6),
+                        ),
+                      ),
+                    ],
+                  );
+                }).toList(),
               ),
             ),
           ),

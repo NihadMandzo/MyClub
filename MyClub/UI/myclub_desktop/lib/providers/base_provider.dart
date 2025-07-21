@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:myclub_desktop/models/search_result.dart';
+import 'package:myclub_desktop/models/paged_result.dart';
 import 'package:myclub_desktop/providers/auth_provider.dart';
 import 'package:provider/provider.dart';
 
@@ -23,10 +23,13 @@ abstract class BaseProvider<T> with ChangeNotifier {
     authProvider = Provider.of<AuthProvider>(this.context, listen: false);
   }
 
-  Future<SearchResult<T>> get({dynamic filter}) async {
+  
+  Future<PagedResult<T>> get({dynamic searchObject}) async {
     var url = "$baseUrl$endpoint";
 
-    if (filter != null) {
+    if (searchObject != null) {
+      // Convert search object to Map if it has a toJson method
+      var filter = searchObject is Map ? searchObject : searchObject.toJson();
       var queryString = getQueryString(filter);
       url = "$url?$queryString";
     }
@@ -38,18 +41,29 @@ abstract class BaseProvider<T> with ChangeNotifier {
 
     if (isValidResponse(response)) {
       var data = jsonDecode(response.body);
-
-      var result = SearchResult<T>();
-
-      result.totalCount = data['totalCount'];
-      result.items = List<T>.from(data["items"].map((e) => fromJson(e)));
-
-
-      return result;
+      
+      return PagedResult<T>.fromJson(
+        data,
+        (item) => fromJson(item),
+      );
     } else {
-      throw new Exception("Unknown error");
+      throw Exception("Greška tokom dohvatanja podataka");
     }
-    // print("response: ${response.request} ${response.statusCode}, ${response.body}");
+  }
+  
+  Future<T> getById(int id) async {
+    var url = "$baseUrl$endpoint/$id";
+    var uri = Uri.parse(url);
+    var headers = createHeaders();
+
+    var response = await http.get(uri, headers: headers);
+
+    if (isValidResponse(response)) {
+      var data = jsonDecode(response.body);
+      return fromJson(data);
+    } else {
+      throw Exception("Greška tokom dohvatanja podataka sa id: $id");
+    }
   }
 
   Future<T> insert(dynamic request) async {
@@ -64,7 +78,7 @@ abstract class BaseProvider<T> with ChangeNotifier {
       var data = jsonDecode(response.body);
       return fromJson(data);
     } else {
-      throw new Exception("Unknown error");
+      throw Exception("Greška tokom kreiranja stavke");
     }
   }
 
@@ -80,7 +94,7 @@ abstract class BaseProvider<T> with ChangeNotifier {
       var data = jsonDecode(response.body);
       return fromJson(data);
     } else {
-      throw new Exception("Unknown error");
+      throw Exception("Greška tokom editovanja stavke");
     }
   }
 
@@ -95,7 +109,7 @@ abstract class BaseProvider<T> with ChangeNotifier {
       throw new Exception("Unauthorized");
     } else {
       print(response.body);
-      throw new Exception("Something bad happened please try again");
+      throw new Exception("Greška tokom dohvatanja podataka");
     }
   }
 
@@ -141,5 +155,17 @@ abstract class BaseProvider<T> with ChangeNotifier {
       }
     });
     return query;
+  }
+
+  Future<void> delete(int id) async {
+    var url = "$baseUrl$endpoint/$id";
+    var uri = Uri.parse(url);
+    var headers = createHeaders();
+
+    var response = await http.delete(uri, headers: headers);
+
+    if (!isValidResponse(response)) {
+      throw Exception("Greška tokom brisanja stavke sa id: $id");
+    }
   }
 }
