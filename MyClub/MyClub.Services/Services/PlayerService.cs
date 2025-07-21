@@ -181,6 +181,22 @@ namespace MyClub.Services.Services
             return response;
         }
    
+        protected override Player MapUpdateToEntity(Player entity, PlayerUpdateRequest request)
+        {
+            var player = base.MapUpdateToEntity(entity, request);
+            player.DateOfBirth = request.DateOfBirth;
+            player.Height = request.Height;
+            player.Weight = request.Weight;
+            player.Biography = request.Biography;
+            player.Nationality = request.Nationality;
+            player.Position = request.Position;
+            player.Number = request.Number;
+            player.FirstName = request.FirstName;
+            player.LastName = request.LastName;
+            player.ClubId = 1;
+            player.ImageId = entity.ImageId;
+            return player;
+        }
         protected override Player MapInsertToEntity(Player entity, PlayerInsertRequest request)
         {
             var player = base.MapInsertToEntity(entity, request);
