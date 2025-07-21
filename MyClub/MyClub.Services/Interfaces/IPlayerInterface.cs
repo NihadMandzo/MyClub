@@ -5,7 +5,7 @@ using MyClub.Model.SearchObjects;
 
 namespace MyClub.Services.Interfaces
 {
-    public interface IPlayerInterface : ICRUDService<PlayerResponse, PlayerSearchObject, PlayerInsertRequest, PlayerUpdateRequest>
+    public interface IPlayerInterface : ICRUDService<PlayerResponse, BaseSearchObject, PlayerInsertRequest, PlayerUpdateRequest>
     {
 
     }

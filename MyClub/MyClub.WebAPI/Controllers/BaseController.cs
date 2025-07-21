@@ -24,11 +24,7 @@ namespace MyClub.WebAPI
         [HttpGet]
         public virtual async Task<PagedResult<T>> Get([FromQuery] TSearch? search = null)
         {
-            Console.WriteLine($"BaseController.Get called for type {typeof(T).Name}");
-            search = search ?? new TSearch();
-            search.RetrieveAll = true; // Override to get all data in base controller
-            var result = await _service.GetAsync(search);
-            Console.WriteLine($"BaseController.Get returned {result.Data.Count} items");
+            var result = await _service.GetAsync(search);            
             return result;
         }
 

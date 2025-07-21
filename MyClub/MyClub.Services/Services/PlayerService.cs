@@ -11,7 +11,7 @@ using MyClub.Services.Interfaces;
 
 namespace MyClub.Services.Services
 {
-    public class PlayerService : BaseCRUDService<PlayerResponse, PlayerSearchObject, PlayerInsertRequest, PlayerUpdateRequest, Player>, IPlayerInterface
+    public class PlayerService : BaseCRUDService<PlayerResponse, BaseSearchObject, PlayerInsertRequest, PlayerUpdateRequest, Player>, IPlayerInterface
     {
         private readonly MyClubContext _context;
         private readonly IBlobStorageService _blobStorageService;
@@ -23,7 +23,7 @@ namespace MyClub.Services.Services
             _blobStorageService = blobStorageService;
         }
 
-        public override async Task<PagedResult<PlayerResponse>> GetAsync(PlayerSearchObject search)
+        public override async Task<PagedResult<PlayerResponse>> GetAsync(BaseSearchObject search)
         {
             var query = _context.Players
                 .AsNoTracking()
@@ -50,7 +50,7 @@ namespace MyClub.Services.Services
                 query = query.Skip(currentPage * pageSize).Take(pageSize);
             }
             
-            var list = await query.ToListAsync();
+            var list = await query.ToArrayAsync();
             
             return new PagedResult<PlayerResponse>
             {
@@ -61,34 +61,19 @@ namespace MyClub.Services.Services
             };
         }
 
-        protected override IQueryable<Player> ApplyFilter(IQueryable<Player> query, PlayerSearchObject search)
+        protected override IQueryable<Player> ApplyFilter(IQueryable<Player> query, BaseSearchObject search)
         {
             var filteredQuery = base.ApplyFilter(query, search);
 
             // Add filter by name if provided
-            if (!string.IsNullOrWhiteSpace(search.Name))
+            if (!string.IsNullOrWhiteSpace(search.FTS))
             {
                 filteredQuery = filteredQuery.Where(x => 
-                    x.FirstName.Contains(search.Name) || 
-                    x.LastName.Contains(search.Name));
+                    x.FirstName.Contains(search.FTS) || 
+                    x.LastName.Contains(search.FTS));
             }
 
-            // Add filter by club if provided
-            if (search.ClubId.HasValue)
-            {
-                filteredQuery = filteredQuery.Where(x => x.ClubId == search.ClubId.Value);
-            }
-
-            // Add filter by position if provided
-            if (!string.IsNullOrWhiteSpace(search.Position))
-            {
-                filteredQuery = filteredQuery.Where(x => x.Position == search.Position);
-            }
-
-            // Include related entities if needed
-            filteredQuery = filteredQuery.Include(x => x.Club)
-                                        .Include(x => x.Image);
-
+            // Do NOT include related entities here
             return filteredQuery;
         }
 
@@ -194,6 +179,22 @@ namespace MyClub.Services.Services
             }
             
             return response;
+        }
+   
+        protected override Player MapInsertToEntity(Player entity, PlayerInsertRequest request)
+        {
+            var player = base.MapInsertToEntity(entity, request);
+            player.DateOfBirth = request.DateOfBirth;
+            player.Height = request.Height;
+            player.Weight = request.Weight;
+            player.Biography = request.Biography;
+            player.Nationality = request.Nationality;
+            player.Position = request.Position;
+            player.Number = request.Number;
+            player.FirstName = request.FirstName;
+            player.LastName = request.LastName;
+            player.ClubId = 1;
+            return player;
         }
     }
 }
