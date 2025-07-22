@@ -124,27 +124,21 @@ namespace MyClub.Services.Services
                 // Upload the new image
                 var imageUrl = await _blobStorageService.UploadAsync(request.ImageUrl, _containerName);
 
-                // Update or create the asset
+                // Update existing asset or create a new one
+                Asset asset = null;
                 if (entity.ImageId.HasValue)
                 {
-                    var asset = await _context.Assets.FindAsync(entity.ImageId.Value);
-                    if (asset != null)
-                    {
-                        asset.Url = imageUrl;
-                    }
-                    else
-                    {
-                        var newAsset = new Asset
-                        {
-                            Url = imageUrl
-                        };
-                        _context.Assets.Add(newAsset);
-                        await _context.SaveChangesAsync();
-                        entity.ImageId = newAsset.Id;
-                    }
+                    asset = await _context.Assets.FindAsync(entity.ImageId.Value);
+                }
+
+                if (asset != null)
+                {
+                    // Update existing asset
+                    asset.Url = imageUrl;
                 }
                 else
                 {
+                    // Create new asset
                     var newAsset = new Asset
                     {
                         Url = imageUrl
