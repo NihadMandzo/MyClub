@@ -22,13 +22,15 @@ namespace MyClub.WebAPI
         }
 
         [HttpGet]
+        [Authorize]
         public virtual async Task<PagedResult<T>> Get([FromQuery] TSearch? search = null)
         {
-            var result = await _service.GetAsync(search);            
+            var result = await _service.GetAsync(search);
             return result;
         }
 
         [HttpGet("{id}")]
+        [Authorize]
         public virtual async Task<T?> GetById(int id)
         {
             return await _service.GetByIdAsync(id);
