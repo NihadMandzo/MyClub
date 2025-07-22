@@ -1,6 +1,8 @@
 ﻿import 'dart:math' as math;
 import 'dart:typed_data';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:myclub_desktop/models/paged_result.dart';
 import 'package:myclub_desktop/models/player.dart';
 import 'package:myclub_desktop/models/search_objects/player_search_object.dart';
@@ -40,6 +42,9 @@ class _PlayersContentState extends State<_PlayersContent> {
   // Image upload fields
   List<int>? _selectedImageBytes;
   String? _selectedImageName;
+  bool _keepPicture = true; // Default to keeping the picture when editing
+  
+  // No additional fields needed for drag and drop
   
   // Form fields
   final TextEditingController _firstNameController = TextEditingController();
@@ -245,6 +250,9 @@ class _PlayersContentState extends State<_PlayersContent> {
       _weightController.text = player.weight?.toString() ?? '';
       _biographyController.text = player.biography ?? '';
       _selectedDate = player.dateOfBirth;
+      _keepPicture = true; // Default to keeping the existing picture when editing
+      _selectedImageBytes = null; // Clear any previously selected new image
+      _selectedImageName = null;
     });
   }
 
@@ -262,6 +270,7 @@ class _PlayersContentState extends State<_PlayersContent> {
       _selectedDate = null;
       _selectedImageBytes = null;
       _selectedImageName = null;
+      _keepPicture = true; // Reset to default
     });
   }
   
@@ -310,55 +319,43 @@ class _PlayersContentState extends State<_PlayersContent> {
     }
   }
 
-  // Use file_picker to select real images
+  // Use file_picker to select images
   Future<void> _pickImage() async {
     try {
-      // Fallback method since we can't use file_picker directly
-      final result = await DialogUtility.showCustomDialog<Map<String, dynamic>>(
-        context: context,
-        title: 'Upload slike',
-        content: const Text(
-          'Funkcionalnost za biranje datoteka nije dostupna.\n\n'
-          'U stvarnoj implementaciji, ovo bi otvorilo dijalog za odabir datoteke sa slikom.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(null),
-            child: const Text('Otkaži'),
-          ),
-          TextButton(
-            onPressed: () {
-              // Create a valid PNG image data with a blue square
-              // This is a minimal valid PNG file with a 1x1 blue pixel
-              List<int> pngBytes = [
-                0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D,
-                0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
-                0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53, 0xDE, 0x00, 0x00, 0x00,
-                0x0C, 0x49, 0x44, 0x41, 0x54, 0x08, 0xD7, 0x63, 0xF8, 0xCF, 0xC0, 0x00,
-                0x00, 0x03, 0x01, 0x01, 0x00, 0x18, 0xDD, 0x8D, 0xB0, 0x00, 0x00, 0x00,
-                0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82
-              ];
-              
-              Navigator.of(context).pop({
-                'bytes': pngBytes, 
-                'name': 'player_image.png'
-              });
-            },
-            child: const Text('Simulate File Selection'),
-          ),
-        ],
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+        allowMultiple: false,
       );
 
-      if (result != null) {
-        setState(() {
-          _selectedImageBytes = result['bytes'] as List<int>;
-          _selectedImageName = result['name'] as String;
-
-          NotificationUtility.showInfo(
-            context,
-            message: 'Test slika odabrana',
-          );
-        });
+      if (result != null && result.files.isNotEmpty) {
+        final file = result.files.first;
+        
+        if (file.bytes != null) {
+          // Web or direct bytes access
+          setState(() {
+            _selectedImageBytes = file.bytes;
+            _selectedImageName = file.name;
+            _keepPicture = false; // User is choosing a new image
+            
+            NotificationUtility.showSuccess(
+              context,
+              message: 'Slika uspješno odabrana',
+            );
+          });
+        } else if (file.path != null) {
+          // Desktop platforms
+          final fileBytes = await File(file.path!).readAsBytes();
+          setState(() {
+            _selectedImageBytes = fileBytes;
+            _selectedImageName = file.name;
+            _keepPicture = false; // User is choosing a new image
+            
+            NotificationUtility.showSuccess(
+              context,
+              message: 'Slika uspješno odabrana',
+            );
+          });
+        }
       }
     } catch (e) {
       NotificationUtility.showError(
@@ -367,6 +364,8 @@ class _PlayersContentState extends State<_PlayersContent> {
       );
     }
   }
+  
+  // No drag and drop handlers needed
   
   Future<void> _savePlayer() async {
     if (!_formKey.currentState!.validate()) {
@@ -390,6 +389,15 @@ class _PlayersContentState extends State<_PlayersContent> {
       );
       return;
     }
+    
+    // For existing players, ensure they either keep the existing picture or upload a new one
+    if (_selectedPlayer != null && !_keepPicture && _selectedImageBytes == null) {
+      NotificationUtility.showError(
+        context,
+        message: 'Morate ili zadržati postojeću sliku ili odabrati novu',
+      );
+      return;
+    }
 
     // Prepare player data without setting loading state
     // Make sure all required fields are included
@@ -403,6 +411,7 @@ class _PlayersContentState extends State<_PlayersContent> {
       'weight': int.tryParse(_weightController.text.trim()) ?? 0,
       'biography': _biographyController.text.trim(),  // Ensure biography is trimmed
       'dateOfBirth': _selectedDate?.toIso8601String() ?? DateTime.now().toIso8601String(),
+      'keepPicture': _keepPicture, // Add the keepPicture flag for updates
     };
     
     // Double check that biography is not empty
@@ -479,17 +488,26 @@ class _PlayersContentState extends State<_PlayersContent> {
           _isLoading = true;
         });
         
-        // Update existing player
+        // Update existing player based on keepPicture flag and selected image
         if (_selectedImageBytes != null && _selectedImageName != null) {
-          // Using new image
+          // Using new image (keepPicture will be set to false by default in this case)
+          player['keepPicture'] = false; // Override keepPicture to false if new image is provided
           await _playerProvider.updateWithImage(_selectedPlayer!.id!, player, _selectedImageBytes, _selectedImageName);
-        } else {
-          // Make sure to include the existing imageUrl
-          if (_selectedPlayer?.imageUrl != null) {
-            player['imageUrl'] = _selectedPlayer!.imageUrl as Object;
-          }
-          // Always use updateWithImage, passing null for imageBytes and fileName
+        } else if (_keepPicture) {
+          // Keeping the existing picture
+          player['keepPicture'] = true;
+          // No need for image data
           await _playerProvider.updateWithImage(_selectedPlayer!.id!, player, null, null);
+        } else {
+          // Not keeping picture but no new image provided - show validation error
+          NotificationUtility.showError(
+            context,
+            message: 'Morate odabrati novu sliku ako ne želite zadržati postojeću.',
+          );
+          setState(() {
+            _isLoading = false;
+          });
+          return;
         }
         
         // Reload data to show the updated player
@@ -809,144 +827,122 @@ class _PlayersContentState extends State<_PlayersContent> {
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
-                              Text(
-                                _selectedPlayer == null ? '* Obavezno' : 'Opcionalno',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: _selectedPlayer == null ? Colors.red : Colors.grey,
-                                  fontStyle: FontStyle.italic,
-                                ),
-                              ),
                             ],
                           ),
                           const SizedBox(height: 8),
-                          // Image container with larger height
-                          InkWell(
-                            onTap: _pickImage,
-                            child: Container(
-                              height: 250, // Good height for full width
-                              width: double.infinity,
-                              decoration: BoxDecoration(
-                                border: Border.all(
-                                  color: _selectedPlayer == null && _selectedImageBytes == null 
-                                      ? Colors.red.withOpacity(0.7) 
-                                      : Colors.grey,
-                                  width: _selectedPlayer == null && _selectedImageBytes == null ? 2 : 1,
-                                ),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Stack(
-                                alignment: Alignment.center,
-                                children: [
-                                  // Display message about drag and drop
-                                  if (_selectedImageBytes == null && _selectedPlayer?.imageUrl == null)
-                                    const Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Icon(Icons.image, size: 50, color: Colors.grey),
-                                        SizedBox(height: 8),
-                                        Text('Drag & drop sliku ovde ili kliknite za odabir', style: TextStyle(fontSize: 14)),
-                                      ],
-                                    ),
-                                  
-                                  // Display selected image
-                                  if (_selectedImageBytes != null)
-                                    Image.memory(
-                                      Uint8List.fromList(_selectedImageBytes!),
-                                      fit: BoxFit.contain, // Show full image
-                                      width: double.infinity,
-                                      height: double.infinity,
-                                      errorBuilder: (context, error, stackTrace) => 
-                                          Column(
-                                            mainAxisAlignment: MainAxisAlignment.center,
-                                            children: [
-                                              const Icon(Icons.broken_image, size: 40, color: Colors.red),
-                                              const SizedBox(height: 8),
-                                              Text(
-                                                'Greška pri učitavanju slike',
-                                                style: TextStyle(color: Colors.red[700], fontSize: 12),
-                                                textAlign: TextAlign.center,
-                                              ),
-                                              Text(
-                                                error.toString(),
-                                                style: const TextStyle(fontSize: 10),
-                                                textAlign: TextAlign.center,
-                                                maxLines: 2,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ],
-                                          ),
-                                    )
-                                  else if (_selectedPlayer?.imageUrl != null)
-                                    Image.network(
-                                      _selectedPlayer!.imageUrl!,
-                                      fit: BoxFit.contain, // Show full image
-                                      width: double.infinity,
-                                      height: double.infinity,
-                                      errorBuilder: (context, error, stackTrace) => 
-                                          Column(
-                                            mainAxisAlignment: MainAxisAlignment.center,
-                                            children: [
-                                              const Icon(Icons.broken_image, size: 40, color: Colors.red),
-                                              const SizedBox(height: 8),
-                                              Text(
-                                                'Greška pri učitavanju slike',
-                                                style: TextStyle(color: Colors.red[700], fontSize: 12),
-                                                textAlign: TextAlign.center,
-                                              ),
-                                            ],
-                                          ),
-                                    ),
-                                    
-                                  // Show overlay message that drag and drop requires package
-                                  Positioned.fill(
-                                    child: Material(
-                                      color: Colors.transparent,
-                                      child: InkWell(
-                                        onTap: _pickImage,
-                                        child: Padding(
-                                          padding: const EdgeInsets.all(8.0),
-                                          child: Column(
-                                            mainAxisAlignment: MainAxisAlignment.end,
-                                            crossAxisAlignment: CrossAxisAlignment.center,
-                                            children: [
-                                              Container(
-                                                padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                                                decoration: BoxDecoration(
-                                                  color: Colors.black54,
-                                                  borderRadius: BorderRadius.circular(4),
-                                                ),
-                                                child: const Text(
-                                                  'Drag & drop zahteva flutter_dropzone paket',
-                                                  style: TextStyle(color: Colors.white, fontSize: 10),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    ),
+                          // Image container with better click handling
+                          Material(
+                            color: Colors.transparent,
+                            borderRadius: BorderRadius.circular(8),
+                            child: InkWell(
+                              onTap: _pickImage,
+                              borderRadius: BorderRadius.circular(8),
+                              child: Container(
+                                height: 250,
+                                width: double.infinity,
+                                decoration: BoxDecoration(
+                                  border: Border.all(
+                                    color: _selectedPlayer == null && _selectedImageBytes == null 
+                                        ? Colors.red.withOpacity(0.7) 
+                                        : Colors.grey,
+                                    width: _selectedPlayer == null && _selectedImageBytes == null ? 2 : 1,
                                   ),
-                                  
-                                  // Delete button for selected images
-                                  if (_selectedImageBytes != null || _selectedPlayer?.imageUrl != null)
-                                    Positioned(
-                                      top: 0,
-                                      right: 0,
-                                      child: IconButton(
-                                        icon: const Icon(Icons.close, color: Colors.white),
-                                        onPressed: () {
-                                          setState(() {
-                                            _selectedImageBytes = null;
-                                            _selectedImageName = null;
-                                          });
-                                        },
-                                        style: IconButton.styleFrom(
-                                          backgroundColor: Colors.black54,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Stack(
+                                  alignment: Alignment.center,
+                                  children: [
+                                    // Display message when no image is selected
+                                    // Show placeholder when adding new player OR when editing and not keeping picture
+                                    if (_selectedImageBytes == null && (_selectedPlayer?.imageUrl == null || !_keepPicture))
+                                      Column(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          const Icon(Icons.image, size: 50, color: Colors.grey),
+                                          const SizedBox(height: 8),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                            decoration: BoxDecoration(
+                                              color: Colors.blue.withOpacity(0.1),
+                                              border: Border.all(color: Colors.blue.shade200),
+                                              borderRadius: BorderRadius.circular(8),
+                                            ),
+                                            child: const Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(Icons.photo_camera, size: 16, color: Colors.blue),
+                                                SizedBox(width: 4),
+                                                Text('Kliknite za odabir slike', 
+                                                  style: TextStyle(fontSize: 14, color: Colors.blue)),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    
+                                    // Display selected image
+                                    if (_selectedImageBytes != null)
+                                      Image.memory(
+                                        Uint8List.fromList(_selectedImageBytes!),
+                                        fit: BoxFit.contain, // Show full image
+                                        errorBuilder: (context, error, stackTrace) => 
+                                          Column(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              const Icon(Icons.broken_image, size: 40, color: Colors.red),
+                                              const SizedBox(height: 8),
+                                              Text(
+                                                'Greška pri učitavanju slike',
+                                                style: TextStyle(color: Colors.red[700], fontSize: 12),
+                                                textAlign: TextAlign.center,
+                                              ),
+                                            ],
+                                          ),
+                                      )
+                                    // Only show existing player image if keepPicture is true
+                                    else if (_selectedPlayer?.imageUrl != null && _keepPicture)
+                                      Image.network(
+                                        _selectedPlayer!.imageUrl!,
+                                        fit: BoxFit.contain, // Show full image
+                                        errorBuilder: (context, error, stackTrace) => 
+                                          Column(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              const Icon(Icons.broken_image, size: 40, color: Colors.red),
+                                              const SizedBox(height: 8),
+                                              Text(
+                                                'Greška pri učitavanju slike',
+                                                style: TextStyle(color: Colors.red[700], fontSize: 12),
+                                                textAlign: TextAlign.center,
+                                              ),
+                                            ],
+                                          ),
+                                      ),
+                                      
+                                    // Delete button for selected images - only show when there's an image displayed
+                                    if (_selectedImageBytes != null || (_selectedPlayer?.imageUrl != null && _keepPicture))
+                                      Positioned(
+                                        top: 4,
+                                        right: 4,
+                                        child: IconButton(
+                                          icon: const Icon(Icons.close, color: Colors.white),
+                                          onPressed: () {
+                                            setState(() {
+                                              _selectedImageBytes = null;
+                                              _selectedImageName = null;
+                                              // If deleting an existing player's image, uncheck keepPicture
+                                              if (_selectedPlayer?.imageUrl != null) {
+                                                _keepPicture = false;
+                                              }
+                                            });
+                                          },
+                                          style: IconButton.styleFrom(
+                                            backgroundColor: Colors.black54,
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
                           ),
@@ -969,6 +965,34 @@ class _PlayersContentState extends State<_PlayersContent> {
                               ),
                             ],
                           ),
+                          // Only show the "Keep picture" checkbox when editing an existing player
+                          if (_selectedPlayer != null) 
+                            Row(
+                              children: [
+                                if (_selectedPlayer != null) 
+                            Row(
+                              children: [
+                                Checkbox(
+                                  value: _keepPicture,
+                                  onChanged: (bool? value) {
+                                    setState(() {
+                                      _keepPicture = value ?? true;
+                                      
+                                      // Whether keeping picture or not, clear any newly selected image
+                                      // This ensures we're either using the original image or no image
+                                      _selectedImageBytes = null;
+                                      _selectedImageName = null;
+                                      
+                                      // The placeholder will now appear automatically when _keepPicture is false
+                                      // due to our updated condition in the image display section
+                                    });
+                                  },
+                                ),
+                                const Text('Zadrži postojeću sliku'),
+                              ],
+                            ),
+                              ],
+                            ),
                         ],
                       ),
                       

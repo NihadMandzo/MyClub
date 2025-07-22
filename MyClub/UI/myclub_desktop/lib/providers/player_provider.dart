@@ -81,6 +81,7 @@ class PlayerProvider extends BaseProvider<Player> {
       'DateOfBirth': request['dateOfBirth'] ?? DateTime.now().toIso8601String(),
       'Height': request['height']?.toString() ?? '0',
       'Weight': request['weight']?.toString() ?? '0',
+      'KeepPicture': request['keepPicture']?.toString() ?? 'false',
     };
     
     // Add form fields
