@@ -323,6 +323,7 @@ namespace MyClub.Services.Database
                 .HasForeignKey(um => um.ShippingDetailsId)
                 .OnDelete(DeleteBehavior.NoAction);
 
+            modelBuilder.Entity<Asset>().SeedData(); 
             modelBuilder.Entity<Color>().SeedData();
             modelBuilder.Entity<Size>().SeedData();
             modelBuilder.Entity<Role>().SeedData();
@@ -330,7 +331,6 @@ namespace MyClub.Services.Database
             modelBuilder.Entity<StadiumSide>().SeedData();
             modelBuilder.Entity<StadiumSector>().SeedData();
             modelBuilder.Entity<User>().SeedData();
-            modelBuilder.Entity<Asset>().SeedData();
             modelBuilder.Entity<News>().SeedData();
             modelBuilder.Entity<NewsAsset>().SeedData();
             modelBuilder.Entity<Comment>().SeedData();
