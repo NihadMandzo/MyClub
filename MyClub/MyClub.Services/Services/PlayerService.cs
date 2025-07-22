@@ -103,10 +103,13 @@ namespace MyClub.Services.Services
 
         protected override async Task BeforeUpdate(Player entity, PlayerUpdateRequest request)
         {
-            await base.BeforeUpdate(entity, request);
-            
-            // Handle image upload if provided
-            if (request.ImageUrl != null)
+            // Validate that if KeepPicture is false, a new image must be provided
+            if (!request.KeepPicture && request.ImageUrl == null)
+            {
+                throw new UserException("A new image must be provided when not keeping the existing picture.");
+            }
+
+            if (!request.KeepPicture && request.ImageUrl != null)
             {
                 // If the player already has an image, delete it
                 if (entity.ImageId.HasValue)
@@ -117,10 +120,10 @@ namespace MyClub.Services.Services
                         await _blobStorageService.DeleteAsync(existingAsset.Url, _containerName);
                     }
                 }
-                
+
                 // Upload the new image
                 var imageUrl = await _blobStorageService.UploadAsync(request.ImageUrl, _containerName);
-                
+
                 // Update or create the asset
                 if (entity.ImageId.HasValue)
                 {
@@ -150,7 +153,9 @@ namespace MyClub.Services.Services
                     await _context.SaveChangesAsync();
                     entity.ImageId = newAsset.Id;
                 }
+                await _context.SaveChangesAsync();
             }
+            
         }
 
         protected override PlayerResponse MapToResponse(Player entity)
@@ -195,6 +200,7 @@ namespace MyClub.Services.Services
             player.LastName = request.LastName;
             player.ClubId = 1;
             player.ImageId = entity.ImageId;
+
             return player;
         }
         protected override Player MapInsertToEntity(Player entity, PlayerInsertRequest request)

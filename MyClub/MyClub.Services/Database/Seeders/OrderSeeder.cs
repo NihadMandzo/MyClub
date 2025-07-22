@@ -10,14 +10,14 @@ public static class OrderSeeder
         var random = new Random(600);
         var orders = new List<Order>();
         
-        string[] paymentMethods = { "Credit Card", "Debit Card", "PayPal", "Bank Transfer", "Cash on Delivery" };
+        string[] paymentMethods = { "Kreditna Kartica", "Debitna Kartica", "PayPal", "Bankovni Transfer", "Plaćanje po Dostavi" };
         string[] notes = { 
-            "Please deliver to the front door",
-            "Call before delivery",
-            "Leave with the neighbor if not at home",
-            "Fragile items, handle with care",
-            "Special order for club member",
-            "Contact me for any issues",
+            "Molimo dostavite na vrata",
+            "Nazovite prije dostave",
+            "Ostavite kod susjeda ako niste kod kuće",
+            "Krtki predmeti, pažljivo rukovati",
+            "Posebna narudžba za člana kluba",
+            "Kontaktirajte me za bilo kakve probleme",
             ""
         };
         

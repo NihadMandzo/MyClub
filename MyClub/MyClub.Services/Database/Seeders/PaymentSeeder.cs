@@ -9,16 +9,16 @@ public static class PaymentSeeder
     {
         var random = new Random(100);
         var payments = new List<Payment>();
-        
-        string[] paymentMethods = { "Credit Card", "Debit Card", "PayPal", "Bank Transfer", "Cash" };
-        string[] paymentStatuses = { "Completed", "Pending", "Failed", "Refunded" };
+
+        string[] paymentMethods = { "Kreditna Kartica", "Debitna Kartica", "PayPal", "Bankovni Transfer", "Gotovina" };
+        string[] paymentStatuses = { "Završena", "Na čekanju", "Neuspjela", "Vraćena" };
 
         for (int i = 1; i <= 50; i++)
         {
             var amount = Math.Round((decimal)(random.NextDouble() * 200 + 10), 2);
             var createdDate = DateTime.Now.AddDays(-random.Next(1, 365));
             var status = paymentStatuses[random.Next(0, paymentStatuses.Length)];
-            var completedDate = status == "Completed" ? createdDate.AddMinutes(random.Next(1, 60)) : (DateTime?)null;
+            var completedDate = status == "Završena" ? createdDate.AddMinutes(random.Next(1, 60)) : (DateTime?)null;
 
             payments.Add(new Payment
             {

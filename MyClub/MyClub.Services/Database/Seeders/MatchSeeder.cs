@@ -23,7 +23,7 @@ public static class MatchSeeder
             "Pecara, Široki Brijeg", "Gradski stadion, Bijeljina", "Vrapčići, Mostar"
         };
         
-        string[] statuses = { "Scheduled", "Completed", "Cancelled", "Postponed", "In Progress" };
+        string[] statuses = { "Zakazana", "Završena", "Otkažena", "Odgođena", "U Tijeku" };
         
         for (int i = 1; i <= 50; i++)
         {
@@ -35,15 +35,15 @@ public static class MatchSeeder
             string status;
             if (matchDate < DateTime.Now)
             {
-                status = random.Next(0, 10) < 8 ? "Completed" : "Cancelled";
+                status = random.Next(0, 10) < 8 ? "Završena" : "Otkažena";
             }
             else if (matchDate.Date == DateTime.Now.Date)
             {
-                status = random.Next(0, 10) < 5 ? "In Progress" : "Scheduled";
+                status = random.Next(0, 10) < 5 ? "U Tijeku" : "Zakazana";
             }
             else
             {
-                status = random.Next(0, 10) < 8 ? "Scheduled" : "Postponed";
+                status = random.Next(0, 10) < 8 ? "Zakazana" : "Odgođena";
             }
             
             matches.Add(new Match
@@ -53,7 +53,7 @@ public static class MatchSeeder
                 OpponentName = opponentName,
                 Location = location,
                 Status = status,
-                Description = $"Match against {opponentName} at {location}",
+                Description = $"Utakmica protiv {opponentName} na {location}",
                 ClubId = 1 // Assuming FK Foča with ID 1 from your ClubSeeder
             });
         }

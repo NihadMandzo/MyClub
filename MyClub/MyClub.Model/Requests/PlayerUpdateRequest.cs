@@ -13,6 +13,7 @@ namespace MyClub.Model.Requests
         public int? Height { get; set; }
         public int? Weight { get; set; }
         public string Biography { get; set; }
+        public bool KeepPicture { get; set; }
         public IFormFile? ImageUrl { get; set; }
         public string Nationality { get; set; }
     }

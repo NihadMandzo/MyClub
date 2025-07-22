@@ -10,13 +10,13 @@ public static class MembershipCardSeeder
         var random = new Random(200);
         var membershipCards = new List<MembershipCard>();
         
-        string[] cardTypes = { "Standard", "Silver", "Gold", "Platinum", "Diamond" };
+        string[] cardTypes = { "Standard", "Srebrena", "Zlatna", "Platinum", "Dijamant" };
         string[] benefitsList = {
-            "Free entry to home matches, 10% discount in club shop",
-            "Free entry to home matches, 15% discount in club shop, priority ticket purchase",
-            "Free entry to all matches, 20% discount in club shop, meet players once a year",
-            "Free entry to all matches, 25% discount in club shop, VIP lounge access",
-            "Full season access to all events, 30% discount in club shop, personal player meet & greet"
+            "Dzaba ulaz na domaće utakmice, 10% popusta u klupskom dućanu",
+            "Dzaba ulaz na domaće utakmicehes, 15% popusta u klupskom dućanu, prioritetna kupovina karata",
+            "Dzaba ulaz na sve utakmice, 20% popusta u klupskom dućanu, susret s igračima jednom godišnje",
+            "Dzaba ulaz na sve utakmice, 25% popusta u klupskom dućanu, pristup VIP loži",
+            "Puni pristup svim događanjima, 30% popusta u klupskom dućanu, osobni susret s igračem"
         };
 
         for (int i = 1; i <= 50; i++)
@@ -25,7 +25,7 @@ public static class MembershipCardSeeder
             int targetMembers = random.Next(500, 5001);
             int totalMembers = random.Next(0, targetMembers + 1);
             
-            var cardName = $"{cardTypes[random.Next(0, cardTypes.Length)]} Membership {year}";
+            var cardName = $"{cardTypes[random.Next(0, cardTypes.Length)]} Članstvo {year}";
             var price = Math.Round((decimal)(random.Next(50, 501)), 2);
             
             var startDate = new DateTime(year, 1, 1);
@@ -39,7 +39,7 @@ public static class MembershipCardSeeder
                 Id = i,
                 Year = year,
                 Name = cardName,
-                Description = $"{cardName} - Support your club with our {year} membership program",
+                Description = $"{cardName} - Podržite svoj klub s našim {year} članstvom!",
                 TotalMembers = totalMembers,
                 TargetMembers = targetMembers,
                 Price = price,
