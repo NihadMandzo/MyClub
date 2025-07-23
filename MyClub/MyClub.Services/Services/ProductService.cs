@@ -305,20 +305,42 @@ namespace MyClub.Services
                 }
 
                 // Handle images to delete
-                var imagesToDelete = entity.ProductAssets.Where(pa => 
-                    request.ImagesToKeep == null || !request.ImagesToKeep.Contains(pa.AssetId)).ToList();
+                var imagesToDelete = entity.ProductAssets
+                    .Where(pa => request.ImagesToKeep == null || !request.ImagesToKeep.Contains(pa.AssetId))
+                    .ToList();
                 
                 foreach (var image in imagesToDelete)
                 {
-                    // Delete from Azure Blob Storage
-                    await _blobStorageService.DeleteAsync(image.Asset.Url, _containerName);
+                    // Delete from Azure Blob Storage - ensure URL is not null
+                    if (image.Asset != null && !string.IsNullOrEmpty(image.Asset.Url))
+                    {
+                        await _blobStorageService.DeleteAsync(image.Asset.Url, _containerName);
+                    }
 
-                    // Remove from database
+                    // First remove the relationship
                     _context.ProductAssets.Remove(image);
-                    _context.Assets.Remove(image.Asset);
                 }
-
-                // Save changes after deleting to avoid conflicts
+                
+                // Save changes after removing relationships
+                await _context.SaveChangesAsync();
+                
+                // Now remove the assets that are no longer referenced by any product
+                foreach (var image in imagesToDelete)
+                {
+                    if (image.Asset != null)
+                    {
+                        // Check if this asset is used by any other product before deleting
+                        var isAssetUsedElsewhere = await _context.ProductAssets
+                            .AnyAsync(pa => pa.AssetId == image.AssetId);
+                            
+                        if (!isAssetUsedElsewhere)
+                        {
+                            _context.Assets.Remove(image.Asset);
+                        }
+                    }
+                }
+                
+                // Save changes after deleting assets
                 await _context.SaveChangesAsync();
 
                 // Upload new images

@@ -30,28 +30,28 @@ namespace MyClub.Services.Services
                 .Include(x => x.Club)
                 .Include(x => x.Image)
                 .AsQueryable();
-                
+
             // Apply filters
             query = ApplyFilter(query, search);
-            
+
             // Get total count before pagination
             int totalCount = 0;
             if (search.IncludeTotalCount)
             {
                 totalCount = await query.CountAsync();
             }
-            
+
             // Apply pagination
             int pageSize = search.PageSize ?? 10;
             int currentPage = search.Page ?? 0;
-            
+
             if (!search.RetrieveAll)
             {
                 query = query.Skip(currentPage * pageSize).Take(pageSize);
             }
-            
+
             var list = await query.ToArrayAsync();
-            
+
             return new PagedResult<PlayerResponse>
             {
                 Data = list.Select(MapToResponse).ToList(),
@@ -68,8 +68,8 @@ namespace MyClub.Services.Services
             // Add filter by name if provided
             if (!string.IsNullOrWhiteSpace(search.FTS))
             {
-                filteredQuery = filteredQuery.Where(x => 
-                    x.FirstName.Contains(search.FTS) || 
+                filteredQuery = filteredQuery.Where(x =>
+                    x.FirstName.Contains(search.FTS) ||
                     x.LastName.Contains(search.FTS));
             }
 
@@ -80,22 +80,22 @@ namespace MyClub.Services.Services
         protected override async Task BeforeInsert(Player entity, PlayerInsertRequest request)
         {
             await base.BeforeInsert(entity, request);
-            
+
             // Handle image upload if provided
             if (request.ImageUrl != null)
             {
                 // Upload the image to blob storage
                 var imageUrl = await _blobStorageService.UploadAsync(request.ImageUrl, _containerName);
-                
+
                 // Create a new asset record
                 var asset = new Asset
                 {
                     Url = imageUrl
                 };
-                
+
                 _context.Assets.Add(asset);
                 await _context.SaveChangesAsync();
-                
+
                 // Link the asset to the player
                 entity.ImageId = asset.Id;
             }
@@ -149,37 +149,37 @@ namespace MyClub.Services.Services
                 }
                 await _context.SaveChangesAsync();
             }
-            
+
         }
 
         protected override PlayerResponse MapToResponse(Player entity)
         {
             var response = base.MapToResponse(entity);
-            
+
             // Calculate age from date of birth if available
             if (entity.DateOfBirth.HasValue)
             {
                 var today = DateTime.Today;
                 var age = today.Year - entity.DateOfBirth.Value.Year;
-                
+
                 // Adjust age if birthday hasn't occurred yet this year
                 if (entity.DateOfBirth.Value.Date > today.AddYears(-age))
                 {
                     age--;
                 }
-                
+
                 response.Age = age;
             }
-            
+
             // Set image URL if available
             if (entity.Image != null)
             {
                 response.ImageUrl = entity.Image.Url;
             }
-            
+
             return response;
         }
-   
+
         protected override Player MapUpdateToEntity(Player entity, PlayerUpdateRequest request)
         {
             var player = base.MapUpdateToEntity(entity, request);
@@ -211,6 +211,24 @@ namespace MyClub.Services.Services
             player.LastName = request.LastName;
             player.ClubId = 1;
             return player;
+        }
+   
+        protected override async Task BeforeDelete(Player entity)
+        {
+            // Delete the player's image from blob storage if it exists
+            if (entity.ImageId.HasValue)
+            {
+                var asset = await _context.Assets.FindAsync(entity.ImageId.Value);
+                if (asset != null)
+                {
+                    await _blobStorageService.DeleteAsync(asset.Url, _containerName);
+                    _context.Assets.Remove(asset);
+                }
+            }
+
+            // Delete the player entity
+            _context.Players.Remove(entity);
+            await _context.SaveChangesAsync();
         }
     }
 }
