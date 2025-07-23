@@ -272,6 +272,11 @@ class _PlayersContentState extends State<_PlayersContent> {
       _selectedImageName = null;
       _keepPicture = true; // Reset to default
     });
+    
+    // Reset form validation state
+    if (_formKey.currentState != null) {
+      _formKey.currentState!.reset();
+    }
   }
   
   // Add delete player functionality
@@ -337,6 +342,9 @@ class _PlayersContentState extends State<_PlayersContent> {
             _selectedImageName = file.name;
             _keepPicture = false; // User is choosing a new image
             
+            // This will trigger all form field validations to update
+            _formKey.currentState?.validate();
+            
             NotificationUtility.showSuccess(
               context,
               message: 'Slika uspješno odabrana',
@@ -349,6 +357,9 @@ class _PlayersContentState extends State<_PlayersContent> {
             _selectedImageBytes = fileBytes;
             _selectedImageName = file.name;
             _keepPicture = false; // User is choosing a new image
+            
+            // This will trigger all form field validations to update
+            _formKey.currentState?.validate();
             
             NotificationUtility.showSuccess(
               context,
@@ -370,25 +381,11 @@ class _PlayersContentState extends State<_PlayersContent> {
   Future<void> _savePlayer() async {
     if (!_formKey.currentState!.validate()) {
       print('Form validation failed!');
-      // Check if biography is the failing field
-      if (_biographyController.text.trim().isEmpty) {
-        print('Biography field is empty!');
-        NotificationUtility.showError(
-          context,
-          message: 'Biografija je obavezno polje i ne može biti prazna.',
-        );
-      }
       return;
     }
     
-    // Show error if no image is selected for new players
-    if (_selectedPlayer == null && _selectedImageBytes == null) {
-      NotificationUtility.showError(
-        context,
-        message: 'Molimo vas da odaberete sliku za igrača',
-      );
-      return;
-    }
+    // The image validation is now handled by FormField in the form itself
+    // No need for separate validation here as it's included in form validation
     
     // For existing players, ensure they either keep the existing picture or upload a new one
     if (_selectedPlayer != null && !_keepPicture && _selectedImageBytes == null) {
@@ -414,14 +411,7 @@ class _PlayersContentState extends State<_PlayersContent> {
       'keepPicture': _keepPicture, // Add the keepPicture flag for updates
     };
     
-    // Double check that biography is not empty
-    if (player['biography']?.toString().isEmpty ?? true) {
-      NotificationUtility.showError(
-        context,
-        message: 'Biografija je obavezno polje. Molimo vas da unesete biografiju.',
-      );
-      return;
-    }
+    
     
     try {
 
@@ -830,121 +820,152 @@ class _PlayersContentState extends State<_PlayersContent> {
                             ],
                           ),
                           const SizedBox(height: 8),
-                          // Image container with better click handling
-                          Material(
-                            color: Colors.transparent,
-                            borderRadius: BorderRadius.circular(8),
-                            child: InkWell(
-                              onTap: _pickImage,
-                              borderRadius: BorderRadius.circular(8),
-                              child: Container(
-                                height: 250,
-                                width: double.infinity,
-                                decoration: BoxDecoration(
-                                  border: Border.all(
-                                    color: _selectedPlayer == null && _selectedImageBytes == null 
-                                        ? Colors.red.withOpacity(0.7) 
-                                        : Colors.grey,
-                                    width: _selectedPlayer == null && _selectedImageBytes == null ? 2 : 1,
-                                  ),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Stack(
-                                  alignment: Alignment.center,
-                                  children: [
-                                    // Display message when no image is selected
-                                    // Show placeholder when adding new player OR when editing and not keeping picture
-                                    if (_selectedImageBytes == null && (_selectedPlayer?.imageUrl == null || !_keepPicture))
-                                      Column(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: [
-                                          const Icon(Icons.image, size: 50, color: Colors.grey),
-                                          const SizedBox(height: 8),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                            decoration: BoxDecoration(
-                                              color: Colors.blue.withOpacity(0.1),
-                                              border: Border.all(color: Colors.blue.shade200),
-                                              borderRadius: BorderRadius.circular(8),
-                                            ),
-                                            child: const Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Icon(Icons.photo_camera, size: 16, color: Colors.blue),
-                                                SizedBox(width: 4),
-                                                Text('Kliknite za odabir slike', 
-                                                  style: TextStyle(fontSize: 14, color: Colors.blue)),
-                                              ],
-                                            ),
+                          // Image container with validation
+                          FormField<bool>(
+                            validator: (value) {
+                              // Image is valid if:
+                              // 1. It's a new player with a selected image, OR
+                              // 2. It's an existing player with either keepPicture=true OR a new image selected
+                              final bool isValid = 
+                                (_selectedImageBytes != null) || 
+                                (_selectedPlayer != null && _keepPicture);
+                                
+                              if (!isValid) {
+                                return 'Molimo vas da odaberete sliku za igrača';
+                              }
+                              return null;
+                            },
+                            builder: (formFieldState) {
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Material(
+                                    color: Colors.transparent,
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: InkWell(
+                                      onTap: _pickImage,
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: Container(
+                                        height: 250,
+                                        width: double.infinity,
+                                        decoration: BoxDecoration(
+                                          border: Border.all(
+                                            color: formFieldState.hasError ? Colors.red : Colors.grey,
+                                            width: _selectedPlayer == null && _selectedImageBytes == null ? 2 : 1,
                                           ),
-                                        ],
-                                      ),
-                                    
-                                    // Display selected image
-                                    if (_selectedImageBytes != null)
-                                      Image.memory(
-                                        Uint8List.fromList(_selectedImageBytes!),
-                                        fit: BoxFit.contain, // Show full image
-                                        errorBuilder: (context, error, stackTrace) => 
-                                          Column(
-                                            mainAxisAlignment: MainAxisAlignment.center,
-                                            children: [
-                                              const Icon(Icons.broken_image, size: 40, color: Colors.red),
-                                              const SizedBox(height: 8),
-                                              Text(
-                                                'Greška pri učitavanju slike',
-                                                style: TextStyle(color: Colors.red[700], fontSize: 12),
-                                                textAlign: TextAlign.center,
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Stack(
+                                          alignment: Alignment.center,
+                                          children: [
+                                            // Display message when no image is selected
+                                            // Show placeholder when adding new player OR when editing and not keeping picture
+                                            if (_selectedImageBytes == null && (_selectedPlayer?.imageUrl == null || !_keepPicture))
+                                              Column(
+                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                children: [
+                                                  const Icon(Icons.image, size: 50, color: Colors.grey),
+                                                  const SizedBox(height: 8),
+                                                  Container(
+                                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.blue.withOpacity(0.1),
+                                                      border: Border.all(color: Colors.blue.shade200),
+                                                      borderRadius: BorderRadius.circular(8),
+                                                    ),
+                                                    child: const Row(
+                                                      mainAxisSize: MainAxisSize.min,
+                                                      children: [
+                                                        Icon(Icons.photo_camera, size: 16, color: Colors.blue),
+                                                        SizedBox(width: 4),
+                                                        Text('Kliknite za odabir slike', 
+                                                          style: TextStyle(fontSize: 14, color: Colors.blue)),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
-                                            ],
-                                          ),
-                                      )
-                                    // Only show existing player image if keepPicture is true
-                                    else if (_selectedPlayer?.imageUrl != null && _keepPicture)
-                                      Image.network(
-                                        _selectedPlayer!.imageUrl!,
-                                        fit: BoxFit.contain, // Show full image
-                                        errorBuilder: (context, error, stackTrace) => 
-                                          Column(
-                                            mainAxisAlignment: MainAxisAlignment.center,
-                                            children: [
-                                              const Icon(Icons.broken_image, size: 40, color: Colors.red),
-                                              const SizedBox(height: 8),
-                                              Text(
-                                                'Greška pri učitavanju slike',
-                                                style: TextStyle(color: Colors.red[700], fontSize: 12),
-                                                textAlign: TextAlign.center,
+                                            
+                                            // Display selected image
+                                            if (_selectedImageBytes != null)
+                                              Image.memory(
+                                                Uint8List.fromList(_selectedImageBytes!),
+                                                fit: BoxFit.contain, // Show full image
+                                                errorBuilder: (context, error, stackTrace) => 
+                                                  Column(
+                                                    mainAxisAlignment: MainAxisAlignment.center,
+                                                    children: [
+                                                      const Icon(Icons.broken_image, size: 40, color: Colors.red),
+                                                      const SizedBox(height: 8),
+                                                      Text(
+                                                        'Greška pri učitavanju slike',
+                                                        style: TextStyle(color: Colors.red[700], fontSize: 12),
+                                                        textAlign: TextAlign.center,
+                                                      ),
+                                                    ],
+                                                  ),
+                                              )
+                                            // Only show existing player image if keepPicture is true
+                                            else if (_selectedPlayer?.imageUrl != null && _keepPicture)
+                                              Image.network(
+                                                _selectedPlayer!.imageUrl!,
+                                                fit: BoxFit.contain, // Show full image
+                                                errorBuilder: (context, error, stackTrace) => 
+                                                  Column(
+                                                    mainAxisAlignment: MainAxisAlignment.center,
+                                                    children: [
+                                                      const Icon(Icons.broken_image, size: 40, color: Colors.red),
+                                                      const SizedBox(height: 8),
+                                                      Text(
+                                                        'Greška pri učitavanju slike',
+                                                        style: TextStyle(color: Colors.red[700], fontSize: 12),
+                                                        textAlign: TextAlign.center,
+                                                      ),
+                                                    ],
+                                                  ),
                                               ),
-                                            ],
-                                          ),
-                                      ),
-                                      
-                                    // Delete button for selected images - only show when there's an image displayed
-                                    if (_selectedImageBytes != null || (_selectedPlayer?.imageUrl != null && _keepPicture))
-                                      Positioned(
-                                        top: 4,
-                                        right: 4,
-                                        child: IconButton(
-                                          icon: const Icon(Icons.close, color: Colors.white),
-                                          onPressed: () {
-                                            setState(() {
-                                              _selectedImageBytes = null;
-                                              _selectedImageName = null;
-                                              // If deleting an existing player's image, uncheck keepPicture
-                                              if (_selectedPlayer?.imageUrl != null) {
-                                                _keepPicture = false;
-                                              }
-                                            });
-                                          },
-                                          style: IconButton.styleFrom(
-                                            backgroundColor: Colors.black54,
-                                          ),
+                                              
+                                            // Delete button for selected images - only show when there's an image displayed
+                                            if (_selectedImageBytes != null || (_selectedPlayer?.imageUrl != null && _keepPicture))
+                                              Positioned(
+                                                top: 4,
+                                                right: 4,
+                                                child: IconButton(
+                                                  icon: const Icon(Icons.close, color: Colors.white),
+                                                  onPressed: () {
+                                                    setState(() {
+                                                      _selectedImageBytes = null;
+                                                      _selectedImageName = null;
+                                                      // If deleting an existing player's image, uncheck keepPicture
+                                                      if (_selectedPlayer?.imageUrl != null) {
+                                                        _keepPicture = false;
+                                                      }
+                                                      // Validate the form field after image removal
+                                                      formFieldState.didChange(false);
+                                                    });
+                                                  },
+                                                  style: IconButton.styleFrom(
+                                                    backgroundColor: Colors.black54,
+                                                  ),
+                                                ),
+                                              ),
+                                          ],
                                         ),
                                       ),
-                                  ],
-                                ),
-                              ),
-                            ),
+                                    ),
+                                  ),
+                                  // Error message below the image container
+                                  if (formFieldState.hasError)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 4.0),
+                                      child: Text(
+                                        formFieldState.errorText!,
+                                        style: const TextStyle(color: Colors.red, fontSize: 12),
+                                      ),
+                                    ),
+                                ],
+                              );
+                            },
                           ),
                           const SizedBox(height: 8),
                           Row(
