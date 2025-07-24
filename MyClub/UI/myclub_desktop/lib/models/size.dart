@@ -1,6 +1,6 @@
 class Size {
-  int? id;
-  String? name;
+  final int? id;
+  final String? name;
 
   Size({this.id, this.name});
 

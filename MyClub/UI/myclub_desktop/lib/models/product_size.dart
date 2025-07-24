@@ -9,13 +9,13 @@ class ProductSize {
     this.size,
   });
 
-  // For creating product sizes in the UI
-  factory ProductSize.create({int? sizeId, int? quantity}) {
-    return ProductSize(
-      size: sizeId != null ? Size(id: sizeId) : null,
-      quantity: quantity,
-    );
-  }
+
+factory ProductSize.create({int? sizeId, int? quantity}) {
+  return ProductSize(
+    size: sizeId != null ? Size(id: sizeId) : null,
+    quantity: quantity,
+  );
+}
 
   factory ProductSize.fromJson(Map<String, dynamic> json) {
     return ProductSize(
