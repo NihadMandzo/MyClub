@@ -34,6 +34,9 @@ abstract class BaseProvider<T> with ChangeNotifier {
       url = "$url?$queryString";
     }
 
+    print("API GET Request URL: $url");
+    print("API GET Request Headers: ${createHeaders()}");
+    
     var uri = Uri.parse(url);
     var headers = createHeaders();
 
@@ -103,13 +106,15 @@ abstract class BaseProvider<T> with ChangeNotifier {
   }
 
   bool isValidResponse(http.Response response) {
+    print("API Response Status Code: ${response.statusCode}");
+    print("API Response Body: ${response.body}");
+    
     if (response.statusCode < 299) {
       return true;
     } else if (response.statusCode == 401) {
-      throw new Exception("Unauthorized");
+      throw new Exception("Unauthorized - Please log in again");
     } else {
-      print(response.body);
-      throw new Exception("Greška tokom dohvatanja podataka");
+      throw new Exception("API Error (${response.statusCode}): ${response.body}");
     }
   }
 
