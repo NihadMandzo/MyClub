@@ -148,34 +148,105 @@ namespace MyClub.Services
             entity.UpdatedAt = DateTime.UtcNow;
         }
 
-        protected override async Task BeforeDelete(Database.Product entity)
+        public override async Task<bool> DeleteAsync(int id)
         {
-            // Use transaction to ensure atomicity
+            var entity = await _context.Products
+                .Include(p => p.ProductAssets)
+                .ThenInclude(pa => pa.Asset)
+                .Include(p => p.ProductSizes)
+                .FirstOrDefaultAsync(p => p.Id == id);
+
+            if (entity == null)
+                throw new UserException($"Product with ID {id} not found");
+
+            // Check if the product has related order items
+            var hasOrderItems = await _context.OrderItems
+                .Include(oi => oi.ProductSize)
+                .AnyAsync(oi => oi.ProductSize.ProductId == id);
+
+            if (hasOrderItems)
+            {
+                // Just mark the product as inactive instead of deleting
+                entity.IsActive = false;
+                entity.UpdatedAt = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
+
+                return true;
+            }
+
+            // For products without order items, perform full deletion
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
-                // Delete images from Azure Blob Storage
-                var assets = await _context.Assets
-                    .Include(a => a.ProductAssets)
-                    .Where(a => a.ProductAssets.Any(pi => pi.ProductId == entity.Id))
+                // Get all assets related to this product
+                var productAssets = await _context.ProductAssets
+                    .Include(pa => pa.Asset)
+                    .Where(pa => pa.ProductId == id)
                     .ToListAsync();
-                
-                foreach (var asset in assets)
+
+                // Get all product sizes to delete
+                var productSizes = await _context.ProductSizes
+                    .Where(ps => ps.ProductId == id)
+                    .ToListAsync();
+
+                // 1. Remove product sizes first
+                if (productSizes.Any())
                 {
-                    await _blobStorageService.DeleteAsync(asset.Url, _containerName);
+                    _context.ProductSizes.RemoveRange(productSizes);
+                    await _context.SaveChangesAsync();
                 }
-                
-                // Delete product sizes
-                var productSizes = await _context.ProductSizes.Where(ps => ps.ProductId == entity.Id).ToListAsync();
-                _context.ProductSizes.RemoveRange(productSizes);
-                
+
+                // 2. Delete product assets from blob storage and remove relationships
+                foreach (var productAsset in productAssets)
+                {
+                    // Delete from Azure Blob Storage if URL exists
+                    if (productAsset.Asset != null && !string.IsNullOrEmpty(productAsset.Asset.Url))
+                    {
+                        await _blobStorageService.DeleteAsync(productAsset.Asset.Url, _containerName);
+                    }
+
+                    // Remove the relationship
+                    _context.ProductAssets.Remove(productAsset);
+                }
+
+                // Save changes to remove relationships
+                if (productAssets.Any())
+                {
+                    await _context.SaveChangesAsync();
+                }
+
+                // 3. Delete assets that aren't referenced by other products
+                foreach (var productAsset in productAssets)
+                {
+                    if (productAsset.Asset != null)
+                    {
+                        var isAssetUsedElsewhere = await _context.ProductAssets
+                            .AnyAsync(pa => pa.AssetId == productAsset.AssetId);
+
+                        if (!isAssetUsedElsewhere)
+                        {
+                            _context.Assets.Remove(productAsset.Asset);
+                        }
+                    }
+                }
+
+                // Save changes after removing assets
+                if (productAssets.Any())
+                {
+                    await _context.SaveChangesAsync();
+                }
+
+                // 4. Finally, remove the product entity
+                _context.Products.Remove(entity);
                 await _context.SaveChangesAsync();
+
                 await transaction.CommitAsync();
+                return true;
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                throw;
+                throw new UserException($"Error deleting product: {ex.Message}");
             }
         }
 
@@ -440,38 +511,66 @@ namespace MyClub.Services
         }
 
 
+        // Fix the MapToResponse method to handle null references
         private ProductResponse MapToResponse(Database.Product entity)
         {
             var response = _mapper.Map<ProductResponse>(entity);
-            response.Category = new CategoryResponse
+            
+            // Handle Category
+            if (entity.Category != null)
             {
-                Id = entity.Category.Id,
-                Name = entity.Category.Name
-            };
-            response.Color = new ColorResponse
-            {
-                Id = entity.Color.Id,
-                Name = entity.Color.Name
-            };
-            response.PrimaryImageUrl = new AssetResponse
-            {
-                Id = entity.ProductAssets.FirstOrDefault().Asset.Id,
-                ImageUrl = entity.ProductAssets.FirstOrDefault().Asset.Url
-            };
-            response.ImageUrls = entity.ProductAssets?.Select(pa => new AssetResponse
-            {
-                Id = pa.Asset.Id,
-                ImageUrl = pa.Asset.Url
-            }).ToList() ?? new List<AssetResponse>();
-            response.Sizes = entity.ProductSizes?.Select(ps => new ProductSizeResponse
-            {
-                Size = new SizeResponse
+                response.Category = new CategoryResponse
                 {
-                    Id = ps.Size.Id,
-                    Name = ps.Size.Name
-                },
-                Quantity = ps.Quantity
-            }).ToList() ?? new List<ProductSizeResponse>();
+                    Id = entity.Category.Id,
+                    Name = entity.Category.Name
+                };
+            }
+            
+            // Handle Color
+            if (entity.Color != null)
+            {
+                response.Color = new ColorResponse
+                {
+                    Id = entity.Color.Id,
+                    Name = entity.Color.Name
+                };
+            }
+            
+            // Handle PrimaryImageUrl safely
+            var firstProductAsset = entity.ProductAssets?.FirstOrDefault();
+            if (firstProductAsset != null && firstProductAsset.Asset != null)
+            {
+                response.PrimaryImageUrl = new AssetResponse
+                {
+                    Id = firstProductAsset.Asset.Id,
+                    ImageUrl = firstProductAsset.Asset.Url
+                };
+            }
+            
+            // Handle ImageUrls safely
+            response.ImageUrls = entity.ProductAssets?
+                .Where(pa => pa.Asset != null)
+                .Select(pa => new AssetResponse
+                {
+                    Id = pa.Asset.Id,
+                    ImageUrl = pa.Asset.Url
+                })
+                .ToList() ?? new List<AssetResponse>();
+            
+            // Handle Sizes safely
+            response.Sizes = entity.ProductSizes?
+                .Where(ps => ps.Size != null)
+                .Select(ps => new ProductSizeResponse
+                {
+                    Size = new SizeResponse
+                    {
+                        Id = ps.Size.Id,
+                        Name = ps.Size.Name
+                    },
+                    Quantity = ps.Quantity
+                })
+                .ToList() ?? new List<ProductSizeResponse>();
+            
             return response;
         }
 
