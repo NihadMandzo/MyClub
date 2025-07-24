@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Authorization;
 namespace MyClub.WebAPI.Controllers
 {
     [ApiController]
-    [Route("[controller]")]
+    [Route("api/[controller]")]
     public class ProductController : BaseCRUDController<ProductResponse, ProductSearchObject, ProductUpsertRequest, ProductUpsertRequest>
     {
         public ProductController(IProductService service) : base(service)

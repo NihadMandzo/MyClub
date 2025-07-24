@@ -81,7 +81,7 @@ namespace MyClub.Services
             if (entity == null)
                 return null;
 
-            return MapToDetailedResponse(entity);
+            return MapToResponse(entity);
         }
         
         protected override IQueryable<Database.Product> ApplyFilter(IQueryable<Database.Product> query, ProductSearchObject search)
@@ -443,26 +443,38 @@ namespace MyClub.Services
         private ProductResponse MapToResponse(Database.Product entity)
         {
             var response = _mapper.Map<ProductResponse>(entity);
-            response.CategoryName = entity.Category?.Name;
-            response.ColorName = entity.Color?.Name;
-            response.PrimaryImageUrl = entity.ProductAssets?.FirstOrDefault()?.Asset?.Url;
-            return response;
-        }
-
-        private ProductByIdResponse MapToDetailedResponse(Database.Product entity)
-        {
-            var response = _mapper.Map<ProductByIdResponse>(entity);
-            response.CategoryName = entity.Category?.Name;
-            response.ColorName = entity.Color?.Name;
-            response.PrimaryImageUrl = entity.ProductAssets?.FirstOrDefault()?.Asset?.Url;
-            response.ImageUrls = entity.ProductAssets?.Select(pa => pa.Asset?.Url).ToList() ?? new List<string>();
+            response.Category = new CategoryResponse
+            {
+                Id = entity.Category.Id,
+                Name = entity.Category.Name
+            };
+            response.Color = new ColorResponse
+            {
+                Id = entity.Color.Id,
+                Name = entity.Color.Name
+            };
+            response.PrimaryImageUrl = new AssetResponse
+            {
+                Id = entity.ProductAssets.FirstOrDefault().Asset.Id,
+                ImageUrl = entity.ProductAssets.FirstOrDefault().Asset.Url
+            };
+            response.ImageUrls = entity.ProductAssets?.Select(pa => new AssetResponse
+            {
+                Id = pa.Asset.Id,
+                ImageUrl = pa.Asset.Url
+            }).ToList() ?? new List<AssetResponse>();
             response.Sizes = entity.ProductSizes?.Select(ps => new ProductSizeResponse
             {
-                SizeName = ps.Size?.Name,
+                Size = new SizeResponse
+                {
+                    Id = ps.Size.Id,
+                    Name = ps.Size.Name
+                },
                 Quantity = ps.Quantity
             }).ToList() ?? new List<ProductSizeResponse>();
             return response;
         }
+
 
         protected override Database.Product MapInsertToEntity(Database.Product entity, ProductUpsertRequest request)
         {
