@@ -15,6 +15,7 @@ import 'package:myclub_desktop/providers/color_provider.dart';
 import 'package:myclub_desktop/providers/product_provider.dart';
 import 'package:myclub_desktop/providers/size_provider.dart';
 import 'package:myclub_desktop/utilities/dialog_utility.dart';
+import 'package:myclub_desktop/utilities/form_dialog_utility.dart';
 import 'package:myclub_desktop/utilities/notification_utility.dart';
 import 'package:provider/provider.dart';
 
@@ -521,233 +522,234 @@ class _ShopContentState extends State<_ShopContent> {
     }
   }
 
-  Future<void> _showAddColorDialog() async {
-    final nameController = TextEditingController();
-    final hexCodeController = TextEditingController();
-
-    bool result =
-        await showDialog(
-          context: context,
-          builder: (context) {
-            return AlertDialog(
-              title: const Text('Dodaj novu boju'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: nameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Naziv boje',
-                      hintText: 'npr., Kraljevska plava',
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: hexCodeController,
-                    decoration: const InputDecoration(
-                      labelText: 'Hex Color Code',
-                      hintText: 'npr., #4285F4',
-                    ),
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(false),
-                  child: const Text('Otkaži'),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    if (nameController.text.isNotEmpty &&
-                        hexCodeController.text.isNotEmpty) {
-                      Navigator.of(context).pop(true);
-                    } else {
-                      NotificationUtility.showError(
-                        context,
-                        message: 'Molimo popunite sva polja',
-                      );
-                    }
-                  },
-                  child: const Text('Dodaj'),
-                ),
-              ],
-            );
-          },
-        ) ??
-        false;
-
-    if (result) {
+  Future<void> _showAddColorDialog({model.Color? color}) async {
+    final isEdit = color != null;
+    
+    final result = await FormDialogUtility.showColorDialog(
+      context,
+      name: color?.name,
+      hexCode: color?.hexCode,
+      isEdit: isEdit,
+    );
+    
+    if (result != null) {
       try {
-        final newColor = {
-          'name': nameController.text,
-          'hexCode': hexCodeController.text,
-        };
-
-        await _colorProvider.insert(newColor);
-
+        if (isEdit) {
+          await _colorProvider.update(color!.id!, result);
+        } else {
+          await _colorProvider.insert(result);
+        }
+        
         // Refresh colors list
         var colorsResult = await _colorProvider.get();
         setState(() {
           _colors = colorsResult.data;
         });
-
+        
         NotificationUtility.showSuccess(
           context,
-          message: 'Boja uspješno dodana',
+          message: isEdit 
+            ? 'Boja uspješno izmijenjena' 
+            : 'Boja uspješno dodana',
         );
       } catch (e) {
         NotificationUtility.showError(
           context,
-          message: 'Greška u dodavanju boje: ${e.toString()}',
+          message: isEdit
+            ? 'Greška u izmjeni boje: ${e.toString()}'
+            : 'Greška u dodavanju boje: ${e.toString()}',
         );
       }
     }
   }
 
-  Future<void> _showAddCategoryDialog() async {
-    final nameController = TextEditingController();
-    final descriptionController = TextEditingController();
-
-    bool result =
-        await showDialog(
-          context: context,
-          builder: (context) {
-            return AlertDialog(
-              title: const Text('Dodaj novu kategoriju'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: nameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Naziv kategorije',
-                      hintText: 'npr., Sportska oprema',
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: descriptionController,
-                    decoration: const InputDecoration(
-                      labelText: 'Opis',
-                      hintText: 'Kratak opis kategorije',
-                    ),
-                    maxLines: 3,
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(false),
-                  child: const Text('Otkaži'),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    if (nameController.text.isNotEmpty) {
-                      Navigator.of(context).pop(true);
-                    } else {
-                      NotificationUtility.showError(
-                        context,
-                        message: 'Naziv kategorije je obavezan',
-                      );
-                    }
-                  },
-                  child: const Text('Dodaj'),
-                ),
-              ],
-            );
-          },
-        ) ??
-        false;
-
-    if (result) {
+  Future<void> _deleteColor(model.Color color) async {
+    final confirm = await FormDialogUtility.showDeleteConfirmationDialog(
+      context,
+      itemType: 'boju',
+      itemName: color.name ?? '',
+    );
+    
+    if (confirm) {
       try {
-        final newCategory = {
-          'name': nameController.text,
-          'description': descriptionController.text,
-          'isActive': true,
-        };
+        await _colorProvider.delete(color.id!);
+        
+        // Update selected color if it was deleted
+        if (_selectedColorId == color.id) {
+          setState(() {
+            _selectedColorId = null;
+          });
+        }
+        
+        // Refresh colors list
+        var colorsResult = await _colorProvider.get();
+        setState(() {
+          _colors = colorsResult.data;
+        });
+        
+        NotificationUtility.showSuccess(
+          context,
+          message: 'Boja uspješno obrisana',
+        );
+      } catch (e) {
+        NotificationUtility.showError(
+          context,
+          message: 'Greška u brisanju boje: ${e.toString()}',
+        );
+      }
+    }
+  }
 
-        await _categoryProvider.insert(newCategory);
-
+  Future<void> _showAddCategoryDialog({Category? category}) async {
+    final isEdit = category != null;
+    
+    final result = await FormDialogUtility.showCategoryDialog(
+      context,
+      name: category?.name,
+      description: category?.description,
+      isEdit: isEdit,
+    );
+    
+    if (result != null) {
+      try {
+        if (isEdit) {
+          await _categoryProvider.update(category!.id!, result);
+        } else {
+          await _categoryProvider.insert(result);
+        }
+        
         // Refresh categories list
         var categoriesResult = await _categoryProvider.get();
         setState(() {
           _categories = categoriesResult.data;
         });
-
+        
         NotificationUtility.showSuccess(
           context,
-          message: 'Kategorija uspješno dodana',
+          message: isEdit 
+            ? 'Kategorija uspješno izmijenjena' 
+            : 'Kategorija uspješno dodana',
         );
       } catch (e) {
         NotificationUtility.showError(
           context,
-          message: 'Greška u dodavanju kategorije: ${e.toString()}',
+          message: isEdit
+            ? 'Greška u izmjeni kategorije: ${e.toString()}'
+            : 'Greška u dodavanju kategorije: ${e.toString()}',
         );
       }
     }
   }
 
-  Future<void> _showAddSizeDialog() async {
-    final nameController = TextEditingController();
-
-    bool result =
-        await showDialog(
-          context: context,
-          builder: (context) {
-            return AlertDialog(
-              title: const Text('Dodaj novu veličinu'),
-              content: TextField(
-                controller: nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Naziv veličine',
-                  hintText: 'npr., XXL, 46, Velika',
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(false),
-                  child: const Text('Otkaži'),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    if (nameController.text.isNotEmpty) {
-                      Navigator.of(context).pop(true);
-                    } else {
-                      NotificationUtility.showError(
-                        context,
-                        message: 'Naziv veličine je obavezan',
-                      );
-                    }
-                  },
-                  child: const Text('Dodaj'),
-                ),
-              ],
-            );
-          },
-        ) ??
-        false;
-
-    if (result) {
+  Future<void> _deleteCategory(Category category) async {
+    final confirm = await FormDialogUtility.showDeleteConfirmationDialog(
+      context,
+      itemType: 'kategoriju',
+      itemName: category.name ?? '',
+    );
+    
+    if (confirm) {
       try {
-        final newSize = {'name': nameController.text};
+        await _categoryProvider.delete(category.id!);
+        
+        // Update selected category if it was deleted
+        if (_selectedCategoryId == category.id) {
+          setState(() {
+            _selectedCategoryId = null;
+          });
+        }
+        
+        // Refresh categories list
+        var categoriesResult = await _categoryProvider.get();
+        setState(() {
+          _categories = categoriesResult.data;
+        });
+        
+        NotificationUtility.showSuccess(
+          context,
+          message: 'Kategorija uspješno obrisana',
+        );
+      } catch (e) {
+        NotificationUtility.showError(
+          context,
+          message: 'Greška u brisanju kategorije: ${e.toString()}',
+        );
+      }
+    }
+  }
 
-        await _sizeProvider.insert(newSize);
-
+  Future<void> _showAddSizeDialog({Size? size}) async {
+    final isEdit = size != null;
+    
+    final result = await FormDialogUtility.showSizeDialog(
+      context,
+      name: size?.name,
+      isEdit: isEdit,
+    );
+    
+    if (result != null) {
+      try {
+        final sizeData = {'name': result};
+        
+        if (isEdit) {
+          await _sizeProvider.update(size!.id!, sizeData);
+        } else {
+          await _sizeProvider.insert(sizeData);
+        }
+        
         // Refresh sizes list
         var sizesResult = await _sizeProvider.get();
         setState(() {
           _sizes = sizesResult.data;
         });
-
+        
         NotificationUtility.showSuccess(
           context,
-          message: 'Veličina uspješno dodana',
+          message: isEdit 
+            ? 'Veličina uspješno izmijenjena' 
+            : 'Veličina uspješno dodana',
         );
       } catch (e) {
         NotificationUtility.showError(
           context,
-          message: 'Greška u dodavanju veličine: ${e.toString()}',
+          message: isEdit
+            ? 'Greška u izmjeni veličine: ${e.toString()}'
+            : 'Greška u dodavanju veličine: ${e.toString()}',
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteSize(Size size) async {
+    final confirm = await FormDialogUtility.showDeleteConfirmationDialog(
+      context,
+      itemType: 'veličinu',
+      itemName: size.name ?? '',
+    );
+    
+    if (confirm) {
+      try {
+        await _sizeProvider.delete(size.id!);
+        
+        // Update product sizes if any use this size
+        setState(() {
+          _productSizes.removeWhere((ps) => ps.size?.id == size.id);
+        });
+        
+        // Refresh sizes list
+        var sizesResult = await _sizeProvider.get();
+        setState(() {
+          _sizes = sizesResult.data;
+        });
+        
+        NotificationUtility.showSuccess(
+          context,
+          message: 'Veličina uspješno obrisana',
+        );
+      } catch (e) {
+        NotificationUtility.showError(
+          context,
+          message: 'Greška u brisanju veličine: ${e.toString()}',
         );
       }
     }
@@ -1528,67 +1530,95 @@ class _ShopContentState extends State<_ShopContent> {
                                     border: const OutlineInputBorder(),
                                   ),
                                   isEmpty: _selectedColorId == null,
-                                  child: PopupMenuButton<String>(
-                                    onSelected: (String value) {
-                                      if (value == 'add_color') {
-                                        _showAddColorDialog();
-                                      }
-                                    },
-                                    itemBuilder: (BuildContext context) =>
-                                        <PopupMenuEntry<String>>[
-                                          const PopupMenuItem<String>(
-                                            value: 'add_color',
-                                            child: Text('Dodaj novu boju'),
-                                          ),
-                                        ],
-                                    tooltip: 'Više opcija',
-                                    child: Row(
-                                      children: [
-                                        Expanded(
-                                          child: DropdownButtonHideUnderline(
-                                            child: DropdownButton<int>(
-                                              value: _selectedColorId,
-                                              isDense: true,
-                                              isExpanded: true,
-                                              onChanged: (int? newValue) {
-                                                setState(() {
-                                                  _selectedColorId = newValue;
-                                                  state.didChange(newValue);
-                                                });
-                                              },
-                                              items: _colors.map((
-                                                model.Color color,
-                                              ) {
-                                                return DropdownMenuItem<int>(
-                                                  value: color.id,
-                                                  child: Row(
-                                                    children: [
-                                                      Container(
-                                                        width: 16,
-                                                        height: 16,
-                                                        margin:
-                                                            const EdgeInsets.only(
-                                                              right: 8,
-                                                            ),
-                                                        decoration: BoxDecoration(
-                                                          border: Border.all(
-                                                            color: Colors.grey,
-                                                          ),
-                                                          borderRadius:
-                                                              BorderRadius.circular(
-                                                                4,
-                                                              ),
-                                                        ),
+                                  child: DropdownButtonHideUnderline(
+                                    child: DropdownButton<dynamic>(
+                                      value: _selectedColorId,
+                                      isDense: true,
+                                      isExpanded: true,
+                                      onChanged: (dynamic value) {
+                                        if (value is String) {
+                                          // Handle special actions
+                                          if (value == 'add_new') {
+                                            _showAddColorDialog();
+                                          }
+                                        } else {
+                                          // Normal selection
+                                          setState(() {
+                                            _selectedColorId = value;
+                                            state.didChange(value);
+                                          });
+                                        }
+                                      },
+                                      items: [
+                                        // Regular color items
+                                        ..._colors.map((model.Color color) {
+                                          return DropdownMenuItem<int>(
+                                            value: color.id,
+                                            child: Row(
+                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                              children: [
+                                                Row(
+                                                  children: [
+                                                    Container(
+                                                      width: 16,
+                                                      height: 16,
+                                                      margin: const EdgeInsets.only(right: 8),
+                                                      decoration: BoxDecoration(
+                                                        color: _parseHexColor(color.hexCode ?? '#CCCCCC'),
+                                                        border: Border.all(color: Colors.grey),
+                                                        borderRadius: BorderRadius.circular(4),
                                                       ),
-                                                      Text(color?.name ?? ''),
-                                                    ],
-                                                  ),
-                                                );
-                                              }).toList(),
+                                                    ),
+                                                    Text(color.name ?? ''),
+                                                  ],
+                                                ),
+                                                Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    IconButton(
+                                                      icon: const Icon(Icons.edit, size: 16),
+                                                      padding: EdgeInsets.zero,
+                                                      constraints: const BoxConstraints(),
+                                                      onPressed: () {
+                                                        // Close dropdown and show dialog
+                                                        Navigator.pop(context);
+                                                        _showAddColorDialog(color: color);
+                                                      },
+                                                    ),
+                                                    IconButton(
+                                                      icon: const Icon(Icons.delete, size: 16, color: Colors.red),
+                                                      padding: EdgeInsets.zero,
+                                                      constraints: const BoxConstraints(),
+                                                      onPressed: () {
+                                                        // Close dropdown and show confirmation
+                                                        Navigator.pop(context);
+                                                        _deleteColor(color);
+                                                      },
+                                                    ),
+                                                  ],
+                                                ),
+                                              ],
                                             ),
+                                          );
+                                        }),
+                                        // Add divider if we have colors
+                                        if (_colors.isNotEmpty)
+                                          const DropdownMenuItem<String>(
+                                            value: 'divider',
+                                            enabled: false,
+                                            child: Divider(),
+                                          ),
+                                        // Add "Add new" option
+                                        const DropdownMenuItem<String>(
+                                          value: 'add_new',
+                                          child: Row(
+                                            children: [
+                                              Icon(Icons.add_circle, color: Colors.blue),
+                                              SizedBox(width: 8),
+                                              Text('Dodaj novu boju', style: TextStyle(color: Colors.blue)),
+                                            ],
                                           ),
                                         ),
-                                        const Icon(Icons.arrow_drop_down),
                                       ],
                                     ),
                                   ),
@@ -1616,51 +1646,81 @@ class _ShopContentState extends State<_ShopContent> {
                                     border: const OutlineInputBorder(),
                                   ),
                                   isEmpty: _selectedCategoryId == null,
-                                  child: PopupMenuButton<String>(
-                                    onSelected: (String value) {
-                                      if (value == 'add_category') {
-                                        _showAddCategoryDialog();
-                                      }
-                                    },
-                                    itemBuilder: (BuildContext context) =>
-                                        <PopupMenuEntry<String>>[
-                                          const PopupMenuItem<String>(
-                                            value: 'add_category',
-                                            child: Text(
-                                              'Dodaj novu kategoriju',
+                                  child: DropdownButtonHideUnderline(
+                                    child: DropdownButton<dynamic>(
+                                      value: _selectedCategoryId,
+                                      isDense: true,
+                                      isExpanded: true,
+                                      onChanged: (dynamic value) {
+                                        if (value is String) {
+                                          // Handle special actions
+                                          if (value == 'add_new') {
+                                            _showAddCategoryDialog();
+                                          }
+                                        } else {
+                                          // Normal selection
+                                          setState(() {
+                                            _selectedCategoryId = value;
+                                            state.didChange(value);
+                                          });
+                                        }
+                                      },
+                                      items: [
+                                        // Regular category items
+                                        ..._categories.map((Category category) {
+                                          return DropdownMenuItem<int>(
+                                            value: category.id,
+                                            child: Row(
+                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                              children: [
+                                                Text(category.name ?? ''),
+                                                Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    IconButton(
+                                                      icon: const Icon(Icons.edit, size: 16),
+                                                      padding: EdgeInsets.zero,
+                                                      constraints: const BoxConstraints(),
+                                                      onPressed: () {
+                                                        // Close dropdown and show dialog
+                                                        Navigator.pop(context);
+                                                        _showAddCategoryDialog(category: category);
+                                                      },
+                                                    ),
+                                                    IconButton(
+                                                      icon: const Icon(Icons.delete, size: 16, color: Colors.red),
+                                                      padding: EdgeInsets.zero,
+                                                      constraints: const BoxConstraints(),
+                                                      onPressed: () {
+                                                        // Close dropdown and show confirmation
+                                                        Navigator.pop(context);
+                                                        _deleteCategory(category);
+                                                      },
+                                                    ),
+                                                  ],
+                                                ),
+                                              ],
                                             ),
+                                          );
+                                        }),
+                                        // Add divider if we have categories
+                                        if (_categories.isNotEmpty)
+                                          const DropdownMenuItem<String>(
+                                            value: 'divider',
+                                            enabled: false,
+                                            child: Divider(),
                                           ),
-                                        ],
-                                    tooltip: 'Više opcija',
-                                    child: Row(
-                                      children: [
-                                        Expanded(
-                                          child: DropdownButtonHideUnderline(
-                                            child: DropdownButton<int>(
-                                              value: _selectedCategoryId,
-                                              isDense: true,
-                                              isExpanded: true,
-                                              onChanged: (int? newValue) {
-                                                setState(() {
-                                                  _selectedCategoryId =
-                                                      newValue;
-                                                  state.didChange(newValue);
-                                                });
-                                              },
-                                              items: _categories.map((
-                                                Category category,
-                                              ) {
-                                                return DropdownMenuItem<int>(
-                                                  value: category.id,
-                                                  child: Text(
-                                                    category?.name ?? '',
-                                                  ),
-                                                );
-                                              }).toList(),
-                                            ),
+                                        // Add "Add new" option
+                                        const DropdownMenuItem<String>(
+                                          value: 'add_new',
+                                          child: Row(
+                                            children: [
+                                              Icon(Icons.add_circle, color: Colors.blue),
+                                              SizedBox(width: 8),
+                                              Text('Dodaj novu kategoriju', style: TextStyle(color: Colors.blue)),
+                                            ],
                                           ),
                                         ),
-                                        const Icon(Icons.arrow_drop_down),
                                       ],
                                     ),
                                   ),
@@ -1704,7 +1764,7 @@ class _ShopContentState extends State<_ShopContent> {
                               ElevatedButton.icon(
                                 icon: const Icon(Icons.add, size: 16),
                                 label: const Text('Dodaj veličinu'),
-                                onPressed: _addProductSize,
+                                onPressed: _showAddSizeDialog,
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.blue,
                                   foregroundColor: Colors.white,
@@ -1738,12 +1798,15 @@ class _ShopContentState extends State<_ShopContent> {
                                     child: Row(
                                       children: [
                                         // Size dropdown
-                                        Expanded(
-                                          flex: 3,
+                                        Flexible(
+                                          flex: 1,
+                                          fit: FlexFit.loose,
                                           child: Row(
+                                            mainAxisSize: MainAxisSize.min,
                                             children: [
-                                              Expanded(
-                                                child: DropdownButtonFormField<int>(
+                                              Flexible(
+                                                fit: FlexFit.loose,
+                                                child: DropdownButtonFormField<dynamic>(
                                                   decoration:
                                                       const InputDecoration(
                                                         labelText: 'Veličina',
@@ -1758,49 +1821,103 @@ class _ShopContentState extends State<_ShopContent> {
                                                   value: _productSizes[index]
                                                       .size
                                                       ?.id,
-                                                  items: _sizes.isEmpty
-                                                      ? []
-                                                      : _sizes.map((Size size) {
-                                                          return DropdownMenuItem<
-                                                            int
-                                                          >(
-                                                            value: size.id,
-                                                            child: Text(
-                                                              size.name ?? '',
-                                                            ),
-                                                          );
-                                                        }).toList(),
-                                                  onChanged: (value) =>
+                                                  items: [
+                                                    // Regular size items
+                                                    ..._sizes.map((Size size) {
+                                                      return DropdownMenuItem<int>(
+                                                        value: size.id,
+                                                        child: Row(
+                                                            mainAxisSize: MainAxisSize.min,
+                                                            mainAxisAlignment: MainAxisAlignment.start,
+                                                            children: [
+                                                              Text(
+                                                                size.name ?? '',
+                                                                overflow: TextOverflow.ellipsis,
+                                                              ),
+                                                              const SizedBox(width: 8),
+                                                              Row(
+                                                                mainAxisSize: MainAxisSize.min,
+                                                                children: [
+                                                                  IconButton(
+                                                                    icon: const Icon(Icons.edit, size: 16),
+                                                                    padding: EdgeInsets.zero,
+                                                                    constraints: const BoxConstraints(),
+                                                                    onPressed: () {
+                                                                      // Close dropdown and show dialog
+                                                                      Navigator.pop(context);
+                                                                      _showAddSizeDialog(size: size);
+                                                                    },
+                                                                  ),
+                                                                  IconButton(
+                                                                    icon: const Icon(Icons.delete, size: 16, color: Colors.red),
+                                                                    padding: EdgeInsets.zero,
+                                                                    constraints: const BoxConstraints(),
+                                                                    onPressed: () {
+                                                                      // Close dropdown and delete
+                                                                      Navigator.pop(context);
+                                                                      _deleteSize(size);
+                                                                    },
+                                                                  ),
+                                                                ],
+                                                              ),
+                                                            ],
+                                                          ),
+                                                      );
+                                                    }),
+                                                    // Add divider if we have sizes
+                                                    if (_sizes.isNotEmpty)
+                                                      const DropdownMenuItem<String>(
+                                                        value: 'divider',
+                                                        enabled: false,
+                                                        child: Divider(),
+                                                      ),
+                                                    // Add "Add new" option
+                                                    const DropdownMenuItem<String>(
+                                                      value: 'add_new',
+                                                      child: Row(
+                                                        mainAxisSize: MainAxisSize.min,
+                                                        children: [
+                                                          Icon(Icons.add_circle, color: Colors.blue),
+                                                          SizedBox(width: 8),
+                                                          Text('Dodaj novu veličinu', 
+                                                            style: TextStyle(color: Colors.blue),
+                                                            overflow: TextOverflow.ellipsis,
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ],
+                                                  onChanged: (dynamic value) {
+                                                    if (value is String) {
+                                                      // Handle special actions
+                                                      if (value == 'add_new') {
+                                                        _showAddSizeDialog();
+                                                      }
+                                                    } else {
+                                                      // Normal selection
                                                       _updateProductSize(
                                                         index,
                                                         value,
-                                                        _productSizes[index]
-                                                            .quantity,
-                                                      ),
+                                                        _productSizes[index].quantity,
+                                                      );
+                                                    }
+                                                  },
                                                   validator: (value) {
-                                                    if (value == null) {
+                                                    if (value == null || value is String) {
                                                       return 'Obavezno';
                                                     }
                                                     return null;
                                                   },
                                                 ),
                                               ),
-                                              IconButton(
-                                                icon: const Icon(
-                                                  Icons.add_circle,
-                                                  color: Colors.blue,
-                                                ),
-                                                tooltip: 'Dodaj novu veličinu',
-                                                onPressed: _showAddSizeDialog,
-                                                iconSize: 20,
-                                              ),
                                             ],
                                           ),
                                         ),
                                         const SizedBox(width: 8),
                                         // Quantity field
-                                        Expanded(
-                                          flex: 5,
+                                        Flexible(
+                                          flex: 1,
+                                          fit: FlexFit.loose,
                                           child: TextFormField(
                                             decoration: const InputDecoration(
                                               labelText: 'Količina',
