@@ -22,6 +22,18 @@ class NavbarLayout extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
+    
+    // Redirect to login screen if not authorized
+    if (!authProvider.isAuthorized) {
+      // Use a short delay to avoid build phase issues
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+        );
+      });
+      // Return an empty container or loading indicator while redirecting
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
 
     return Scaffold(
       appBar: PreferredSize(

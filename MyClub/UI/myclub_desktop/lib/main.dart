@@ -37,9 +37,13 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: const Color.fromARGB(255, 19, 26, 158)),
         useMaterial3: true,
       ),
-      home: authProvider.isAuthenticated ? const MainLayout() : const LoginScreen(),
+      home: authProvider.isAuthorized ? const MainLayout() : const LoginScreen(),
       routes: {
-        '/dashboard': (context) => const MainLayout(),
+        '/dashboard': (context) {
+          // Redirect to login if not authorized
+          final authProvider = Provider.of<AuthProvider>(context, listen: false);
+          return authProvider.isAuthorized ? const MainLayout() : const LoginScreen();
+        },
       },
     );
   }

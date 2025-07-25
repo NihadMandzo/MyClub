@@ -31,7 +31,11 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (success && mounted) {
-        Navigator.of(context).pushReplacementNamed('/dashboard');
+        // Use the isAuthorized property for a more robust check
+        if (authProvider.isAuthorized) {
+          Navigator.of(context).pushReplacementNamed('/dashboard');
+        }
+        // If login succeeded but user isn't authorized, the error message will be shown automatically
       }
     }
   }
@@ -146,13 +150,28 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                             if (authProvider.errorMessage != null) ...[
                               const SizedBox(height: 16),
-                              Text(
-                                authProvider.errorMessage!,
-                                style: const TextStyle(
-                                  color: Colors.red,
-                                  fontSize: 14,
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.shade50,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: Colors.red.shade200),
                                 ),
-                                textAlign: TextAlign.center,
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.error_outline, color: Colors.red),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        authProvider.errorMessage!,
+                                        style: TextStyle(
+                                          color: Colors.red.shade800,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ],
                           ],

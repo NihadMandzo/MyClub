@@ -1615,21 +1615,30 @@ class _ShopContentState extends State<_ShopContent> {
                                             child: Row(
                                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                               children: [
-                                                Row(
-                                                  children: [
-                                                    Container(
-                                                      width: 16,
-                                                      height: 16,
-                                                      margin: const EdgeInsets.only(right: 8),
-                                                      decoration: BoxDecoration(
-                                                        color: _parseHexColor(color.hexCode ?? '#CCCCCC'),
-                                                        border: Border.all(color: Colors.grey),
-                                                        borderRadius: BorderRadius.circular(4),
+                                                // Color info (swatch + name)
+                                                Expanded(
+                                                  child: Row(
+                                                    children: [
+                                                      Container(
+                                                        width: 16,
+                                                        height: 16,
+                                                        margin: const EdgeInsets.only(right: 8),
+                                                        decoration: BoxDecoration(
+                                                          color: _parseHexColor(color.hexCode ?? '#CCCCCC'),
+                                                          border: Border.all(color: Colors.grey),
+                                                          borderRadius: BorderRadius.circular(4),
+                                                        ),
                                                       ),
-                                                    ),
-                                                    Text(color.name ?? ''),
-                                                  ],
+                                                      Flexible(
+                                                        child: Text(
+                                                          color.name ?? '',
+                                                          overflow: TextOverflow.ellipsis,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
                                                 ),
+                                                // Buttons grouped together
                                                 Row(
                                                   mainAxisSize: MainAxisSize.min,
                                                   children: [
@@ -1745,7 +1754,14 @@ class _ShopContentState extends State<_ShopContent> {
                                             child: Row(
                                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                               children: [
-                                                Text(category.name ?? ''),
+                                                // Category name with overflow handling
+                                                Expanded(
+                                                  child: Text(
+                                                    category.name ?? '',
+                                                    overflow: TextOverflow.ellipsis,
+                                                  ),
+                                                ),
+                                                // Buttons grouped together
                                                 Row(
                                                   mainAxisSize: MainAxisSize.min,
                                                   children: [
@@ -1917,25 +1933,31 @@ class _ShopContentState extends State<_ShopContent> {
                                                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                                           children: [
                                                             Text(size.name ?? ''),
-                                                            IconButton(
-                                                              icon: const Icon(Icons.edit, size: 16),
-                                                              padding: EdgeInsets.zero,
-                                                              constraints: const BoxConstraints(),
-                                                              onPressed: () {
-                                                                // Close dropdown and show dialog
-                                                                Navigator.pop(context);
-                                                                _showAddSizeDialog(size: size);
-                                                              },
-                                                            ),
-                                                            IconButton(
-                                                              icon: const Icon(Icons.delete, size: 16, color: Colors.red),
-                                                              padding: EdgeInsets.zero,
-                                                              constraints: const BoxConstraints(),
-                                                              onPressed: () {
-                                                                // Close dropdown and show confirmation
-                                                                Navigator.pop(context);
-                                                                _deleteSize(size);
-                                                              },
+                                                            // Group action buttons together
+                                                            Row(
+                                                              mainAxisSize: MainAxisSize.min,
+                                                              children: [
+                                                                IconButton(
+                                                                  icon: const Icon(Icons.edit, size: 16),
+                                                                  padding: EdgeInsets.zero,
+                                                                  constraints: const BoxConstraints(),
+                                                                  onPressed: () {
+                                                                    // Close dropdown and show dialog
+                                                                    Navigator.pop(context);
+                                                                    _showAddSizeDialog(size: size);
+                                                                  },
+                                                                ),
+                                                                IconButton(
+                                                                  icon: const Icon(Icons.delete, size: 16, color: Colors.red),
+                                                                  padding: EdgeInsets.zero,
+                                                                  constraints: const BoxConstraints(),
+                                                                  onPressed: () {
+                                                                    // Close dropdown and show confirmation
+                                                                    Navigator.pop(context);
+                                                                    _deleteSize(size);
+                                                                  },
+                                                                ),
+                                                              ],
                                                             ),
                                                           ],
                                                         ),

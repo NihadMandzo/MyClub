@@ -38,35 +38,38 @@ class AuthProvider with ChangeNotifier {
       );
 
       print("Login response code: ${response.statusCode}");
-      print("Login response body: ${response.body}");
       
       if (response.statusCode == 200) {
         var jsonResponse = json.decode(response.body);
         authResponse = AuthResponse.fromJson(jsonResponse);
         
+        // First check for admin role
+        if (authResponse!.roleId != 1) {
+          // Don't set any auth data if not an admin
+          errorMessage = "Pristup odbijen: Samo administratori mogu koristiti ovu aplikaciju.";
+          isLoading = false;
+          notifyListeners();
+          return false;
+        }
+        
+        // Only set authentication data if it's an admin user
         token = authResponse!.token;
         userId = authResponse!.userId;
         roleId = authResponse!.roleId;
         roleName = authResponse!.roleName;
         
-        if(roleId!=1){
-          errorMessage = "You do not have permission to access this application.";
-          isLoading = false;
-          notifyListeners();
-          return false;
-        }
-        print("Login successful: Token received");
+        print("Login successful: Token received for admin user");
         isLoading = false;
         notifyListeners();
         return true;
       }
       
-      errorMessage = "Invalid username or password (${response.statusCode})";
+      errorMessage = "Neispravno korisničko ime ili lozinka";
       isLoading = false;
       notifyListeners();
       return false;
     } catch (e) {
-      errorMessage = "Connection error: $e";
+      errorMessage = "Greška povezivanja: $e";
       isLoading = false;
       notifyListeners();
       print("Login error: $e");
@@ -86,4 +89,7 @@ class AuthProvider with ChangeNotifier {
   }
 
   bool get isAuthenticated => token != null;
+  
+  // Additional check to ensure only admins are authorized
+  bool get isAuthorized => token != null && roleId == 1;
 }
