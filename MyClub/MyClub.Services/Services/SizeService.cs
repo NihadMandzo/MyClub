@@ -16,17 +16,19 @@ namespace MyClub.Services
             _context = context;
         }
 
-        protected override IQueryable<Database.Size> ApplyFilter(IQueryable<Database.Size> query, SizeSearchObject search)
-        {  
-            if(!string.IsNullOrWhiteSpace(search?.Name))
+        
+        
+        public override async Task<bool> DeleteAsync(int id)
+        {
+            var isSizeInUse = await _context.Products.Include(p => p.ProductSizes).AnyAsync(p => p.ProductSizes.Any(ps => ps.SizeId == id));
+
+            if (isSizeInUse)
             {
-                query = query.Where(x => x.Name.Contains(search.Name));
+                throw new UserException($"Cannot delete this size as it's currently used by one or more products.");
             }
-            if(!string.IsNullOrWhiteSpace(search?.FTS))
-            {
-                query = query.Where(x => x.Name.Contains(search.FTS));
-            }
-            return query;
+
+            // Proceed with deletion if the size is not in use
+            return await base.DeleteAsync(id);
         }
 
     }
