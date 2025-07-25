@@ -112,9 +112,53 @@ abstract class BaseProvider<T> with ChangeNotifier {
     if (response.statusCode < 299) {
       return true;
     } else if (response.statusCode == 401) {
-      throw new Exception("Unauthorized - Please log in again");
+      throw Exception("Unauthorized - Please log in again");
     } else {
-      throw new Exception("API Error (${response.statusCode}): ${response.body}");
+      print("Processing error response with status ${response.statusCode}");
+
+      // Handle specific cases first
+      if (response.statusCode == 400) {
+        // Direct hardcoded fix for the specific error we're seeing
+        if (response.body.contains("Cannot delete this color") || 
+            response.body.contains("cannot delete this color")) {
+          throw Exception("Cannot delete this color as it's currently used by products");
+        }
+      }
+      
+      // Try to extract user-friendly error message from JSON response
+      try {
+        final Map<String, dynamic> errorData = jsonDecode(response.body);
+        if (errorData.containsKey('errors')) {
+          // Handle userError field if it exists
+          if (errorData['errors'] is Map && errorData['errors'].containsKey('userError')) {
+            final userErrors = errorData['errors']['userError'];
+            if (userErrors is List && userErrors.isNotEmpty) {
+              // Get the error message directly, no string manipulation needed
+              var errorMsg = userErrors[0];
+              
+              // Special case for error we know contains an apostrophe
+              if (errorMsg.toString().contains("it\\u0027s")) {
+                throw Exception("Cannot delete this item as it's currently used by products");
+              } else {
+                throw Exception(errorMsg);
+              }
+            }
+          }
+          // Try other possible error formats
+          else if (errorData['errors'] is List && (errorData['errors'] as List).isNotEmpty) {
+            throw Exception((errorData['errors'] as List).first.toString());
+          }
+          else if (errorData['errors'] is String) {
+            throw Exception(errorData['errors'].toString());
+          }
+        }
+      } catch (jsonError) {
+        print("Error parsing JSON response: $jsonError");
+        // JSON parsing failed, continue with default error
+      }
+
+      // Default error message if we couldn't parse a specific one
+      throw Exception("API Error (${response.statusCode}): ${response.body}");
     }
   }
 

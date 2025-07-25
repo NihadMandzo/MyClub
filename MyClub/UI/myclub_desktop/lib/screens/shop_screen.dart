@@ -3,6 +3,9 @@ import 'dart:typed_data';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:myclub_desktop/utilities/category_dialog.dart';
+import 'package:myclub_desktop/utilities/color_dialog.dart';
+import 'package:myclub_desktop/utilities/size_dialog.dart';
 import 'package:myclub_desktop/models/category.dart';
 import 'package:myclub_desktop/models/color.dart' as model;
 import 'package:myclub_desktop/models/size.dart';
@@ -15,7 +18,6 @@ import 'package:myclub_desktop/providers/color_provider.dart';
 import 'package:myclub_desktop/providers/product_provider.dart';
 import 'package:myclub_desktop/providers/size_provider.dart';
 import 'package:myclub_desktop/utilities/dialog_utility.dart';
-import 'package:myclub_desktop/utilities/form_dialog_utility.dart';
 import 'package:myclub_desktop/utilities/notification_utility.dart';
 import 'package:provider/provider.dart';
 
@@ -86,6 +88,22 @@ class _ShopContentState extends State<_ShopContent> {
     super.initState();
     _initializeProvider();
     _loadData();
+  }
+
+  // Utility method to handle API errors
+  String _formatErrorMessage(dynamic error) {
+    // Extract just the error message without the "Exception: " prefix
+    String errorMessage = error.toString();
+    if (errorMessage.startsWith('Exception: ')) {
+      errorMessage = errorMessage.substring('Exception: '.length);
+    }
+    
+    // Special handling for known error patterns
+    if (errorMessage.contains("Cannot delete this")) {
+      return errorMessage;
+    }
+    
+    return errorMessage;
   }
 
   void _initializeProvider() {
@@ -525,7 +543,7 @@ class _ShopContentState extends State<_ShopContent> {
   Future<void> _showAddColorDialog({model.Color? color}) async {
     final isEdit = color != null;
     
-    final result = await FormDialogUtility.showColorDialog(
+    final result = await ColorDialog.show(
       context,
       name: color?.name,
       hexCode: color?.hexCode,
@@ -534,8 +552,8 @@ class _ShopContentState extends State<_ShopContent> {
     
     if (result != null) {
       try {
-        if (isEdit) {
-          await _colorProvider.update(color!.id!, result);
+        if (isEdit && color.id != null) {
+          await _colorProvider.update(color.id!, result);
         } else {
           await _colorProvider.insert(result);
         }
@@ -564,10 +582,10 @@ class _ShopContentState extends State<_ShopContent> {
   }
 
   Future<void> _deleteColor(model.Color color) async {
-    final confirm = await FormDialogUtility.showDeleteConfirmationDialog(
+    final confirm = await DialogUtility.showDeleteConfirmation(
       context,
-      itemType: 'boju',
-      itemName: color.name ?? '',
+      title: 'Potvrdi brisanje',
+      message: 'Da li ste sigurni da želite obrisati boju "${color.name ?? ''}"?',
     );
     
     if (confirm) {
@@ -594,7 +612,7 @@ class _ShopContentState extends State<_ShopContent> {
       } catch (e) {
         NotificationUtility.showError(
           context,
-          message: 'Greška u brisanju boje: ${e.toString()}',
+          message: _formatErrorMessage(e),
         );
       }
     }
@@ -603,7 +621,7 @@ class _ShopContentState extends State<_ShopContent> {
   Future<void> _showAddCategoryDialog({Category? category}) async {
     final isEdit = category != null;
     
-    final result = await FormDialogUtility.showCategoryDialog(
+    final result = await CategoryDialog.show(
       context,
       name: category?.name,
       description: category?.description,
@@ -612,8 +630,8 @@ class _ShopContentState extends State<_ShopContent> {
     
     if (result != null) {
       try {
-        if (isEdit) {
-          await _categoryProvider.update(category!.id!, result);
+        if (isEdit && category.id != null) {
+          await _categoryProvider.update(category.id!, result);
         } else {
           await _categoryProvider.insert(result);
         }
@@ -642,10 +660,10 @@ class _ShopContentState extends State<_ShopContent> {
   }
 
   Future<void> _deleteCategory(Category category) async {
-    final confirm = await FormDialogUtility.showDeleteConfirmationDialog(
+    final confirm = await DialogUtility.showDeleteConfirmation(
       context,
-      itemType: 'kategoriju',
-      itemName: category.name ?? '',
+      title: 'Potvrdi brisanje',
+      message: 'Da li ste sigurni da želite obrisati kategoriju "${category.name ?? ''}"?',
     );
     
     if (confirm) {
@@ -670,9 +688,15 @@ class _ShopContentState extends State<_ShopContent> {
           message: 'Kategorija uspješno obrisana',
         );
       } catch (e) {
+        // Extract just the error message without the "Exception: " prefix
+        String errorMessage = e.toString();
+        if (errorMessage.startsWith('Exception: ')) {
+          errorMessage = errorMessage.substring('Exception: '.length);
+        }
+        
         NotificationUtility.showError(
           context,
-          message: 'Greška u brisanju kategorije: ${e.toString()}',
+          message: errorMessage,
         );
       }
     }
@@ -681,7 +705,7 @@ class _ShopContentState extends State<_ShopContent> {
   Future<void> _showAddSizeDialog({Size? size}) async {
     final isEdit = size != null;
     
-    final result = await FormDialogUtility.showSizeDialog(
+    final result = await SizeDialog.show(
       context,
       name: size?.name,
       isEdit: isEdit,
@@ -691,8 +715,8 @@ class _ShopContentState extends State<_ShopContent> {
       try {
         final sizeData = {'name': result};
         
-        if (isEdit) {
-          await _sizeProvider.update(size!.id!, sizeData);
+        if (isEdit && size.id != null) {
+          await _sizeProvider.update(size.id!, sizeData);
         } else {
           await _sizeProvider.insert(sizeData);
         }
@@ -721,10 +745,10 @@ class _ShopContentState extends State<_ShopContent> {
   }
 
   Future<void> _deleteSize(Size size) async {
-    final confirm = await FormDialogUtility.showDeleteConfirmationDialog(
+    final confirm = await DialogUtility.showDeleteConfirmation(
       context,
-      itemType: 'veličinu',
-      itemName: size.name ?? '',
+      title: 'Potvrdi brisanje',
+      message: 'Da li ste sigurni da želite obrisati veličinu "${size.name ?? ''}"?',
     );
     
     if (confirm) {
@@ -747,9 +771,15 @@ class _ShopContentState extends State<_ShopContent> {
           message: 'Veličina uspješno obrisana',
         );
       } catch (e) {
+        // Extract just the error message without the "Exception: " prefix
+        String errorMessage = e.toString();
+        if (errorMessage.startsWith('Exception: ')) {
+          errorMessage = errorMessage.substring('Exception: '.length);
+        }
+        
         NotificationUtility.showError(
           context,
-          message: 'Greška u brisanju veličine: ${e.toString()}',
+          message: errorMessage,
         );
       }
     }
@@ -1535,6 +1565,34 @@ class _ShopContentState extends State<_ShopContent> {
                                       value: _selectedColorId,
                                       isDense: true,
                                       isExpanded: true,
+                                      // Custom selected item builder to show just the name without buttons
+                                      selectedItemBuilder: (BuildContext context) {
+                                        return _colors.map<Widget>((model.Color color) {
+                                          return Container(
+                                            alignment: Alignment.centerLeft,
+                                            child: Row(
+                                              children: [
+                                                Container(
+                                                  width: 16,
+                                                  height: 16,
+                                                  margin: const EdgeInsets.only(right: 8),
+                                                  decoration: BoxDecoration(
+                                                    color: _parseHexColor(color.hexCode ?? '#CCCCCC'),
+                                                    border: Border.all(color: Colors.grey),
+                                                    borderRadius: BorderRadius.circular(4),
+                                                  ),
+                                                ),
+                                                Text(color.name ?? '', overflow: TextOverflow.ellipsis),
+                                              ],
+                                            ),
+                                          );
+                                        }).toList()..add(
+                                          Container(
+                                            alignment: Alignment.centerLeft,
+                                            child: Text('Dodaj novu boju', style: TextStyle(color: Colors.blue)),
+                                          ),
+                                        );
+                                      },
                                       onChanged: (dynamic value) {
                                         if (value is String) {
                                           // Handle special actions
@@ -1651,6 +1709,20 @@ class _ShopContentState extends State<_ShopContent> {
                                       value: _selectedCategoryId,
                                       isDense: true,
                                       isExpanded: true,
+                                      // Custom selected item builder to show just the name without buttons
+                                      selectedItemBuilder: (BuildContext context) {
+                                        return _categories.map<Widget>((Category category) {
+                                          return Container(
+                                            alignment: Alignment.centerLeft,
+                                            child: Text(category.name ?? '', overflow: TextOverflow.ellipsis),
+                                          );
+                                        }).toList()..add(
+                                          Container(
+                                            alignment: Alignment.centerLeft,
+                                            child: Text('Dodaj novu kategoriju', style: TextStyle(color: Colors.blue)),
+                                          ),
+                                        );
+                                      },
                                       onChanged: (dynamic value) {
                                         if (value is String) {
                                           // Handle special actions
@@ -1764,7 +1836,7 @@ class _ShopContentState extends State<_ShopContent> {
                               ElevatedButton.icon(
                                 icon: const Icon(Icons.add, size: 16),
                                 label: const Text('Dodaj veličinu'),
-                                onPressed: _showAddSizeDialog,
+                                onPressed: _addProductSize,
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.blue,
                                   foregroundColor: Colors.white,
@@ -1796,6 +1868,7 @@ class _ShopContentState extends State<_ShopContent> {
                                   child: Padding(
                                     padding: const EdgeInsets.all(8.0),
                                     child: Row(
+                                      mainAxisSize: MainAxisSize.min,
                                       children: [
                                         // Size dropdown
                                         Flexible(
@@ -1821,47 +1894,51 @@ class _ShopContentState extends State<_ShopContent> {
                                                   value: _productSizes[index]
                                                       .size
                                                       ?.id,
+                                                  // Custom selected item builder to show just the name without buttons
+                                                  selectedItemBuilder: (BuildContext context) {
+                                                    return _sizes.map<Widget>((Size size) {
+                                                      return Container(
+                                                        alignment: Alignment.centerLeft,
+                                                        child: Text(size.name ?? '', overflow: TextOverflow.ellipsis),
+                                                      );
+                                                    }).toList()..add(
+                                                      Container(
+                                                        alignment: Alignment.centerLeft,
+                                                        child: Text('Dodaj novu veličinu', style: TextStyle(color: Colors.blue)),
+                                                      ),
+                                                    );
+                                                  },
                                                   items: [
                                                     // Regular size items
                                                     ..._sizes.map((Size size) {
                                                       return DropdownMenuItem<int>(
                                                         value: size.id,
                                                         child: Row(
-                                                            mainAxisSize: MainAxisSize.min,
-                                                            mainAxisAlignment: MainAxisAlignment.start,
-                                                            children: [
-                                                              Text(
-                                                                size.name ?? '',
-                                                                overflow: TextOverflow.ellipsis,
-                                                              ),
-                                                              const SizedBox(width: 8),
-                                                              Row(
-                                                                mainAxisSize: MainAxisSize.min,
-                                                                children: [
-                                                                  IconButton(
-                                                                    icon: const Icon(Icons.edit, size: 16),
-                                                                    padding: EdgeInsets.zero,
-                                                                    constraints: const BoxConstraints(),
-                                                                    onPressed: () {
-                                                                      // Close dropdown and show dialog
-                                                                      Navigator.pop(context);
-                                                                      _showAddSizeDialog(size: size);
-                                                                    },
-                                                                  ),
-                                                                  IconButton(
-                                                                    icon: const Icon(Icons.delete, size: 16, color: Colors.red),
-                                                                    padding: EdgeInsets.zero,
-                                                                    constraints: const BoxConstraints(),
-                                                                    onPressed: () {
-                                                                      // Close dropdown and delete
-                                                                      Navigator.pop(context);
-                                                                      _deleteSize(size);
-                                                                    },
-                                                                  ),
-                                                                ],
-                                                              ),
-                                                            ],
-                                                          ),
+                                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                          children: [
+                                                            Text(size.name ?? ''),
+                                                            IconButton(
+                                                              icon: const Icon(Icons.edit, size: 16),
+                                                              padding: EdgeInsets.zero,
+                                                              constraints: const BoxConstraints(),
+                                                              onPressed: () {
+                                                                // Close dropdown and show dialog
+                                                                Navigator.pop(context);
+                                                                _showAddSizeDialog(size: size);
+                                                              },
+                                                            ),
+                                                            IconButton(
+                                                              icon: const Icon(Icons.delete, size: 16, color: Colors.red),
+                                                              padding: EdgeInsets.zero,
+                                                              constraints: const BoxConstraints(),
+                                                              onPressed: () {
+                                                                // Close dropdown and show confirmation
+                                                                Navigator.pop(context);
+                                                                _deleteSize(size);
+                                                              },
+                                                            ),
+                                                          ],
+                                                        ),
                                                       );
                                                     }),
                                                     // Add divider if we have sizes
@@ -1872,16 +1949,14 @@ class _ShopContentState extends State<_ShopContent> {
                                                         child: Divider(),
                                                       ),
                                                     // Add "Add new" option
-                                                    const DropdownMenuItem<String>(
+                                                    DropdownMenuItem<String>(
                                                       value: 'add_new',
                                                       child: Row(
-                                                        mainAxisSize: MainAxisSize.min,
                                                         children: [
-                                                          Icon(Icons.add_circle, color: Colors.blue),
+                                                          Icon(Icons.add_circle, color: Colors.blue, size: 16),
                                                           SizedBox(width: 8),
                                                           Text('Dodaj novu veličinu', 
-                                                            style: TextStyle(color: Colors.blue),
-                                                            overflow: TextOverflow.ellipsis,
+                                                            style: TextStyle(color: Colors.blue, fontSize: 13),
                                                           ),
                                                         ],
                                                       ),
@@ -1966,7 +2041,10 @@ class _ShopContentState extends State<_ShopContent> {
                                           icon: const Icon(
                                             Icons.delete,
                                             color: Colors.red,
+                                            size: 20,
                                           ),
+                                          constraints: const BoxConstraints(),
+                                          padding: EdgeInsets.zero,
                                           onPressed: () =>
                                               _removeProductSize(index),
                                         ),

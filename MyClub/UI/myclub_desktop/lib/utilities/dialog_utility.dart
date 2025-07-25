@@ -15,17 +15,20 @@ class DialogUtility {
   }) async {
     final result = await showDialog<bool>(
       context: context,
-      builder: (BuildContext context) {
+      barrierDismissible: true,
+      barrierColor: Colors.black54,
+      useRootNavigator: false, // Use false to keep current context active
+      builder: (BuildContext dialogContext) {
         return AlertDialog(
           title: Text(title),
           content: Text(message),
           actions: <Widget>[
             TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
+              onPressed: () => Navigator.of(dialogContext).pop(false),
               child: Text(cancelLabel),
             ),
             TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
+              onPressed: () => Navigator.of(dialogContext).pop(true),
               style: confirmColor != null 
                 ? TextButton.styleFrom(foregroundColor: confirmColor)
                 : null,
@@ -65,13 +68,16 @@ class DialogUtility {
   }) async {
     await showDialog<void>(
       context: context,
-      builder: (BuildContext context) {
+      barrierDismissible: true,
+      barrierColor: Colors.black54,
+      useRootNavigator: false, // Use false to keep current context active
+      builder: (BuildContext dialogContext) {
         return AlertDialog(
           title: Text(title),
           content: Text(message),
           actions: <Widget>[
             TextButton(
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () => Navigator.of(dialogContext).pop(),
               child: Text(buttonLabel),
             ),
           ],
@@ -89,7 +95,10 @@ class DialogUtility {
   }) async {
     await showDialog<void>(
       context: context,
-      builder: (BuildContext context) {
+      barrierDismissible: true,
+      barrierColor: Colors.black54,
+      useRootNavigator: false, // Use false to keep current context active
+      builder: (BuildContext dialogContext) {
         return AlertDialog(
           title: Text(
             title,
@@ -98,7 +107,7 @@ class DialogUtility {
           content: Text(message),
           actions: <Widget>[
             TextButton(
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () => Navigator.of(dialogContext).pop(),
               child: Text(buttonLabel),
             ),
           ],
@@ -117,7 +126,10 @@ class DialogUtility {
   }) async {
     return showDialog<T>(
       context: context,
-      builder: (BuildContext context) {
+      barrierDismissible: true,
+      barrierColor: Colors.black54,
+      useRootNavigator: false, // Use false to keep current context active
+      builder: (BuildContext dialogContext) {
         return AlertDialog(
           title: Text(title),
           content: content,

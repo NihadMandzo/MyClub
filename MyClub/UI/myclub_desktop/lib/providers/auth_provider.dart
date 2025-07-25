@@ -49,6 +49,12 @@ class AuthProvider with ChangeNotifier {
         roleId = authResponse!.roleId;
         roleName = authResponse!.roleName;
         
+        if(roleId!=1){
+          errorMessage = "You do not have permission to access this application.";
+          isLoading = false;
+          notifyListeners();
+          return false;
+        }
         print("Login successful: Token received");
         isLoading = false;
         notifyListeners();
