@@ -49,11 +49,11 @@ class ProductProvider extends BaseProvider<Product> {
       request2.files.add(multipartFile);
     }
     
-    // Add product sizes
+    // Add sizes and quantities as separate lists as per backend expectations
     if (productSizes.isNotEmpty) {
       for (var i = 0; i < productSizes.length; i++) {
-        request2.fields['ProductSizes[$i].SizeId'] = productSizes[i].size?.id.toString() ?? '';
-        request2.fields['ProductSizes[$i].Quantity'] = productSizes[i].quantity.toString();
+        request2.fields['SizeIds[$i]'] = productSizes[i].size?.id.toString() ?? '';
+        request2.fields['Quantities[$i]'] = productSizes[i].quantity.toString();
       }
     }
     
@@ -113,11 +113,11 @@ class ProductProvider extends BaseProvider<Product> {
       }
     }
     
-    // Add product sizes
+    // Add sizes and quantities as separate lists as per backend expectations
     if (productSizes.isNotEmpty) {
       for (var i = 0; i < productSizes.length; i++) {
-        request2.fields['ProductSizes[$i].SizeId'] = productSizes[i].size?.id.toString() ?? '';
-        request2.fields['ProductSizes[$i].Quantity'] = productSizes[i].quantity.toString();
+        request2.fields['SizeIds[$i]'] = productSizes[i].size?.id.toString() ?? '';
+        request2.fields['Quantities[$i]'] = productSizes[i].quantity.toString();
       }
     }
     

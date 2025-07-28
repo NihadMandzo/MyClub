@@ -8,6 +8,7 @@ import 'package:myclub_desktop/utilities/color_dialog.dart';
 import 'package:myclub_desktop/utilities/size_dialog.dart';
 import 'package:myclub_desktop/models/category.dart';
 import 'package:myclub_desktop/models/color.dart' as model;
+import 'package:myclub_desktop/models/asset.dart';
 import 'package:myclub_desktop/models/size.dart';
 import 'package:myclub_desktop/models/paged_result.dart';
 import 'package:myclub_desktop/models/product.dart';
@@ -329,6 +330,11 @@ class _ShopContentState extends State<_ShopContent> {
       _selectedColorId = detailedProduct.color?.id;
       _selectedCategoryId = detailedProduct.category?.id;
       _isActive = detailedProduct.isActive ?? true;
+      
+      // Trigger validation to update the form state with the newly set values
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _formKey.currentState?.validate();
+      });
 
       // Reset images
       _selectedImagesBytes = [];
@@ -366,6 +372,12 @@ class _ShopContentState extends State<_ShopContent> {
           }
         }
       }
+      
+      // Make sure we have the selected product with all its images
+      _selectedProduct = detailedProduct;
+      
+      print("Product images loaded: ${_selectedProduct?.imageUrls?.length ?? 0}");
+      print("Image IDs to keep: $_imagesToKeep");
 
       print(
         "Loaded ${_productSizes.length} sizes for product ${detailedProduct.name}",
@@ -388,18 +400,30 @@ class _ShopContentState extends State<_ShopContent> {
     }
   }
 
-  void _clearForm() {
+  void _clearForm({bool forceClear = false}) {
+    // First reset the form state to clear validators
+    if (_formKey.currentState != null) {
+      _formKey.currentState!.reset();
+    }
+    
     setState(() {
+      // Reset product selection
       _selectedProduct = null;
+      
+      // Clear all text controllers
       _nameController.clear();
       _descriptionController.clear();
       _barcodeController.clear();
       _priceController.clear();
+      
+      // Reset dropdowns
       _selectedColorId = null;
       _selectedCategoryId = null;
+      
+      // Reset checkbox
       _isActive = true;
 
-      // Reset images
+      // Reset all image-related variables
       _selectedImagesBytes = [];
       _selectedImageNames = [];
       _imagesToKeep = [];
@@ -407,10 +431,68 @@ class _ShopContentState extends State<_ShopContent> {
       // Reset product sizes
       _productSizes = [];
     });
-
+    
+    // Rebuild the UI to ensure all validators are refreshed
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      setState(() {
+        // This triggers a rebuild after the frame is done
+      });
+    });
+    
+    print("Form has been cleared successfully");
+  }
+  
+  // Helper method to force clean the form
+  void _forceCleanForm() {
+    // First reset the form validators
     if (_formKey.currentState != null) {
       _formKey.currentState!.reset();
     }
+    
+    // Then clear all fields and state variables
+    setState(() {
+      // Reset product selection
+      _selectedProduct = null;
+      
+      // Clear all text controllers
+      _nameController.clear();
+      _descriptionController.clear();
+      _barcodeController.clear();
+      _priceController.clear();
+      
+      // Reset dropdowns
+      _selectedColorId = null;
+      _selectedCategoryId = null;
+      
+      // Reset checkbox
+      _isActive = true;
+
+      // Reset all image-related variables
+      _selectedImagesBytes = [];
+      _selectedImageNames = [];
+      _imagesToKeep = [];
+
+      // Reset product sizes
+      _productSizes = [];
+    });
+    
+    // Double check form reset after the state update is complete
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_formKey.currentState != null) {
+        _formKey.currentState!.reset();
+      }
+    });
+    
+    // This delayed rebuild helps ensure the form is completely reset
+    Future.delayed(Duration(milliseconds: 300), () {
+      setState(() {
+        // Final check to make sure everything is properly reset
+        if (_nameController.text.isNotEmpty) _nameController.clear();
+        if (_descriptionController.text.isNotEmpty) _descriptionController.clear();
+        if (_barcodeController.text.isNotEmpty) _barcodeController.clear();
+        if (_priceController.text.isNotEmpty) _priceController.clear();
+      });
+    });
   }
 
   Future<void> _confirmDeleteProduct(Product product) async {
@@ -513,11 +595,19 @@ class _ShopContentState extends State<_ShopContent> {
   }
 
   void _updateProductSize(int index, int? sizeId, int? quantity) {
+    // Validate that we have a valid quantity (must be a positive number)
+    final safeQuantity = quantity != null && quantity > 0 ? quantity : 0;
+    
     setState(() {
       _productSizes[index] = ProductSize.create(
         sizeId: sizeId,
-        quantity: quantity,
+        quantity: safeQuantity,
       );
+      
+      // Validate the form after updating a product size
+      if (_formKey.currentState != null) {
+        _formKey.currentState!.validate();
+      }
     });
   }
 
@@ -786,11 +876,40 @@ class _ShopContentState extends State<_ShopContent> {
   }
 
   Future<void> _saveProduct() async {
+    // First validate form fields that use FormField's validation
     if (!_formKey.currentState!.validate()) {
       return;
     }
 
-    // Validate product sizes
+    // Additional validations for required fields
+    // Check if barcode is filled - we already have form validation but double check here
+    if (_barcodeController.text.trim().isEmpty) {
+      NotificationUtility.showError(
+        context,
+        message: 'Molimo unesite barkod proizvoda',
+      );
+      return;
+    }
+    
+    // Check if color is selected 
+    if (_selectedColorId == null) {
+      NotificationUtility.showError(
+        context,
+        message: 'Molimo odaberite boju proizvoda',
+      );
+      return;
+    }
+    
+    // Check if category is selected
+    if (_selectedCategoryId == null) {
+      NotificationUtility.showError(
+        context,
+        message: 'Molimo odaberite kategoriju proizvoda',
+      );
+      return;
+    }
+    
+    // Validate product sizes (needed for both add and edit)
     if (_productSizes.isEmpty) {
       NotificationUtility.showError(
         context,
@@ -799,13 +918,20 @@ class _ShopContentState extends State<_ShopContent> {
       return;
     }
 
+    // Validate that all sizes have valid size ID and quantity
     for (var size in _productSizes) {
-      if (size.size?.id == null ||
-          size.quantity == null ||
-          size.quantity! <= 0) {
+      if (size.size?.id == null) {
         NotificationUtility.showError(
           context,
-          message: 'Sve veličine moraju imati važeću veličinu i količinu',
+          message: 'Molimo odaberite veličinu za svaki dodani red veličina',
+        );
+        return;
+      }
+      
+      if (size.quantity == null || size.quantity! <= 0) {
+        NotificationUtility.showError(
+          context,
+          message: 'Količina mora biti veća od 0 za svaku veličinu',
         );
         return;
       }
@@ -815,7 +941,7 @@ class _ShopContentState extends State<_ShopContent> {
     final product = {
       'name': _nameController.text.trim(),
       'description': _descriptionController.text.trim(),
-      'barCode': _barcodeController.text.trim(),
+      'barCode': _barcodeController.text.trim(), // Keep as string as backend expects
       'price': double.parse(_priceController.text.trim()),
       'colorId': _selectedColorId,
       'categoryId': _selectedCategoryId,
@@ -828,7 +954,16 @@ class _ShopContentState extends State<_ShopContent> {
         if (_selectedImagesBytes.isEmpty || _selectedImageNames.isEmpty) {
           NotificationUtility.showError(
             context,
-            message: 'Slike su obavezne za nove proizvode',
+            message: 'Molimo dodajte barem jednu sliku za novi proizvod',
+          );
+          return;
+        }
+        
+        // Ensure images and names match in length
+        if (_selectedImagesBytes.length != _selectedImageNames.length) {
+          NotificationUtility.showError(
+            context,
+            message: 'Greška prilikom učitavanja slika. Molimo pokušajte ponovo.',
           );
           return;
         }
@@ -858,14 +993,55 @@ class _ShopContentState extends State<_ShopContent> {
           _productSizes,
         );
 
+        // Reload the data
         await _loadData();
-        _clearForm();
-
+        
+        // Use the force clean method to ensure the form is completely cleared
+        _forceCleanForm();
+        
         NotificationUtility.showSuccess(
           context,
           message: 'Proizvod uspješno kreiran',
         );
+        
+        // Make a final check to ensure the form is clean after the success message
+        Future.delayed(Duration(milliseconds: 100), () {
+          _forceCleanForm();
+        });
       } else {
+        // For product updates - ensure we have at least one image
+        // Either newly selected images or existing images that are kept
+        if (_selectedImagesBytes.isEmpty && _imagesToKeep.isEmpty) {
+          // If no images are selected AND no images are marked to keep, check if we have original images
+          if (_selectedProduct != null && 
+              _selectedProduct!.imageUrls != null && 
+              _selectedProduct!.imageUrls!.isNotEmpty) {
+            
+            // Use all original images if none were explicitly removed
+            _imagesToKeep = [];
+            for (var image in _selectedProduct!.imageUrls!) {
+              if (image.id != null) {
+                _imagesToKeep.add(image.id!);
+              }
+            }
+            
+            // If after checking, we still have no images to keep
+            if (_imagesToKeep.isEmpty) {
+              NotificationUtility.showError(
+                context,
+                message: 'Proizvod mora imati barem jednu sliku. Molimo dodajte sliku ili zadržite postojeću.',
+              );
+              return;
+            }
+          } else {
+            NotificationUtility.showError(
+              context,
+              message: 'Proizvod mora imati barem jednu sliku. Molimo dodajte sliku ili zadržite postojeću.',
+            );
+            return;
+          }
+        }
+        
         // Show confirmation dialog before updating
         final confirmed = await DialogUtility.showConfirmation(
           context,
@@ -893,23 +1069,45 @@ class _ShopContentState extends State<_ShopContent> {
           _productSizes,
         );
 
+        // Reload the data
         await _loadData();
-        _clearForm();
+        
+        // Use the force clean method to ensure the form is completely cleared
+        _forceCleanForm();
 
         NotificationUtility.showSuccess(
           context,
           message: 'Proizvod uspješno izmijenjen',
         );
+        
+        // Make a final check to ensure the form is clean after the success message
+        Future.delayed(Duration(milliseconds: 100), () {
+          _forceCleanForm();
+        });
       }
     } catch (e) {
+      print('Error saving product: ${e.toString()}');
+      
+      // Format the error message to make it more user-friendly
+      String errorMessage = _formatErrorMessage(e);
+      
       NotificationUtility.showError(
         context,
-        message: 'Greška u spremanju proizvoda: ${e.toString()}',
+        message: 'Greška prilikom spremanja proizvoda: $errorMessage',
       );
     } finally {
       setState(() {
         _isLoading = false;
       });
+      
+      // Only reset the form if there was an error
+      // If the operation was successful, we've already cleared the form
+      if (_selectedProduct != null) {
+        // Only handle error cases - successful operations already clean the form
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _formKey.currentState?.validate(); // Re-trigger validation to show errors if any
+        });
+      }
     }
   }
 
@@ -1280,15 +1478,37 @@ class _ShopContentState extends State<_ShopContent> {
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
+                              // Add new images button
+                              ElevatedButton.icon(
+                                icon: const Icon(Icons.add_photo_alternate, size: 16),
+                                label: const Text('Dodaj nove slike'),
+                                onPressed: _pickImages,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.blue,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
+                                ),
+                              ),
                             ],
                           ),
                           const SizedBox(height: 8),
                           // Image container with validation
                           FormField<bool>(
                             validator: (value) {
-                              if (_selectedImagesBytes.isEmpty &&
-                                  _selectedProduct == null) {
+                              // When adding new product, we must have images
+                              if (_selectedImagesBytes.isEmpty && _selectedProduct == null) {
                                 return 'Molimo odaberite barem jednu sliku za proizvod';
+                              }
+                              
+                              // When editing, we need either new images or kept images
+                              if (_selectedProduct != null && 
+                                  _selectedImagesBytes.isEmpty && 
+                                  (_imagesToKeep.isEmpty && 
+                                   (_selectedProduct!.imageUrls == null || _selectedProduct!.imageUrls!.isEmpty))) {
+                                return 'Proizvod mora imati barem jednu sliku';
                               }
                               return null;
                             },
@@ -1296,89 +1516,211 @@ class _ShopContentState extends State<_ShopContent> {
                               return Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  // Selected images preview
-                                  if (_selectedImagesBytes.isNotEmpty)
-                                    SizedBox(
-                                      height: 120,
-                                      child: ListView.builder(
-                                        scrollDirection: Axis.horizontal,
-                                        itemCount: _selectedImagesBytes.length,
-                                        itemBuilder: (context, index) {
-                                          return Padding(
-                                            padding: const EdgeInsets.only(
-                                              right: 8.0,
+                                  // Show existing product images if we're editing
+                                  if (_selectedProduct != null && 
+                                      (_selectedProduct?.imageUrls != null && _selectedProduct!.imageUrls!.isNotEmpty)) 
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: const [
+                                          Icon(Icons.photo_library, size: 18, color: Colors.grey),
+                                          SizedBox(width: 4),
+                                          Text(
+                                            'Postojeće slike proizvoda',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.grey,
                                             ),
-                                            child: Stack(
-                                              children: [
-                                                Container(
-                                                  width: 100,
-                                                  height: 120,
-                                                  decoration: BoxDecoration(
-                                                    border: Border.all(
-                                                      color: Colors.grey,
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      // Show existing product images
+                                      SizedBox(
+                                        height: 120,
+                                        child: ListView.builder(
+                                          scrollDirection: Axis.horizontal,
+                                          itemCount: _selectedProduct!.imageUrls!.length,
+                                          itemBuilder: (context, index) {
+                                            return Padding(
+                                              padding: const EdgeInsets.only(right: 8.0),
+                                              child: Stack(
+                                                children: [
+                                                  Container(
+                                                    height: 120,
+                                                    width: 120,
+                                                    decoration: BoxDecoration(
+                                                      border: Border.all(
+                                                        color: formFieldState.hasError
+                                                            ? Colors.red
+                                                            : Colors.grey,
+                                                      ),
+                                                      borderRadius: BorderRadius.circular(8),
                                                     ),
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          8,
+                                                    child: Image.network(
+                                                      _selectedProduct!.imageUrls![index].imageUrl ?? '',
+                                                      fit: BoxFit.cover,
+                                                      errorBuilder: (context, error, stackTrace) {
+                                                        return const Center(
+                                                          child: Icon(Icons.broken_image, color: Colors.grey, size: 40),
+                                                        );
+                                                      },
+                                                    ),
+                                                  ),
+                                                  Positioned(
+                                                    top: 5,
+                                                    right: 5,
+                                                    child: InkWell(
+                                                      onTap: () {
+                                                        // Check if this would remove the last image
+                                                        final bool isLastImage = 
+                                                            _selectedProduct!.imageUrls!.length == 1 && 
+                                                            _selectedImagesBytes.isEmpty;
+                                                            
+                                                        if (isLastImage) {
+                                                          NotificationUtility.showError(
+                                                            context, 
+                                                            message: 'Ne možete ukloniti zadnju sliku proizvoda. Dodajte novu sliku prije uklanjanja postojeće.'
+                                                          );
+                                                          return;
+                                                        }
+                                                        
+                                                        setState(() {
+                                                          // Remove the image ID from the list to keep
+                                                          if (_selectedProduct!.imageUrls![index].id != null) {
+                                                            _imagesToKeep.remove(_selectedProduct!.imageUrls![index].id);
+                                                            
+                                                            // Create a new list without the removed image to update UI
+                                                            final updatedImageUrls = List<Asset>.from(_selectedProduct!.imageUrls!);
+                                                            updatedImageUrls.removeAt(index);
+                                                            _selectedProduct = Product(
+                                                              id: _selectedProduct!.id,
+                                                              name: _selectedProduct!.name,
+                                                              description: _selectedProduct!.description,
+                                                              barCode: _selectedProduct!.barCode,
+                                                              price: _selectedProduct!.price,
+                                                              color: _selectedProduct!.color,
+                                                              isActive: _selectedProduct!.isActive,
+                                                              category: _selectedProduct!.category,
+                                                              primaryImageUrl: updatedImageUrls.isNotEmpty ? updatedImageUrls.first : null,
+                                                              imageUrls: updatedImageUrls,
+                                                              sizes: _selectedProduct!.sizes,
+                                                            );
+                                                          }
+                                                        });
+                                                      },
+                                                      child: Container(
+                                                        padding: const EdgeInsets.all(2),
+                                                        decoration: BoxDecoration(
+                                                          color: Colors.red,
+                                                          borderRadius: BorderRadius.circular(12),
                                                         ),
-                                                  ),
-                                                  child: Image.memory(
-                                                    Uint8List.fromList(
-                                                      _selectedImagesBytes[index],
+                                                        child: const Icon(
+                                                          Icons.close,
+                                                          color: Colors.white,
+                                                          size: 16,
+                                                        ),
+                                                      ),
                                                     ),
-                                                    fit: BoxFit.cover,
                                                   ),
-                                                ),
-                                                Positioned(
-                                                  top: 0,
-                                                  right: 0,
-                                                  child: IconButton(
-                                                    icon: const Icon(
-                                                      Icons.close,
-                                                      color: Colors.white,
-                                                    ),
-                                                    style: IconButton.styleFrom(
-                                                      backgroundColor:
-                                                          Colors.black54,
-                                                      padding:
-                                                          const EdgeInsets.all(
-                                                            4,
-                                                          ),
-                                                    ),
-                                                    onPressed: () =>
-                                                        _removeImage(index),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          );
-                                        },
-                                      ),
-                                    )
-                                  else if (_selectedProduct?.primaryImageUrl !=
-                                      null)
-                                    // Show existing product image
-                                    Container(
-                                      height: 120,
-                                      width: double.infinity,
-                                      decoration: BoxDecoration(
-                                        border: Border.all(
-                                          color: formFieldState.hasError
-                                              ? Colors.red
-                                              : Colors.grey,
+                                                ],
+                                              ),
+                                            );
+                                          },
                                         ),
-                                        borderRadius: BorderRadius.circular(8),
                                       ),
-                                      child: Image.network(
-                                        _selectedProduct!
-                                                .primaryImageUrl
-                                                ?.imageUrl ??
-                                            '',
-                                        fit: BoxFit.contain,
-                                      ),
-                                    )
-                                  else
-                                    // Empty image container
+                                      const SizedBox(height: 16),
+                                    ],
+                                  ),
+                                  
+                                  // New selected images section header
+                                  if (_selectedImagesBytes.isNotEmpty)
+                                    Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: const [
+                                            Icon(Icons.add_photo_alternate, size: 18, color: Colors.blue),
+                                            SizedBox(width: 4),
+                                            Text(
+                                              'Nove slike proizvoda',
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.blue,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 8),
+                                        // Selected images preview
+                                        SizedBox(
+                                          height: 120,
+                                          child: ListView.builder(
+                                            scrollDirection: Axis.horizontal,
+                                            itemCount: _selectedImagesBytes.length,
+                                            itemBuilder: (context, index) {
+                                              return Padding(
+                                                padding: const EdgeInsets.only(
+                                                  right: 8.0,
+                                                ),
+                                                child: Stack(
+                                                  children: [
+                                                    Container(
+                                                      width: 100,
+                                                      height: 120,
+                                                      decoration: BoxDecoration(
+                                                        border: Border.all(
+                                                          color: Colors.blue.shade300,
+                                                        ),
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              8,
+                                                            ),
+                                                      ),
+                                                      child: Image.memory(
+                                                        Uint8List.fromList(
+                                                          _selectedImagesBytes[index],
+                                                        ),
+                                                        fit: BoxFit.cover,
+                                                      ),
+                                                    ),
+                                                    Positioned(
+                                                      top: 0,
+                                                      right: 0,
+                                                      child: IconButton(
+                                                        icon: const Icon(
+                                                          Icons.close,
+                                                          color: Colors.white,
+                                                        ),
+                                                        style: IconButton.styleFrom(
+                                                          backgroundColor:
+                                                              Colors.black54,
+                                                          padding:
+                                                              const EdgeInsets.all(
+                                                                4,
+                                                              ),
+                                                        ),
+                                                        onPressed: () =>
+                                                            _removeImage(index),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+
+                                  // If no images at all (neither existing nor new ones)
+                                  if (_selectedImagesBytes.isEmpty && 
+                                      (_selectedProduct == null || 
+                                       _selectedProduct!.imageUrls == null || 
+                                       _selectedProduct!.imageUrls!.isEmpty))
                                     Container(
                                       height: 120,
                                       width: double.infinity,
@@ -1410,19 +1752,6 @@ class _ShopContentState extends State<_ShopContent> {
                                         ),
                                       ),
                                     ),
-
-                                  const SizedBox(height: 8),
-
-                                  // Upload button
-                                  ElevatedButton.icon(
-                                    icon: const Icon(Icons.upload),
-                                    label: const Text('Učitaj slike'),
-                                    onPressed: _pickImages,
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.blue,
-                                      foregroundColor: Colors.white,
-                                    ),
-                                  ),
 
                                   // Error message below the image container
                                   if (formFieldState.hasError)
@@ -1503,8 +1832,12 @@ class _ShopContentState extends State<_ShopContent> {
                           labelText: 'Barkod',
                           border: OutlineInputBorder(),
                         ),
+                        keyboardType: TextInputType.number,
                         validator: (value) {
-                          if (value != null && value.length > 50) {
+                          if (value == null || value.isEmpty) {
+                            return 'Molimo unesite barkod proizvoda';
+                          }
+                          if (value.length > 50) {
                             return 'Barkod ne može biti duži od 50 znakova';
                           }
                           return null;
@@ -1545,7 +1878,7 @@ class _ShopContentState extends State<_ShopContent> {
                             child: FormField<int>(
                               initialValue: _selectedColorId,
                               validator: (value) {
-                                if (value == null) {
+                                if (value == null && _selectedColorId == null) {
                                   return 'Molimo odaberite boju';
                                 }
                                 return null;
@@ -1603,8 +1936,10 @@ class _ShopContentState extends State<_ShopContent> {
                                           // Normal selection
                                           setState(() {
                                             _selectedColorId = value;
-                                            state.didChange(value);
                                           });
+                                          state.didChange(value);
+                                          // Also trigger validation immediately after change
+                                          _formKey.currentState?.validate();
                                         }
                                       },
                                       items: [
@@ -1698,7 +2033,7 @@ class _ShopContentState extends State<_ShopContent> {
                             child: FormField<int>(
                               initialValue: _selectedCategoryId,
                               validator: (value) {
-                                if (value == null) {
+                                if (value == null && _selectedCategoryId == null) {
                                   return 'Molimo odaberite kategoriju';
                                 }
                                 return null;
@@ -1742,8 +2077,10 @@ class _ShopContentState extends State<_ShopContent> {
                                           // Normal selection
                                           setState(() {
                                             _selectedCategoryId = value;
-                                            state.didChange(value);
                                           });
+                                          state.didChange(value);
+                                          // Also trigger validation immediately after change
+                                          _formKey.currentState?.validate();
                                         }
                                       },
                                       items: [
