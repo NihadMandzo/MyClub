@@ -31,14 +31,14 @@ namespace MyClub.Services
                 .Include(p => p.Color)
                 .Include(p => p.ProductAssets)
                 .ThenInclude(pa => pa.Asset)
+                .Include(p => p.ProductSizes)
                 .AsQueryable();
 
             // Apply filters
             query = ApplyFilter(query, search);
 
+            // Get total count before pagination
             int totalCount = 0;
-            
-            // Get total count if requested
             if (search.IncludeTotalCount)
             {
                 totalCount = await query.CountAsync();
@@ -47,7 +47,7 @@ namespace MyClub.Services
             // Apply pagination
             int pageSize = search.PageSize ?? 10;
             int currentPage = search.Page ?? 0;
-            
+
             if (!search.RetrieveAll)
             {
                 query = query.Skip(currentPage * pageSize).Take(pageSize);
@@ -55,7 +55,6 @@ namespace MyClub.Services
 
             var list = await query.ToListAsync();
             
-            // Create the paged result with enhanced pagination metadata
             return new PagedResult<ProductResponse>
             {
                 Data = list.Select(x => MapToResponse(x)).ToList(),
