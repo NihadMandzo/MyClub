@@ -53,6 +53,11 @@ class _ShopContentState extends State<_ShopContent> {
   Product? _selectedProduct;
   PagedResult<Product>? _result;
   bool _isLoading = false;
+  
+  // Validation state variables
+  bool _showValidationErrors = false;
+  bool _colorValidationError = false;
+  bool _categoryValidationError = false;
 
   // Multiple images
   List<List<int>> _selectedImagesBytes = [];
@@ -343,6 +348,17 @@ class _ShopContentState extends State<_ShopContent> {
       // Debug the API response to verify what we're receiving
       print("API response for sizes: ${detailedProduct.sizes}");
 
+      // Fetch all available sizes first to ensure we have a complete list
+      try {
+        final sizeResult = await _sizeProvider.get();
+        setState(() {
+          _sizes = sizeResult.data;
+        });
+        print("Loaded ${_sizes.length} sizes for the dropdown");
+      } catch (e) {
+        print("Error loading sizes: ${e.toString()}");
+      }
+
       // Populate product sizes from API
       _productSizes = [];
       if (detailedProduct.sizes != null && detailedProduct.sizes!.isNotEmpty) {
@@ -352,8 +368,20 @@ class _ShopContentState extends State<_ShopContent> {
             "Processing size - ID: ${sizeData.size?.id}, Name: ${sizeData.size?.name}, Quantity: ${sizeData.quantity}",
           );
 
-          // Create a Size object directly instead of just passing an ID
-          Size size = Size(id: sizeData.size?.id, name: sizeData.size?.name);
+          // Make sure we're creating a proper Size object with both ID and name
+          // First try to find the size in our loaded sizes list for complete data
+          Size? size;
+          if (sizeData.size?.id != null) {
+            size = _sizes.firstWhere(
+              (s) => s.id == sizeData.size?.id,
+              orElse: () => Size(id: sizeData.size?.id, name: sizeData.size?.name),
+            );
+          } else {
+            size = Size(id: sizeData.size?.id, name: sizeData.size?.name);
+          }
+
+          // Verify the size object has proper values before adding
+          print("Created Size object - ID: ${size.id}, Name: ${size.name}");
 
           // Create the ProductSize with the full Size object
           _productSizes.add(
@@ -386,6 +414,13 @@ class _ShopContentState extends State<_ShopContent> {
         print(
           "Size ID: ${size.size?.id}, Name: ${size.size?.name}, Quantity: ${size.quantity}",
         );
+      }
+      
+      // Debug the available sizes to check for matches
+      print("Available sizes in dropdown:");
+      for (var availableSize in _sizes) {
+        var isUsed = _productSizes.any((ps) => ps.size?.id == availableSize.id);
+        print("Size: ${availableSize.name} (ID: ${availableSize.id}), Is Used: $isUsed");
       }
     } catch (e) {
       NotificationUtility.showError(
@@ -430,6 +465,11 @@ class _ShopContentState extends State<_ShopContent> {
 
       // Reset product sizes
       _productSizes = [];
+      
+      // Reset validation states
+      _showValidationErrors = false;
+      _colorValidationError = false;
+      _categoryValidationError = false;
     });
     
     // Rebuild the UI to ensure all validators are refreshed
@@ -474,6 +514,11 @@ class _ShopContentState extends State<_ShopContent> {
 
       // Reset product sizes
       _productSizes = [];
+      
+      // Reset validation states
+      _showValidationErrors = false;
+      _colorValidationError = false;
+      _categoryValidationError = false;
     });
     
     // Double check form reset after the state update is complete
@@ -547,25 +592,27 @@ class _ShopContentState extends State<_ShopContent> {
       if (result != null && result.files.isNotEmpty) {
         final files = result.files;
 
-        for (var file in files) {
-          if (file.bytes != null) {
-            // Web platform
-            setState(() {
+        setState(() {
+          for (var file in files) {
+            if (file.bytes != null) {
+              // Web platform
               _selectedImagesBytes.add(file.bytes!);
               _selectedImageNames.add(file.name);
-            });
-          } else if (file.path != null) {
-            // Desktop platforms
-            final fileBytes = await File(file.path!).readAsBytes();
-            setState(() {
-              _selectedImagesBytes.add(fileBytes);
-              _selectedImageNames.add(file.name);
-            });
+            } else if (file.path != null) {
+              // Desktop platforms
+              try {
+                final fileBytes = File(file.path!).readAsBytesSync();
+                _selectedImagesBytes.add(fileBytes);
+                _selectedImageNames.add(file.name);
+              } catch (e) {
+                print('Error reading file: ${e.toString()}');
+              }
+            }
           }
-        }
+        });
 
-        // Validate the form field after images added
-        _formKey.currentState?.validate();
+        // Don't trigger validation immediately after adding images
+        // We only validate when saving the product
 
         NotificationUtility.showSuccess(
           context,
@@ -584,31 +631,71 @@ class _ShopContentState extends State<_ShopContent> {
     setState(() {
       _selectedImagesBytes.removeAt(index);
       _selectedImageNames.removeAt(index);
-      _formKey.currentState?.validate();
     });
+    
+    // Don't validate immediately after removing an image
+    // We only validate when saving
   }
 
   void _addProductSize() {
+    // We don't validate the form here since the user hasn't chosen a size yet
     setState(() {
-      _productSizes.add(ProductSize.create(sizeId: null, quantity: 0));
+      // Use ProductSize constructor to create a clean new size entry
+      _productSizes.add(ProductSize(size: null, quantity: 1));
     });
+    
+    print("Added new size row at index ${_productSizes.length - 1}");
   }
 
   void _updateProductSize(int index, int? sizeId, int? quantity) {
     // Validate that we have a valid quantity (must be a positive number)
     final safeQuantity = quantity != null && quantity > 0 ? quantity : 0;
     
-    setState(() {
-      _productSizes[index] = ProductSize.create(
-        sizeId: sizeId,
-        quantity: safeQuantity,
-      );
+    // Check for duplicate sizes when updating
+    if (sizeId != null) {
+      // Find the name of the size for better error message
+      String? sizeName;
+      Size? selectedSize;
       
-      // Validate the form after updating a product size
-      if (_formKey.currentState != null) {
-        _formKey.currentState!.validate();
+      for (var size in _sizes) {
+        if (size.id == sizeId) {
+          sizeName = size.name;
+          selectedSize = size;
+          break;
+        }
       }
-    });
+      
+      // Check all other sizes for duplicates
+      for (int i = 0; i < _productSizes.length; i++) {
+        if (i != index && _productSizes[i].size?.id == sizeId) {
+          // Show error for duplicate size with improved message
+          NotificationUtility.showError(
+            context,
+            message: 'Veličina "${sizeName ?? 'odabrana'}" je već dodana. '
+                    'Nije dozvoljeno dodavanje iste veličine više puta.',
+          );
+          return; // Exit without updating
+        }
+      }
+      
+      // Update with full Size object rather than just the ID
+      setState(() {
+        _productSizes[index] = ProductSize(
+          size: selectedSize,
+          quantity: safeQuantity,
+        );
+      });
+      
+      print("Updated size at index $index to ${sizeName} (ID: $sizeId) with quantity: $safeQuantity");
+    } else {
+      // Update with null size if no size selected
+      setState(() {
+        _productSizes[index] = ProductSize(
+          size: null,
+          quantity: safeQuantity,
+        );
+      });
+    }
   }
 
   void _removeProductSize(int index) {
@@ -876,65 +963,150 @@ class _ShopContentState extends State<_ShopContent> {
   }
 
   Future<void> _saveProduct() async {
-    // First validate form fields that use FormField's validation
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+    // Set validation to true so errors will display
+    setState(() {
+      _showValidationErrors = true;
+      _colorValidationError = _selectedColorId == null;
+      _categoryValidationError = _selectedCategoryId == null;
+    });
+    
+    // Trigger full form validation only when saving
+    final isFormValid = _formKey.currentState!.validate();
 
-    // Additional validations for required fields
-    // Check if barcode is filled - we already have form validation but double check here
-    if (_barcodeController.text.trim().isEmpty) {
-      NotificationUtility.showError(
-        context,
-        message: 'Molimo unesite barkod proizvoda',
-      );
-      return;
+    // Collect all validation errors to show them all at once
+    List<String> validationErrors = [];
+    
+    // Check form fields for completeness
+    if (_nameController.text.trim().isEmpty) {
+      validationErrors.add('Molimo unesite naziv proizvoda');
     }
     
+    if (_descriptionController.text.trim().isEmpty) {
+      validationErrors.add('Molimo unesite opis proizvoda');
+    }
+    
+    if (_barcodeController.text.trim().isEmpty) {
+      validationErrors.add('Molimo unesite barkod proizvoda');
+    }
+    
+    if (_priceController.text.trim().isEmpty) {
+      validationErrors.add('Molimo unesite cijenu proizvoda');
+    } else {
+      final price = double.tryParse(_priceController.text.trim().replaceAll(',', '.'));
+      if (price == null) {
+        validationErrors.add('Cijena mora biti validan broj (KM)');
+      } else if (price <= 0 || price >= 10000) {
+        validationErrors.add('Cijena mora biti između 0.01 KM i 10,000 KM');
+      }
+    }
+    
+    // Check if images are selected
+    if (_selectedProduct == null && _selectedImagesBytes.isEmpty) {
+      validationErrors.add('Molimo odaberite barem jednu sliku za proizvod');
+    }
+
     // Check if color is selected 
     if (_selectedColorId == null) {
-      NotificationUtility.showError(
-        context,
-        message: 'Molimo odaberite boju proizvoda',
-      );
-      return;
+      validationErrors.add('Molimo odaberite boju proizvoda');
     }
     
     // Check if category is selected
     if (_selectedCategoryId == null) {
-      NotificationUtility.showError(
-        context,
-        message: 'Molimo odaberite kategoriju proizvoda',
-      );
-      return;
+      validationErrors.add('Molimo odaberite kategoriju proizvoda');
     }
     
     // Validate product sizes (needed for both add and edit)
     if (_productSizes.isEmpty) {
+      validationErrors.add('Morate dodati barem jednu veličinu s količinom');
+    }
+    
+    // Check for duplicate sizes - collect all duplicates to show in message
+    final Map<int, List<int>> sizeMap = {}; // Map size ID to list of indices where it appears
+    final List<String> duplicateSizes = [];
+    
+    for (int i = 0; i < _productSizes.length; i++) {
+      var size = _productSizes[i];
+      if (size.size?.id != null) {
+        final sizeId = size.size!.id!;
+        final sizeName = size.size!.name ?? 'Nepoznato';
+        
+        if (sizeMap.containsKey(sizeId)) {
+          // Add index to the list of indices for this size
+          sizeMap[sizeId]!.add(i);
+          
+          if (!duplicateSizes.contains(sizeName)) {
+            duplicateSizes.add(sizeName);
+          }
+        } else {
+          sizeMap[sizeId] = [i];
+        }
+      }
+    }
+    
+    if (duplicateSizes.isNotEmpty) {
+      // Create detailed message about which rows have duplicate sizes
+      List<String> detailedErrors = [];
+      
+      sizeMap.forEach((sizeId, indices) {
+        if (indices.length > 1) {
+          String sizeName = '';
+          for (var size in _sizes) {
+            if (size.id == sizeId) {
+              sizeName = size.name ?? 'Nepoznato';
+              break;
+            }
+          }
+          
+          detailedErrors.add('Veličina "$sizeName" se pojavljuje u redovima: ${indices.map((i) => i+1).join(', ')}');
+        }
+      });
+      
+      validationErrors.add(
+        'Pronađene su duple veličine:\n${detailedErrors.join('\n')}\n'
+        'Nije dozvoljeno dodavanje iste veličine više puta.'
+      );
+    }
+    
+    // If there are validation errors, show them all at once
+    if (validationErrors.isNotEmpty) {
       NotificationUtility.showError(
         context,
-        message: 'Morate dodati barem jednu veličinu s količinom',
+        message: validationErrors.join('\n'),
+      );
+      return;
+    }
+    
+    // If form validation failed but we didn't catch specific errors above
+    if (!isFormValid) {
+      NotificationUtility.showError(
+        context,
+        message: 'Molimo popunite sva obavezna polja ispravno',
       );
       return;
     }
 
     // Validate that all sizes have valid size ID and quantity
-    for (var size in _productSizes) {
+    List<String> sizeValidationErrors = [];
+    
+    for (var i = 0; i < _productSizes.length; i++) {
+      var size = _productSizes[i];
+      
       if (size.size?.id == null) {
-        NotificationUtility.showError(
-          context,
-          message: 'Molimo odaberite veličinu za svaki dodani red veličina',
-        );
-        return;
+        sizeValidationErrors.add('Veličina #${i+1}: Molimo odaberite konkretnu veličinu');
       }
       
       if (size.quantity == null || size.quantity! <= 0) {
-        NotificationUtility.showError(
-          context,
-          message: 'Količina mora biti veća od 0 za svaku veličinu',
-        );
-        return;
+        sizeValidationErrors.add('Veličina ${size.size?.name ?? '#${i+1}'}: Količina mora biti veća od 0');
       }
+    }
+    
+    // Show size validation errors if any
+    if (sizeValidationErrors.isNotEmpty) {
+      NotificationUtility.showError(
+        context,
+        message: sizeValidationErrors.join('\n'),
+      );
+      return;
     }
 
     // Prepare product data
@@ -942,7 +1114,7 @@ class _ShopContentState extends State<_ShopContent> {
       'name': _nameController.text.trim(),
       'description': _descriptionController.text.trim(),
       'barCode': _barcodeController.text.trim(), // Keep as string as backend expects
-      'price': double.parse(_priceController.text.trim()),
+      'price': double.parse(_priceController.text.trim().replaceAll(',', '.')),
       'colorId': _selectedColorId,
       'categoryId': _selectedCategoryId,
       'isActive': _isActive,
@@ -1498,18 +1670,7 @@ class _ShopContentState extends State<_ShopContent> {
                           // Image container with validation
                           FormField<bool>(
                             validator: (value) {
-                              // When adding new product, we must have images
-                              if (_selectedImagesBytes.isEmpty && _selectedProduct == null) {
-                                return 'Molimo odaberite barem jednu sliku za proizvod';
-                              }
-                              
-                              // When editing, we need either new images or kept images
-                              if (_selectedProduct != null && 
-                                  _selectedImagesBytes.isEmpty && 
-                                  (_imagesToKeep.isEmpty && 
-                                   (_selectedProduct!.imageUrls == null || _selectedProduct!.imageUrls!.isEmpty))) {
-                                return 'Proizvod mora imati barem jednu sliku';
-                              }
+                              // Validation is now handled in _saveProduct to collect all errors
                               return null;
                             },
                             builder: (formFieldState) {
@@ -1850,7 +2011,8 @@ class _ShopContentState extends State<_ShopContent> {
                         decoration: const InputDecoration(
                           labelText: 'Cijena',
                           border: OutlineInputBorder(),
-                          prefixText: '\$',
+                          suffixText: 'KM',
+                          hintText: 'npr. 50.00',
                         ),
                         keyboardType: const TextInputType.numberWithOptions(
                           decimal: true,
@@ -1859,12 +2021,13 @@ class _ShopContentState extends State<_ShopContent> {
                           if (value == null || value.isEmpty) {
                             return 'Molimo unesite cijenu proizvoda';
                           }
-                          final price = double.tryParse(value);
+                          // Handle both comma and period as decimal separators
+                          final price = double.tryParse(value.replaceAll(',', '.'));
                           if (price == null) {
-                            return 'Molimo unesite važeću cijenu';
+                            return 'Molimo unesite važeću cijenu (KM)';
                           }
                           if (price <= 0 || price >= 10000) {
-                            return 'Cijena mora biti između 0.01 i 10,000';
+                            return 'Cijena mora biti između 0.01 KM i 10,000 KM';
                           }
                           return null;
                         },
@@ -1887,10 +2050,26 @@ class _ShopContentState extends State<_ShopContent> {
                                 return InputDecorator(
                                   decoration: InputDecoration(
                                     labelText: 'Boja',
-                                    errorText: state.hasError
-                                        ? state.errorText
+                                    errorText: _colorValidationError
+                                        ? 'Molimo odaberite boju'
                                         : null,
-                                    border: const OutlineInputBorder(),
+                                    errorStyle: TextStyle(
+                                      color: Colors.red,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    border: OutlineInputBorder(),
+                                    enabledBorder: _colorValidationError && _showValidationErrors
+                                        ? OutlineInputBorder(
+                                            borderSide: BorderSide(color: Colors.red, width: 2.0),
+                                          )
+                                        : OutlineInputBorder(),
+                                    focusedBorder: _colorValidationError && _showValidationErrors
+                                        ? OutlineInputBorder(
+                                            borderSide: BorderSide(color: Colors.red, width: 2.0),
+                                          )
+                                        : OutlineInputBorder(
+                                            borderSide: BorderSide(color: Colors.blue.shade400, width: 2.0),
+                                          ),
                                   ),
                                   isEmpty: _selectedColorId == null,
                                   child: DropdownButtonHideUnderline(
@@ -1936,6 +2115,7 @@ class _ShopContentState extends State<_ShopContent> {
                                           // Normal selection
                                           setState(() {
                                             _selectedColorId = value;
+                                            _colorValidationError = false; // Clear validation error
                                           });
                                           state.didChange(value);
                                           // Also trigger validation immediately after change
@@ -2042,10 +2222,26 @@ class _ShopContentState extends State<_ShopContent> {
                                 return InputDecorator(
                                   decoration: InputDecoration(
                                     labelText: 'Kategorija',
-                                    errorText: state.hasError
-                                        ? state.errorText
+                                    errorText: _categoryValidationError
+                                        ? 'Molimo odaberite kategoriju'
                                         : null,
-                                    border: const OutlineInputBorder(),
+                                    errorStyle: TextStyle(
+                                      color: Colors.red,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    border: OutlineInputBorder(),
+                                    enabledBorder: _categoryValidationError && _showValidationErrors
+                                        ? OutlineInputBorder(
+                                            borderSide: BorderSide(color: Colors.red, width: 2.0),
+                                          )
+                                        : OutlineInputBorder(),
+                                    focusedBorder: _categoryValidationError && _showValidationErrors
+                                        ? OutlineInputBorder(
+                                            borderSide: BorderSide(color: Colors.red, width: 2.0),
+                                          )
+                                        : OutlineInputBorder(
+                                            borderSide: BorderSide(color: Colors.blue.shade400, width: 2.0),
+                                          ),
                                   ),
                                   isEmpty: _selectedCategoryId == null,
                                   child: DropdownButtonHideUnderline(
@@ -2077,6 +2273,7 @@ class _ShopContentState extends State<_ShopContent> {
                                           // Normal selection
                                           setState(() {
                                             _selectedCategoryId = value;
+                                            _categoryValidationError = false; // Clear validation error
                                           });
                                           state.didChange(value);
                                           // Also trigger validation immediately after change
@@ -2244,26 +2441,67 @@ class _ShopContentState extends State<_ShopContent> {
                                                               vertical: 0,
                                                             ),
                                                       ),
-                                                  value: _productSizes[index]
-                                                      .size
-                                                      ?.id,
+                                                  value: _productSizes[index].size?.id,
                                                   // Custom selected item builder to show just the name without buttons
                                                   selectedItemBuilder: (BuildContext context) {
-                                                    return _sizes.map<Widget>((Size size) {
+                                                    // Get the current selected size's name
+                                                    final currentSize = _productSizes[index].size;
+                                                    final String displayName = currentSize?.name ?? 'Select size';
+                                                    final int? currentId = currentSize?.id;
+                                                    
+                                                    // Debug info for the currently selected size
+                                                    print("Dropdown builder: Selected size at index $index has ID: $currentId, name: ${displayName}");
+                                                    
+                                                    // Check if this size exists in available sizes
+                                                    bool sizeExists = false;
+                                                    if (currentId != null) {
+                                                      sizeExists = _sizes.any((s) => s.id == currentId);
+                                                      if (!sizeExists) {
+                                                        print("WARNING: Size with ID $currentId not found in _sizes list!");
+                                                      }
+                                                    }
+                                                    
+                                                    // Build dropdown display items - always show the current selection
+                                                    final List<Widget> items = _sizes.map<Widget>((Size size) {
                                                       return Container(
                                                         alignment: Alignment.centerLeft,
-                                                        child: Text(size.name ?? '', overflow: TextOverflow.ellipsis),
+                                                        // Always show the current selection, not the iterated size
+                                                        child: Text(displayName, overflow: TextOverflow.ellipsis),
                                                       );
-                                                    }).toList()..add(
+                                                    }).toList();
+                                                    
+                                                    // Add the "Add new" option
+                                                    items.add(
                                                       Container(
                                                         alignment: Alignment.centerLeft,
                                                         child: Text('Dodaj novu veličinu', style: TextStyle(color: Colors.blue)),
                                                       ),
                                                     );
+                                                    
+                                                    return items;
                                                   },
                                                   items: [
-                                                    // Regular size items
-                                                    ..._sizes.map((Size size) {
+                                                    // Regular size items - filter out already selected sizes except current one
+                                                    ..._sizes.where((size) {
+                                                      // Debug
+                                                      final currentId = _productSizes[index].size?.id;
+                                                      if (size.id == currentId) {
+                                                        print("Items builder: Will include current size ${size.name} (ID: ${size.id}) at index $index");
+                                                      }
+                                                      
+                                                      // Always allow the current size
+                                                      if (size.id == currentId) {
+                                                        return true;
+                                                      }
+                                                      
+                                                      // Check if this size is already used in another row
+                                                      for (int i = 0; i < _productSizes.length; i++) {
+                                                        if (i != index && _productSizes[i].size?.id == size.id) {
+                                                          return false; // Size is already used
+                                                        }
+                                                      }
+                                                      return true; // Size is available
+                                                    }).map((Size size) {
                                                       return DropdownMenuItem<int>(
                                                         value: size.id,
                                                         child: Row(
@@ -2322,6 +2560,8 @@ class _ShopContentState extends State<_ShopContent> {
                                                     ),
                                                   ],
                                                   onChanged: (dynamic value) {
+                                                    print("Dropdown value changed to: $value at index $index");
+                                                    
                                                     if (value is String) {
                                                       // Handle special actions
                                                       if (value == 'add_new') {
