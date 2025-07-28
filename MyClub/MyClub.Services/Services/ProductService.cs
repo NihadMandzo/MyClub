@@ -360,19 +360,48 @@ namespace MyClub.Services
                         }
                     }
                     
-                    // Remove sizes that are not in the request
+                    // Handle sizes that are not in the request
                     var requestSizeIds = request.ProductSizes.Select(ps => ps.SizeId).ToHashSet();
                     var sizesToRemove = entity.ProductSizes.Where(ps => !requestSizeIds.Contains(ps.SizeId)).ToList();
                     
                     foreach (var sizeToRemove in sizesToRemove)
                     {
-                        _context.ProductSizes.Remove(sizeToRemove);
+                        // Check if this product size is referenced in any order
+                        var isUsedInOrder = await _context.OrderItems
+                            .AnyAsync(oi => oi.ProductSizeId == sizeToRemove.Id);
+                        
+                        if (isUsedInOrder)
+                        {
+                            // If used in orders, just set quantity to 0 instead of removing
+                            sizeToRemove.Quantity = 0;
+                        }
+                        else
+                        {
+                            // If not used in orders, we can safely remove it
+                            _context.ProductSizes.Remove(sizeToRemove);
+                        }
                     }
                 }
                 else
                 {
-                    // If no sizes are provided, remove all existing sizes
-                    _context.ProductSizes.RemoveRange(entity.ProductSizes);
+                    // If no sizes are provided, check each existing size before removal
+                    foreach (var existingSize in entity.ProductSizes)
+                    {
+                        // Check if this product size is referenced in any order
+                        var isUsedInOrder = await _context.OrderItems
+                            .AnyAsync(oi => oi.ProductSizeId == existingSize.Id);
+                        
+                        if (isUsedInOrder)
+                        {
+                            // If used in orders, just set quantity to 0 instead of removing
+                            existingSize.Quantity = 0;
+                        }
+                        else
+                        {
+                            // If not used in orders, we can safely remove it
+                            _context.ProductSizes.Remove(existingSize);
+                        }
+                    }
                 }
 
                 // Handle images to delete
@@ -510,8 +539,6 @@ namespace MyClub.Services
             return true;
         }
 
-
-        // Fix the MapToResponse method to handle null references
         private ProductResponse MapToResponse(Database.Product entity)
         {
             var response = _mapper.Map<ProductResponse>(entity);
@@ -573,7 +600,6 @@ namespace MyClub.Services
             
             return response;
         }
-
 
         protected override Database.Product MapInsertToEntity(Database.Product entity, ProductUpsertRequest request)
         {
