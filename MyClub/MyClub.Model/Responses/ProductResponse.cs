@@ -18,7 +18,6 @@ namespace MyClub.Model.Responses
         public AssetResponse PrimaryImageUrl { get; set; }
 
         public List<AssetResponse> ImageUrls { get; set; } = new List<AssetResponse>();
-
         public List<ProductSizeResponse> Sizes { get; set; } = new List<ProductSizeResponse>();
     }
 } 

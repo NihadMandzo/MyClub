@@ -17,7 +17,7 @@ namespace MyClub.Services.Services
         private readonly IBlobStorageService _blobStorageService;
         private const string _containerName = "news";
         private readonly IHttpContextAccessor _httpContextAccessor;
-        
+
         public NewsService(MyClubContext context, IMapper mapper, IBlobStorageService blobStorageService, IHttpContextAccessor httpContextAccessor) : base(context, mapper)
         {
             _context = context;
@@ -31,13 +31,16 @@ namespace MyClub.Services.Services
                 .AsNoTracking() // Add AsNoTracking for read-only operations
                 .Include(n => n.NewsAssets)
                 .ThenInclude(n => n.Asset)
+                .Include(n => n.Comments)
+                .ThenInclude(c => c.User)
+                .Include(n => n.User)
                 .OrderByDescending(x => x.CreatedAt)
                 .AsQueryable();
-                
+
             query = ApplyFilter(query, search);
 
             int totalCount = 0;
-            
+
             // Always get total count before pagination
             if (search.IncludeTotalCount)
             {
@@ -47,14 +50,14 @@ namespace MyClub.Services.Services
             // Apply pagination
             int pageSize = search.PageSize ?? 10;
             int currentPage = search.Page ?? 0;
-            
+
             if (!search.RetrieveAll)
             {
                 query = query.Skip(currentPage * pageSize).Take(pageSize);
             }
 
             var list = await query.ToListAsync();
-            
+
             // Create the paged result with enhanced pagination metadata
             return new PagedResult<NewsResponse>
             {
@@ -72,12 +75,12 @@ namespace MyClub.Services.Services
             if (!string.IsNullOrWhiteSpace(search?.FTS))
             {
                 string searchTerm = search.FTS.Trim().ToLower();
-                query = query.Where(n => 
-                    n.Title.ToLower().Contains(searchTerm) || 
+                query = query.Where(n =>
+                    n.Title.ToLower().Contains(searchTerm) ||
                     n.Content.ToLower().Contains(searchTerm)
                 );
             }
-            
+
             return query;
         }
 
@@ -93,12 +96,13 @@ namespace MyClub.Services.Services
                 .Include(n => n.User)
                 .FirstOrDefaultAsync(n => n.Id == id);
 
-            if(entity == null){
+            if (entity == null)
+            {
                 return null;
             }
-            return MapToDetailedResponse(entity);
+            return MapToResponse(entity);
         }
-        
+
         //CREATE NEWS
         public override async Task<NewsResponse> CreateAsync(NewsUpsertRequest request)
         {
@@ -111,19 +115,21 @@ namespace MyClub.Services.Services
                 _context.News.Add(entity);
                 await _context.SaveChangesAsync();
 
-                if(request.Images != null && request.Images.Any())
+                if (request.Images != null && request.Images.Any())
                 {
-                    foreach(var image in request.Images)
+                    foreach (var image in request.Images)
                     {
                         var imageUrl = await _blobStorageService.UploadAsync(image, _containerName);
 
-                        var asset = new Asset(){
+                        var asset = new Asset()
+                        {
                             Url = imageUrl
                         };
                         await _context.Assets.AddAsync(asset);
                         await _context.SaveChangesAsync();
 
-                        var newsAsset = new NewsAsset(){
+                        var newsAsset = new NewsAsset()
+                        {
                             NewsId = entity.Id,
                             AssetId = asset.Id
                         };
@@ -131,7 +137,7 @@ namespace MyClub.Services.Services
                         await _context.SaveChangesAsync();
                     }
                 }
-                
+
                 await transaction.CommitAsync();
                 return MapToResponse(entity);
             }
@@ -223,7 +229,7 @@ namespace MyClub.Services.Services
                         await _context.SaveChangesAsync();
                     }
                 }
-                
+
                 await transaction.CommitAsync();
                 return MapToResponse(entity);
             }
@@ -233,7 +239,7 @@ namespace MyClub.Services.Services
                 throw;
             }
         }
-        
+
         //BEFORE UPDATE
         protected override Task BeforeUpdate(News entity, NewsUpsertRequest request)
         {
@@ -241,7 +247,7 @@ namespace MyClub.Services.Services
             {
                 throw new UserException("News not found");
             }
-            
+
             ValidateNewsRequest(request);
             return Task.CompletedTask;
         }
@@ -279,7 +285,7 @@ namespace MyClub.Services.Services
                 await BeforeDelete(entity);
                 _context.News.Remove(entity);
                 await _context.SaveChangesAsync();
-                
+
                 await transaction.CommitAsync();
                 return true;
             }
@@ -288,8 +294,8 @@ namespace MyClub.Services.Services
                 await transaction.RollbackAsync();
                 throw;
             }
-        }   
-        
+        }
+
         //MAP TO RESPONSE
         protected override NewsResponse MapToResponse(Database.News entity)
         {
@@ -300,43 +306,32 @@ namespace MyClub.Services.Services
                 Date = entity.CreatedAt,
                 PrimaryImage = entity.NewsAssets?
                     .Where(na => na.Asset?.Url != null)
-                    .Select(na => new NewsImageResponse 
-                    { 
-                        AssetId = na.AssetId,
-                        Url = na.Asset!.Url! 
+                    .Select(na => new AssetResponse
+                    {
+                        Id = na.Asset.Id,
+                        ImageUrl = na.Asset!.Url!
                     })
-                    .FirstOrDefault()
-            };
-            return response;
-        }
-
-        protected NewsResponse MapToDetailedResponse(Database.News entity)
-        {
-            var response = new NewsByIdResponse
-            {
-                Id = entity.Id,
-                Title = entity.Title,
-                Content = entity.Content,
+                    .FirstOrDefault(),
                 VideoUrl = entity.VideoURL,
-                Date = entity.CreatedAt,
+                Content = entity.Content,
                 Username = entity.User?.Username ?? string.Empty,
-                PrimaryImage = entity.NewsAssets?
+                Images = entity.NewsAssets?
                     .Where(na => na.Asset?.Url != null)
-                    .Select(na => new NewsImageResponse 
-                    { 
-                        AssetId = na.AssetId,
-                        Url = na.Asset!.Url! 
+                    .Select(na => new AssetResponse
+                    {
+                        Id = na.Asset.Id,
+                        ImageUrl = na.Asset!.Url!
                     })
-                    .ToList() ?? new List<NewsImageResponse>(),
+                    .ToList() ?? new List<AssetResponse>(),
                 Comments = entity.Comments?
-                    .Select(c => new NewsCommentResponse
+                    .Select(c => new CommentResponse
                     {
                         Id = c.Id,
                         Content = c.Content,
-                        Date = c.CreatedAt,
-                        UserName = c.User?.Username ?? string.Empty
+                        CreatedAt = c.CreatedAt,
+                        Username = c.User?.Username ?? string.Empty
                     })
-                    .ToList() ?? new List<NewsCommentResponse>()
+                    .ToList() ?? new List<CommentResponse>()
             };
             return response;
         }
@@ -368,7 +363,7 @@ namespace MyClub.Services.Services
             entity.CreatedAt = DateTime.UtcNow; // Update the creation date
             return entity;
         }
-        
+
         private void ValidateNewsRequest(NewsUpsertRequest request)
         {
             // Title validation
@@ -376,7 +371,7 @@ namespace MyClub.Services.Services
             {
                 throw new UserException("Title is required");
             }
-            
+
             if (request.Title.Length > 200)
             {
                 throw new UserException("Title cannot exceed 200 characters");
@@ -392,7 +387,7 @@ namespace MyClub.Services.Services
             {
                 throw new UserException("Content is required");
             }
-            
+
             if (request.Content.Length < 10)
             {
                 throw new UserException("Content must be at least 10 characters long");
@@ -406,8 +401,8 @@ namespace MyClub.Services.Services
 
             bool hasNoImages = (request.Images == null || request.Images.Count == 0);
             bool hasNoImagesToKeep = (request.ImagesToKeep == null || request.ImagesToKeep.Count == 0);
-            
-            if(request.Images != null)
+
+            if (request.Images != null)
             {
                 foreach (var image in request.Images)
                 {
@@ -415,12 +410,12 @@ namespace MyClub.Services.Services
                     {
                         throw new UserException("Empty image file detected");
                     }
-                    
+
                     if (image.Length > 10 * 1024 * 1024) // 10 MB limit
                     {
                         throw new UserException("Image size cannot exceed 10MB");
                     }
-                    
+
                     var extension = Path.GetExtension(image.FileName).ToLower();
                     if (!new[] { ".jpg", ".jpeg", ".png" }.Contains(extension))
                     {
