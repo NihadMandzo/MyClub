@@ -40,9 +40,13 @@ dependencies:
   
   # HTTP client
   http: ^1.2.1
+  http_parser: ^4.0.2
   fl_chart: ^1.0.0
   # Image handling
   file_picker: ^6.1.1
+  
+  # Date formatting
+  intl: ^0.19.0
   
   # UI components
   flutter_colorpicker: ^1.0.3
