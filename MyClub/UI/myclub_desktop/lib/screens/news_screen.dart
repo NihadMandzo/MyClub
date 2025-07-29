@@ -1,16 +1,17 @@
-﻿import 'dart:math' as math;
+import 'dart:math' as math;
+import 'dart:typed_data';
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-import 'package:myclub_desktop/providers/comment_provider.dart';
-import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:myclub_desktop/models/search_objects/base_search_object.dart';
-import 'package:myclub_desktop/providers/news_provider.dart';
+import 'package:myclub_desktop/models/comment.dart';
 import 'package:myclub_desktop/models/news.dart';
 import 'package:myclub_desktop/models/paged_result.dart';
+import 'package:myclub_desktop/models/search_objects/base_search_object.dart';
+import 'package:myclub_desktop/providers/news_provider.dart';
+import 'package:myclub_desktop/providers/comment_provider.dart';
 import 'package:myclub_desktop/utilities/dialog_utility.dart';
 import 'package:myclub_desktop/utilities/notification_utility.dart';
+import 'package:provider/provider.dart';
 
 class NewsScreen extends StatelessWidget {
   const NewsScreen({Key? key}) : super(key: key);
@@ -28,34 +29,32 @@ class _NewsContent extends StatefulWidget {
   const _NewsContent({Key? key}) : super(key: key);
 
   @override
-  State<_NewsContent> createState() => _NewsContentState();
+  _NewsContentState createState() => _NewsContentState();
 }
 
 class _NewsContentState extends State<_NewsContent> {
   late NewsProvider _newsProvider;
   late CommentProvider _commentProvider;
-  
-  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  final TextEditingController _commentController = TextEditingController();
+
   final TextEditingController _searchController = TextEditingController();
-  final TextEditingController _titleController = TextEditingController();
-  final TextEditingController _contentController = TextEditingController();
-  final TextEditingController _videoUrlController = TextEditingController();
-  
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+
   News? _selectedNews;
   PagedResult<News>? _result;
-  bool _isEditing = false;
   bool _isLoading = false;
   
   // Multiple images
   List<List<int>> _selectedImagesBytes = [];
   List<String> _selectedImageNames = [];
   List<int> _imagesToKeep = [];
-  List<List<int>> _selectedImages = [];
+
+  // Form fields
+  final TextEditingController _titleController = TextEditingController();
+  final TextEditingController _contentController = TextEditingController();
+  final TextEditingController _videoUrlController = TextEditingController();
 
   // Search fields
   BaseSearchObject _searchObject = BaseSearchObject(
-    fts: '',
     page: 0,
     pageSize: 10,
   );
@@ -66,28 +65,72 @@ class _NewsContentState extends State<_NewsContent> {
     _initializeProvider();
     _loadData();
   }
-  
+
+  // Utility method to handle API errors
+  String _formatErrorMessage(dynamic error) {
+    // Extract just the error message without the "Exception: " prefix
+    String errorMessage = error.toString();
+    if (errorMessage.startsWith('Exception: ')) {
+      errorMessage = errorMessage.substring('Exception: '.length);
+    }
+    
+    // Special handling for known error patterns
+    if (errorMessage.contains("Cannot delete this")) {
+      return errorMessage;
+    }
+    
+    return errorMessage;
+  }
+
   void _initializeProvider() {
     _newsProvider = context.read<NewsProvider>();
     _newsProvider.setContext(context);
+
+    _commentProvider = CommentProvider();
+    _commentProvider.setContext(context);
   }
-  
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _titleController.dispose();
+    _contentController.dispose();
+    _videoUrlController.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadData() async {
     setState(() {
       _isLoading = true;
     });
 
     try {
+      print("Fetching news with search object: ${_searchObject.toJson()}");
       _result = await _newsProvider.get(searchObject: _searchObject);
+      print("News fetched: ${_result?.data.length ?? 0} news items found");
+
+      // Debug output for each news item
+      if (_result != null && _result!.data.isNotEmpty) {
+        for (var news in _result!.data) {
+          print("News ID: ${news.id}, Title: ${news.title}");
+        }
+      } else {
+        print("No news found in the result");
+      }
+
     } catch (e) {
-      print("Error loading news: ${e.toString()}");
+      print("Error fetching data: ${e.toString()}");
+      NotificationUtility.showError(
+        context,
+        message: 'Greška u učitavanju vijesti: ${e.toString()}',
+      );
     } finally {
       setState(() {
         _isLoading = false;
       });
     }
   }
-  
+
   void _search() {
     final searchText = _searchController.text.trim();
     _searchObject = BaseSearchObject(
@@ -107,42 +150,20 @@ class _NewsContentState extends State<_NewsContent> {
     _loadData();
   }
 
-  Future<void> _loadNewsById(int id) async {
-    try {
-      setState(() {
-        _isLoading = true;
-      });
-      
-      final news = await _newsProvider.getById(id);
-      
-      setState(() {
-        _selectedNews = news;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-      print("Error loading news details: ${e.toString()}");
-    }
-  }
-  
   void _changePageSize(int? pageSize) {
     if (pageSize != null) {
       _searchObject = BaseSearchObject(
         fts: _searchObject.fts,
-        page: 0,
+        page: 0, // Reset to first page when changing page size
         pageSize: pageSize,
       );
       _loadData();
     }
   }
-  
+
   // Calculate the number of columns based on page size
-  int _calculateCrossAxisCount(int pageSize) {
-    if (pageSize <= 10) return 2; // 2 columns for 10 or fewer items
-    if (pageSize <= 20) return 3; // 3 columns for 11-20 items
-    return 4; // 4 columns for more than 20 items
+  int _calculateCrossAxisCount() {
+    return 2; // Always 2 columns for news grid as per requirements
   }
 
   // Build page number buttons for pagination
@@ -163,23 +184,36 @@ class _NewsContentState extends State<_NewsContent> {
       // Always show first page
       pageWidgets.add(_buildPageButton(0));
 
-      // Show ellipsis if needed
-      if (currentPage > 2) {
-        pageWidgets.add(const Text('...'));
+      int startPage = (currentPage - 1).clamp(1, totalPages - 2);
+      int endPage = (currentPage + 1).clamp(2, totalPages - 2);
+
+      if (endPage - startPage < maxDisplayedPages - 3) {
+        if (startPage == 1) {
+          endPage = math.min(maxDisplayedPages - 2, totalPages - 2);
+        } else if (endPage == totalPages - 2) {
+          startPage = math.max(1, totalPages - maxDisplayedPages + 2);
+        }
       }
 
-      // Show current page and neighbors
-      for (int i = math.max(1, currentPage - 1); i <= math.min(totalPages - 2, currentPage + 1); i++) {
+      if (startPage > 1) {
+        pageWidgets.add(
+          Text('...', style: TextStyle(fontWeight: FontWeight.bold)),
+        );
+      }
+
+      for (int i = startPage; i <= endPage; i++) {
         pageWidgets.add(_buildPageButton(i));
       }
 
-      // Show ellipsis if needed
-      if (currentPage < totalPages - 3) {
-        pageWidgets.add(const Text('...'));
+      if (endPage < totalPages - 2) {
+        pageWidgets.add(
+          Text('...', style: TextStyle(fontWeight: FontWeight.bold)),
+        );
       }
 
-      // Always show last page
-      pageWidgets.add(_buildPageButton(totalPages - 1));
+      if (totalPages > 1) {
+        pageWidgets.add(_buildPageButton(totalPages - 1));
+      }
     }
 
     return pageWidgets;
@@ -189,47 +223,108 @@ class _NewsContentState extends State<_NewsContent> {
     final isCurrentPage = page == (_searchObject.page ?? 0);
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4.0),
+      padding: const EdgeInsets.symmetric(horizontal: 4),
       child: ElevatedButton(
-        style: ElevatedButton.styleFrom(
-          foregroundColor: isCurrentPage ? Colors.white : Colors.black,
-          backgroundColor: isCurrentPage ? Colors.blue : Colors.white,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        ),
         onPressed: isCurrentPage ? null : () => _changePage(page),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: isCurrentPage ? Theme.of(context).primaryColor : null,
+          foregroundColor: isCurrentPage ? Colors.white : null,
+        ),
         child: Text('${page + 1}'),
       ),
     );
   }
-  
-  void _selectNews(News news) {
+
+  void _selectNews(News news) async {
     setState(() {
+      _isLoading = true;
       _selectedNews = news;
     });
+
+    try {
+      // Fetch the detailed news data
+      final detailedNews = await _newsProvider.getById(news.id);
+
+      _titleController.text = detailedNews.title;
+      _contentController.text = detailedNews.content;
+      _videoUrlController.text = detailedNews.videoUrl ?? '';
+      
+      // Trigger validation to update the form state with the newly set values
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _formKey.currentState?.validate();
+      });
+
+      // Reset images
+      _selectedImagesBytes = [];
+      _selectedImageNames = [];
+
+      // Populate image IDs to keep for editing
+      _imagesToKeep = [];
+      if (detailedNews.images.isNotEmpty) {
+        for (var image in detailedNews.images) {
+          if (image.id != null) {
+            _imagesToKeep.add(image.id!);
+          }
+        }
+      }
+      
+      // Make sure we have the selected news with all its images
+      _selectedNews = detailedNews;
+      
+      print("News images loaded: ${_selectedNews?.images.length ?? 0}");
+      print("Image IDs to keep: $_imagesToKeep");
+    } catch (e) {
+      NotificationUtility.showError(
+        context,
+        message: 'Greška u učitavanju vijesti: ${e.toString()}',
+      );
+      print("Error in _selectNews: ${e.toString()}");
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
-  
+
   void _clearForm() {
-    _titleController.clear();
-    _contentController.clear();
-    _videoUrlController.clear();
-    _selectedImagesBytes.clear();
-    _selectedImageNames.clear();
-    _imagesToKeep.clear();
+    // First reset the form state to clear validators
+    if (_formKey.currentState != null) {
+      _formKey.currentState!.reset();
+    }
     
     setState(() {
+      // Reset news selection
       _selectedNews = null;
-      _isEditing = false;
+      
+      // Clear all text controllers
+      _titleController.clear();
+      _contentController.clear();
+      _videoUrlController.clear();
+      
+      // Reset all image-related variables
+      _selectedImagesBytes = [];
+      _selectedImageNames = [];
+      _imagesToKeep = [];
     });
+    
+    // Rebuild the UI to ensure all validators are refreshed
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      setState(() {
+        // This triggers a rebuild after the frame is done
+      });
+    });
+    
+    print("Form has been cleared successfully");
   }
-  
+
   Future<void> _confirmDeleteNews(News news) async {
     final confirm = await DialogUtility.showDeleteConfirmation(
       context,
-      title: 'Delete News',
-      message: 'Are you sure you want to delete this news article?'
+      title: 'Potvrdi brisanje',
+      message: 'Da li ste sigurni da želite obrisati vijest "${news.title}"?',
     );
 
-    if (confirm == true) {
+    if (confirm) {
       _deleteNews(news);
     }
   }
@@ -241,16 +336,21 @@ class _NewsContentState extends State<_NewsContent> {
 
     try {
       await _newsProvider.delete(news.id);
-      _clearForm();
-      _loadData();
+
       NotificationUtility.showSuccess(
-        context, 
-        message: 'News deleted successfully'
+        context,
+        message: 'Vijest uspješno obrisana',
       );
+
+      if (_selectedNews?.id == news.id) {
+        _clearForm();
+      }
+
+      _loadData();
     } catch (e) {
       NotificationUtility.showError(
-        context, 
-        message: 'Error deleting news: ${e.toString()}'
+        context,
+        message: 'Greška pri brisanju vijesti: ${_formatErrorMessage(e)}',
       );
     } finally {
       setState(() {
@@ -258,40 +358,132 @@ class _NewsContentState extends State<_NewsContent> {
       });
     }
   }
-  
-  Future<void> _pickImages() async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles(
-      type: FileType.image,
-      allowMultiple: true,
+
+  Future<void> _confirmDeleteComment(Comment comment) async {
+    final confirm = await DialogUtility.showDeleteConfirmation(
+      context,
+      title: 'Potvrdi brisanje',
+      message: 'Da li ste sigurni da želite obrisati komentar?',
     );
 
-    if (result != null) {
+    if (confirm) {
+      _deleteComment(comment);
+    }
+  }
+
+  Future<void> _deleteComment(Comment comment) async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      await _commentProvider.delete(comment.id!);
+
+      NotificationUtility.showSuccess(
+        context,
+        message: 'Komentar uspješno obrisan',
+      );
+
+      // Reload selected news to update comments
+      if (_selectedNews != null) {
+        final updatedNews = await _newsProvider.getById(_selectedNews!.id);
+        setState(() {
+          _selectedNews = updatedNews;
+        });
+      }
+    } catch (e) {
+      NotificationUtility.showError(
+        context,
+        message: 'Greška pri brisanju komentara: ${_formatErrorMessage(e)}',
+      );
+    } finally {
       setState(() {
-        for (var file in result.files) {
-          if (file.bytes != null) {
-            _selectedImagesBytes.add(file.bytes!);
-            _selectedImageNames.add(file.name);
-          } else if (file.path != null) {
-            final bytes = File(file.path!).readAsBytesSync();
-            _selectedImagesBytes.add(bytes);
-            _selectedImageNames.add(file.name);
-          }
-        }
+        _isLoading = false;
       });
     }
   }
-  
+
+  Future<void> _pickImages() async {
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+        allowMultiple: true,
+      );
+
+      if (result != null && result.files.isNotEmpty) {
+        setState(() {
+          for (var file in result.files) {
+            if (file.bytes != null) {
+              _selectedImagesBytes.add(file.bytes!);
+              _selectedImageNames.add(file.name);
+            } else if (file.path != null) {
+              final bytes = File(file.path!).readAsBytesSync();
+              _selectedImagesBytes.add(bytes);
+              _selectedImageNames.add(file.name);
+            }
+          }
+        });
+        
+        print("Selected ${result.files.length} images");
+      }
+    } catch (e) {
+      NotificationUtility.showError(
+        context,
+        message: 'Greška pri odabiru slika: ${e.toString()}',
+      );
+    }
+  }
+
   void _removeImage(int index) {
     setState(() {
-      if (index < _selectedImagesBytes.length) {
-        _selectedImagesBytes.removeAt(index);
-        _selectedImageNames.removeAt(index);
-      }
+      _selectedImagesBytes.removeAt(index);
+      _selectedImageNames.removeAt(index);
     });
   }
   
+
+
   Future<void> _saveNews() async {
-    if (_formKey.currentState?.validate() != true) {
+    // Trigger full form validation
+    final isFormValid = _formKey.currentState!.validate();
+
+    // Collect all validation errors to show them all at once
+    List<String> validationErrors = [];
+    
+    // Check form fields for completeness
+    if (_titleController.text.trim().isEmpty) {
+      validationErrors.add('Molimo unesite naslov vijesti');
+    }
+    
+    if (_contentController.text.trim().isEmpty) {
+      validationErrors.add('Molimo unesite sadržaj vijesti');
+    }
+    
+    // Check if images are selected for new news
+    if (_selectedNews == null && _selectedImagesBytes.isEmpty) {
+      validationErrors.add('Molimo odaberite barem jednu sliku za vijest');
+    }
+    
+    // Check if edited news will have any images after removing
+    if (_selectedNews != null && _imagesToKeep.isEmpty && _selectedImagesBytes.isEmpty) {
+      validationErrors.add('Vijest mora imati barem jednu sliku');
+    }
+    
+    // If there are validation errors, show them all at once
+    if (validationErrors.isNotEmpty) {
+      NotificationUtility.showError(
+        context,
+        message: validationErrors.join('\n'),
+      );
+      return;
+    }
+    
+    // If form validation failed but we didn't catch specific errors above
+    if (!isFormValid) {
+      NotificationUtility.showError(
+        context,
+        message: 'Molimo provjerite unesene podatke i pokušajte ponovo.',
+      );
       return;
     }
 
@@ -300,44 +492,68 @@ class _NewsContentState extends State<_NewsContent> {
     });
 
     try {
-      final newsData = {
-        'title': _titleController.text,
-        'content': _contentController.text,
-        'videoUrl': _videoUrlController.text.isEmpty ? null : _videoUrlController.text,
-      };
-
       if (_selectedNews == null) {
         // Create new news
+        final newsData = {
+          'title': _titleController.text.trim(),
+          'content': _contentController.text.trim(),
+          'videoUrl': _videoUrlController.text.trim(),
+        };
+        
+        // Create new news with images
         await _newsProvider.createNewsWithImages(
-          newsData,
+          newsData, 
           _selectedImagesBytes,
           _selectedImageNames,
         );
+        
         NotificationUtility.showSuccess(
-          context, 
-          message: 'News created successfully'
+          context,
+          message: 'Vijest uspješno dodana',
         );
+        
+        // Clear the form after successful creation
+        _clearForm();
+        
+        // Refresh the news list
+        _loadData();
       } else {
         // Update existing news
+        final newsData = {
+          'title': _titleController.text.trim(),
+          'content': _contentController.text.trim(),
+          'videoUrl': _videoUrlController.text.trim(),
+        };
+        
+        // Update existing news with images
         await _newsProvider.updateNewsWithImages(
           _selectedNews!.id,
           newsData,
-          _selectedImagesBytes,
-          _selectedImageNames,
-          _imagesToKeep,
+          _selectedImagesBytes.isNotEmpty ? _selectedImagesBytes : null,
+          _selectedImageNames.isNotEmpty ? _selectedImageNames : null,
+          _imagesToKeep.isNotEmpty ? _imagesToKeep : null,
         );
+        
         NotificationUtility.showSuccess(
-          context, 
-          message: 'News updated successfully'
+          context,
+          message: 'Vijest uspješno ažurirana',
         );
+        
+        // Clear the form after successful update
+        _clearForm();
+        
+        // Refresh the news list
+        _loadData();
       }
-
-      _clearForm();
-      _loadData();
     } catch (e) {
+      print('Error saving news: ${e.toString()}');
+      
+      // Format the error message to make it more user-friendly
+      String errorMessage = _formatErrorMessage(e);
+      
       NotificationUtility.showError(
-        context, 
-        message: 'Error saving news: ${e.toString()}'
+        context,
+        message: 'Greška pri spremanju vijesti: $errorMessage',
       );
     } finally {
       setState(() {
@@ -345,801 +561,451 @@ class _NewsContentState extends State<_NewsContent> {
       });
     }
   }
-  
+
   @override
-  void dispose() {
-    _commentController.dispose();
-    _searchController.dispose();
-    _titleController.dispose();
-    _contentController.dispose();
-    _videoUrlController.dispose();
-    super.dispose();
-  }
-  
-  Widget _buildNewsForm() {
-    return Form(
-      key: _formKey,
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  _selectedNews == null ? 'Create News' : 'Edit News',
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Row(
+        children: [
+          // Left side - News grid
+          Expanded(
+            flex: 3,
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Search and filter row
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _searchController,
+                          decoration: InputDecoration(
+                            labelText: 'Pretraži vijesti',
+                            suffixIcon: IconButton(
+                              icon: const Icon(Icons.search),
+                              onPressed: _search,
+                            ),
+                            border: OutlineInputBorder(),
+                          ),
+                          onSubmitted: (_) => _search(),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      ElevatedButton.icon(
+                        onPressed: _clearForm,
+                        icon: const Icon(Icons.add),
+                        label: const Text('Nova vijest'),
+                      ),
+                    ],
                   ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () {
-                    setState(() {
-                      _isEditing = false;
-                    });
-                  },
-                ),
-              ],
+                  const SizedBox(height: 16),
+                  
+                  // News grid
+                  Expanded(
+                    child: _isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : (_result == null || _result!.data.isEmpty)
+                        ? const Center(child: Text('Nema pronađenih vijesti'))
+                        : GridView.builder(
+                            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: _calculateCrossAxisCount(),
+                              childAspectRatio: 1.2,
+                              crossAxisSpacing: 10,
+                              mainAxisSpacing: 10,
+                            ),
+                            itemCount: _result!.data.length,
+                            itemBuilder: (context, index) {
+                              final news = _result!.data[index];
+                              return Card(
+                                clipBehavior: Clip.antiAlias,
+                                child: InkWell(
+                                  onTap: () => _selectNews(news),
+                                  child: Stack(
+                                    children: [
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                                        children: [
+                                          // News image
+                                          Expanded(
+                                            flex: 3,
+                                            child: news.primaryImage != null && news.primaryImage!.imageUrl != null
+                                              ? Image.network(
+                                                  news.primaryImage!.imageUrl!,
+                                                  fit: BoxFit.cover,
+                                                  errorBuilder: (context, error, stackTrace) {
+                                                    return const Center(
+                                                      child: Icon(Icons.image_not_supported, size: 40),
+                                                    );
+                                                  },
+                                                )
+                                              : const Center(
+                                                  child: Icon(Icons.image_not_supported, size: 40),
+                                                ),
+                                          ),
+                                          // News title
+                                          Expanded(
+                                            flex: 1,
+                                            child: Padding(
+                                              padding: const EdgeInsets.all(8.0),
+                                              child: Text(
+                                                news.title,
+                                                style: const TextStyle(fontWeight: FontWeight.bold),
+                                                maxLines: 2,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      // Delete button
+                                      Positioned(
+                                        right: 0,
+                                        bottom: 0,
+                                        child: IconButton(
+                                          icon: const Icon(Icons.delete, color: Colors.red),
+                                          onPressed: () => _confirmDeleteNews(news),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                  
+                  // Pagination
+                  if (_result != null && _result!.totalPages > 1)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8.0),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.arrow_back),
+                            onPressed: (_searchObject.page ?? 0) > 0
+                                ? () => _changePage((_searchObject.page ?? 0) - 1)
+                                : null,
+                          ),
+                          const SizedBox(width: 8),
+                          DropdownButton<int>(
+                            value: _searchObject.pageSize,
+                            items: [10, 20, 50].map((size) {
+                              return DropdownMenuItem<int>(
+                                value: size,
+                                child: Text('$size po stranici'),
+                              );
+                            }).toList(),
+                            onChanged: _changePageSize,
+                          ),
+                          const SizedBox(width: 16),
+                          ..._buildPageNumbers(),
+                          const SizedBox(width: 8),
+                          IconButton(
+                            icon: const Icon(Icons.arrow_forward),
+                            onPressed: (_searchObject.page ?? 0) < (_result!.totalPages - 1)
+                                ? () => _changePage((_searchObject.page ?? 0) + 1)
+                                : null,
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
             ),
-            const Divider(),
-            const SizedBox(height: 16),
-            
-            // Form fields
-            Expanded(
-              child: SingleChildScrollView(
+          ),
+          
+          // Middle section - Comments
+          Expanded(
+            flex: 2,
+            child: Container(
+              decoration: BoxDecoration(
+                border: Border.symmetric(
+                  vertical: BorderSide(color: Colors.grey.shade300),
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Title
-                    const Text(
-                      'Title',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: _titleController,
-                      decoration: const InputDecoration(
-                        hintText: 'Enter news title',
-                        border: OutlineInputBorder(),
-                      ),
+                    Text(
+                      'Komentari',
+                      style: Theme.of(context).textTheme.titleLarge,
                     ),
                     const SizedBox(height: 16),
-                    
-                    // Content
-                    const Text(
-                      'Content',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: _contentController,
-                      maxLines: 10,
-                      decoration: const InputDecoration(
-                        hintText: 'Enter news content',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    
-                    // Video URL
-                    const Text(
-                      'Video URL (optional)',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: _videoUrlController,
-                      decoration: const InputDecoration(
-                        hintText: 'Enter video URL',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    
-                    // Images
-                    const Text(
-                      'Images',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        ElevatedButton.icon(
-                          onPressed: () async {
-                            // TODO: Implement file picker for images
-                            // This would typically use file_picker package
-                            // FilePickerResult? result = await FilePicker.platform.pickFiles(
-                            //   type: FileType.image,
-                            //   allowMultiple: true,
-                            // );
-                            
-                            // if (result != null) {
-                            //   setState(() {
-                            //     for (var file in result.files) {
-                            //       _selectedImageNames.add(file.name);
-                            //       _selectedImages.add(file.bytes!);
-                            //     }
-                            //   });
-                            // }
-                          },
-                          icon: const Icon(Icons.image),
-                          label: const Text('Select Images'),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    
-                    // Display selected image names
-                    if (_selectedImageNames.isNotEmpty) ...[
-                      const Text(
-                        'Selected Images:',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Wrap(
-                        spacing: 8,
-                        children: _selectedImageNames
-                            .asMap()
-                            .entries
-                            .map(
-                              (entry) => Chip(
-                                label: Text(entry.value),
-                                onDeleted: () {
-                                  setState(() {
-                                    _selectedImageNames.removeAt(entry.key);
-                                    _selectedImages.removeAt(entry.key);
-                                  });
+                    Expanded(
+                      child: _selectedNews == null
+                        ? const Center(child: Text('Odaberite vijest za prikaz komentara'))
+                        : _isLoading
+                          ? const Center(child: CircularProgressIndicator())
+                          : (_selectedNews!.comments.isEmpty)
+                            ? const Center(child: Text('Nema komentara za ovu vijest'))
+                            : ListView.builder(
+                                itemCount: _selectedNews!.comments.length,
+                                itemBuilder: (context, index) {
+                                  final comment = _selectedNews!.comments[index];
+                                  return Card(
+                                    margin: const EdgeInsets.only(bottom: 8),
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(8.0),
+                                      child: Stack(
+                                        children: [
+                                          Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                comment.username ?? 'Anonimni korisnik',
+                                                style: const TextStyle(fontWeight: FontWeight.bold),
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(comment.content ?? ''),
+                                              const SizedBox(height: 16), // Space for delete button
+                                            ],
+                                          ),
+                                          Positioned(
+                                            right: 0,
+                                            bottom: 0,
+                                            child: IconButton(
+                                              icon: const Icon(Icons.delete, color: Colors.red, size: 20),
+                                              onPressed: () => _confirmDeleteComment(comment),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
                                 },
                               ),
-                            )
-                            .toList(),
-                      ),
-                    ],
-                    
-                    // Existing images to keep (for edit mode)
-                    if (_selectedNews != null && _selectedNews!.images.isNotEmpty) ...[
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Current Images:',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Wrap(
-                        spacing: 8,
-                        children: _selectedNews!.images
-                            .where((img) => img.id != null)
-                            .map(
-                              (img) => FilterChip(
-                                label: Text('Image ${img.id}'),
-                                selected: _imagesToKeep.contains(img.id),
-                                onSelected: (selected) {
-                                  setState(() {
-                                    if (selected) {
-                                      _imagesToKeep.add(img.id!);
-                                    } else {
-                                      _imagesToKeep.remove(img.id);
-                                    }
-                                  });
-                                },
-                                avatar: img.imageUrl != null
-                                    ? CircleAvatar(
-                                        backgroundImage: NetworkImage(img.imageUrl!),
-                                        radius: 12,
-                                      )
-                                    : null,
-                              ),
-                            )
-                            .toList(),
-                      ),
-                    ],
+                    ),
                   ],
                 ),
               ),
             ),
-            
-            const SizedBox(height: 16),
-            
-            // Action buttons
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                TextButton(
-                  onPressed: () {
-                    setState(() {
-                      _isEditing = false;
-                    });
-                  },
-                  child: const Text('Cancel'),
-                ),
-                const SizedBox(width: 16),
-                ElevatedButton(
-                  onPressed: () async {
-                    // Validate inputs
-                    if (_titleController.text.trim().isEmpty ||
-                        _contentController.text.trim().isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Please fill in all required fields'),
-                        ),
-                      );
-                      return;
-                    }
+          ),
+          
+          // Right side - News form
+          Expanded(
+            flex: 3,
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _selectedNews == null ? 'Dodaj novu vijest' : 'Uredi vijest',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 16),
                     
-                    final request = {
-                      'title': _titleController.text.trim(),
-                      'content': _contentController.text.trim(),
-                      'videoUrl': _videoUrlController.text.trim(),
-                    };
-                    
-                    try {
-                      if (_selectedNews == null) {
-                        // Create new news
-                        if (_selectedImages.isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Please select at least one image'),
-                            ),
-                          );
-                          return;
-                        }
-                        
-                        await _newsProvider.createNewsWithImages(
-                          request,
-                          _selectedImages,
-                          _selectedImageNames,
-                        );
-                        
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('News created successfully'),
-                          ),
-                        );
-                      } else {
-                        // Update existing news
-                        await _newsProvider.updateNewsWithImages(
-                          _selectedNews!.id,
-                          request,
-                          _selectedImages.isNotEmpty ? _selectedImages : null,
-                          _selectedImageNames.isNotEmpty ? _selectedImageNames : null,
-                          _imagesToKeep,
-                        );
-                        
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('News updated successfully'),
-                          ),
-                        );
-                      }
-                      
-                      // Reset form
-                      setState(() {
-                        _isEditing = false;
-                        _titleController.clear();
-                        _contentController.clear();
-                        _videoUrlController.clear();
-                        _selectedImages.clear();
-                        _selectedImageNames.clear();
-                        _imagesToKeep.clear();
-                      });
-                      
-                      // Refresh news list
-                      await _newsProvider.get();
-                      
-                    } catch (error) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Error: $error'),
-                        ),
-                      );
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).primaryColor,
-                    foregroundColor: Colors.white,
-                  ),
-                  child: Text(_selectedNews == null ? 'Create' : 'Update'),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    ));
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final newsProvider = Provider.of<NewsProvider>(context);
-    final news = _result?.data ?? [];
-    // Use the local _selectedNews variable instead of provider state
-    
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: _isLoading && news.isEmpty
-          ? const Center(child: CircularProgressIndicator())
-          : Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Left section - News list with pagination
-                Expanded(
-                  flex: 3,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'News',
-                        style: TextStyle(
-                          fontSize: 24, 
-                          fontWeight: FontWeight.bold
-                        ),
+                    // Title field
+                    TextFormField(
+                      controller: _titleController,
+                      decoration: const InputDecoration(
+                        labelText: 'Naslov*',
+                        border: OutlineInputBorder(),
                       ),
-                      const SizedBox(height: 16),
-                      // Search Bar
-                      TextField(
-                        controller: _searchController,
-                        decoration: InputDecoration(
-                          hintText: 'Search news...',
-                          prefixIcon: const Icon(Icons.search),
-                          suffixIcon: IconButton(
-                            icon: const Icon(Icons.clear),
-                            onPressed: () {
-                              _searchController.clear();
-                              _searchController.clear();
-                              _search();
-                            },
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8.0),
-                          ),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Naslov je obavezan';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    
+                    // Video URL field (optional)
+                    TextFormField(
+                      controller: _videoUrlController,
+                      decoration: const InputDecoration(
+                        labelText: 'Video URL (opcionalno)',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    
+                    // Content field
+                    Expanded(
+                      child: TextFormField(
+                        controller: _contentController,
+                        maxLines: null,
+                        expands: true,
+                        textAlignVertical: TextAlignVertical.top,
+                        decoration: const InputDecoration(
+                          labelText: 'Sadržaj*',
+                          alignLabelWithHint: true,
+                          border: OutlineInputBorder(),
                         ),
-                        onSubmitted: (value) {
-                          _searchController.text = value;
-                          _search();
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Sadržaj je obavezan';
+                          }
+                          return null;
                         },
                       ),
-                      const SizedBox(height: 16),
-                      Expanded(
-                        child: GridView.builder(
-                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            crossAxisSpacing: 16,
-                            mainAxisSpacing: 16,
-                            childAspectRatio: 1.2,
-                          ),
-                          itemCount: news.length,
+                    ),
+                    const SizedBox(height: 12),
+                    
+                    // Images section
+                    Text(
+                      'Slike',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    
+                    // Show existing images if editing
+                    if (_selectedNews != null && _selectedNews!.images.isNotEmpty)
+                      Container(
+                        height: 120,
+                        margin: const EdgeInsets.only(bottom: 8),
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _selectedNews!.images.length,
                           itemBuilder: (context, index) {
-                            final item = news[index];
-                            final isSelected = _selectedNews?.id == item.id;
+                            final image = _selectedNews!.images[index];
+                            final shouldKeep = image.id != null && _imagesToKeep.contains(image.id);
                             
-                            return InkWell(
-                              onTap: () {
-                                _loadNewsById(item.id);
-                              },
-                              child: Card(
-                                color: isSelected 
-                                    ? Theme.of(context).colorScheme.primaryContainer 
-                                    : null,
-                                clipBehavior: Clip.antiAlias,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    if (item.primaryImage != null && item.primaryImage!.imageUrl != null)
-                                      Expanded(
-                                        child: Image.network(
-                                          item.primaryImage!.imageUrl!,
-                                          width: double.infinity,
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: Stack(
+                                children: [
+                                  Container(
+                                    width: 100,
+                                    height: 100,
+                                    decoration: BoxDecoration(
+                                      border: Border.all(
+                                        color: shouldKeep ? Colors.green : Colors.red,
+                                        width: 2,
+                                      ),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: image.imageUrl != null
+                                      ? Image.network(
+                                          image.imageUrl!,
                                           fit: BoxFit.cover,
                                           errorBuilder: (context, error, stackTrace) {
                                             return const Center(
                                               child: Icon(Icons.image_not_supported),
                                             );
                                           },
+                                        )
+                                      : const Center(
+                                          child: Icon(Icons.image_not_supported),
                                         ),
-                                      )
-                                    else
-                                      Expanded(
-                                        child: Container(
-                                          color: Colors.grey[300],
-                                          child: const Center(
-                                            child: Icon(Icons.image),
-                                          ),
-                                        ),
+                                  ),
+                                  Positioned(
+                                    top: 0,
+                                    right: 0,
+                                    child: IconButton(
+                                      icon: Icon(
+                                        shouldKeep ? Icons.check_circle : Icons.remove_circle,
+                                        color: shouldKeep ? Colors.green : Colors.red,
                                       ),
-                                    Padding(
-                                      padding: const EdgeInsets.all(8.0),
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            item.title,
-                                            maxLines: 2,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            DateFormat('dd.MM.yyyy').format(item.date),
-                                            style: TextStyle(
-                                              color: Colors.grey[700],
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
+                                      onPressed: () {
+                                        if (image.id != null) {
+                                          setState(() {
+                                            if (shouldKeep) {
+                                              _imagesToKeep.remove(image.id);
+                                            } else {
+                                              _imagesToKeep.add(image.id!);
+                                            }
+                                          });
+                                        }
+                                      },
                                     ),
-                                  ],
-                                ),
+                                  ),
+                                ],
                               ),
                             );
                           },
                         ),
                       ),
-                      const SizedBox(height: 16),
-                      // Pagination controls
-                      if (_result != null)
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            TextButton(
-                              onPressed: (_searchObject.page ?? 0) > 0
-                                  ? () => _changePage((_searchObject.page ?? 0) - 1)
-                                  : null,
-                              child: const Row(
+                    
+                    // Show newly selected images
+                    if (_selectedImagesBytes.isNotEmpty)
+                      Container(
+                        height: 120,
+                        margin: const EdgeInsets.only(bottom: 8),
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _selectedImagesBytes.length,
+                          itemBuilder: (context, index) {
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: Stack(
                                 children: [
-                                  Icon(Icons.arrow_back),
-                                  SizedBox(width: 4),
-                                  Text('Previous'),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Page ${(_searchObject.page ?? 0) + 1} of ${_result?.totalPages ?? 1}',
-                              style: const TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            const SizedBox(width: 8),
-                            TextButton(
-                              onPressed: (_searchObject.page ?? 0) < (_result?.totalPages ?? 1) - 1
-                                  ? () => _changePage((_searchObject.page ?? 0) + 1)
-                                  : null,
-                              child: const Row(
-                              children: [
-                                Text('Next'),
-                                SizedBox(width: 4),
-                                Icon(Icons.arrow_forward),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                
-                const SizedBox(width: 16),
-                
-                // Middle section - Comments
-                if (_selectedNews != null)
-                  Expanded(
-                    flex: 2,
-                    child: Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Comments',
-                              style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            Expanded(
-                              child: _selectedNews!.comments.isEmpty
-                                  ? const Center(
-                                      child: Text('No comments yet'),
-                                    )
-                                  : ListView.separated(
-                                      itemCount: _selectedNews!.comments.length,
-                                      separatorBuilder: (context, index) => const Divider(),
-                                      itemBuilder: (context, index) {
-                                        final comment = _selectedNews!.comments[index];
-                                        return ListTile(
-                                          title: Text(comment.username ?? 'Anonymous'),
-                                          subtitle: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              const SizedBox(height: 4),
-                                              Text(comment.content ?? ''),
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                comment.createdAt != null
-                                                    ? DateFormat('dd.MM.yyyy HH:mm')
-                                                        .format(comment.createdAt!)
-                                                    : '',
-                                                style: TextStyle(
-                                                  color: Colors.grey[700],
-                                                  fontSize: 12,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          leading: CircleAvatar(
-                                            child: Text(
-                                              (comment.username != null && comment.username!.isNotEmpty) 
-                                                  ? comment.username![0].toUpperCase()
-                                                  : 'A',
-                                            ),
-                                          ),
+                                  Container(
+                                    width: 100,
+                                    height: 100,
+                                    decoration: BoxDecoration(
+                                      border: Border.all(
+                                        color: Colors.blue,
+                                        width: 2,
+                                      ),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Image.memory(
+                                      Uint8List.fromList(_selectedImagesBytes[index]),
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (context, error, stackTrace) {
+                                        return const Center(
+                                          child: Icon(Icons.image_not_supported),
                                         );
                                       },
                                     ),
-                            ),
-                          ],
+                                  ),
+                                  Positioned(
+                                    top: 0,
+                                    right: 0,
+                                    child: IconButton(
+                                      icon: const Icon(Icons.remove_circle, color: Colors.red),
+                                      onPressed: () => _removeImage(index),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
                         ),
                       ),
+                    
+                    // Button to add images
+                    ElevatedButton.icon(
+                      onPressed: _pickImages,
+                      icon: const Icon(Icons.add_photo_alternate),
+                      label: const Text('Dodaj slike'),
                     ),
-                  )
-                else if (_isLoading)
-                  const Expanded(
-                    flex: 2,
-                    child: Center(child: CircularProgressIndicator()),
-                  )
-                else
-                  const Expanded(
-                    flex: 2,
-                    child: Center(
-                      child: Text('Select a news article to view comments'),
-                    ),
-                  ),
-                
-                const SizedBox(width: 16),
-                
-                // Right section - News details/edit form
-                Expanded(
-                  flex: 3,
-                  child: _isEditing
-                      ? _buildNewsForm()
-                      : _selectedNews != null
-                          ? Card(
-                              child: SingleChildScrollView(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    // Admin actions bar
-                                    Padding(
-                                      padding: const EdgeInsets.all(8.0),
-                                      child: Row(
-                                        mainAxisAlignment: MainAxisAlignment.end,
-                                        children: [
-                                          IconButton(
-                                            icon: const Icon(Icons.edit),
-                                            tooltip: 'Edit News',
-                                            onPressed: () {
-                                              setState(() {
-                                                _isEditing = true;
-                                                _titleController.text = _selectedNews!.title;
-                                                _contentController.text = _selectedNews!.content;
-                                                _videoUrlController.text = _selectedNews!.videoUrl ?? '';
-                                                
-                                                // Save image IDs to keep
-                                                _imagesToKeep = _selectedNews!.images
-                                                    .where((img) => img.id != null)
-                                                    .map((img) => img.id!)
-                                                    .toList();
-                                              });
-                                            },
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    
-                                    // News images carousel
-                                    if (_selectedNews!.images.isNotEmpty)
-                                      SizedBox(
-                                        height: 200,
-                                        child: PageView.builder(
-                                          itemCount: _selectedNews!.images.length,
-                                          itemBuilder: (context, index) {
-                                            return Image.network(
-                                              _selectedNews!.images[index].imageUrl ?? '',
-                                              fit: BoxFit.cover,
-                                              errorBuilder: (context, error, stackTrace) {
-                                                return const Center(
-                                                  child: Icon(Icons.image_not_supported),
-                                                );
-                                              },
-                                            );
-                                          },
-                                        ),
-                                      )
-                                    else
-                                      Container(
-                                        height: 200,
-                                        color: Colors.grey[300],
-                                        child: const Center(
-                                          child: Icon(Icons.image),
-                                        ),
-                                      ),
-                                    
-                                    Padding(
-                                      padding: const EdgeInsets.all(16.0),
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          // News title
-                                          Text(
-                                            _selectedNews!.title,
-                                            style: const TextStyle(
-                                              fontSize: 24,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                          
-                                          // News subtitle
-                                          const SizedBox(height: 8),
-                                          Text(
-                                            'Posted on ${DateFormat('dd.MM.yyyy').format(_selectedNews!.date)} by ${_selectedNews!.username}',
-                                            style: TextStyle(
-                                              color: Colors.grey[700],
-                                            ),
-                                          ),
-                                          
-                                          // News content
-                                          const SizedBox(height: 16),
-                                          Text(_selectedNews!.content),
-                                          
-                                          // Video URL
-                                          if (_selectedNews!.videoUrl != null &&
-                                              _selectedNews!.videoUrl!.isNotEmpty)
-                                            Padding(
-                                              padding: const EdgeInsets.only(top: 16.0),
-                                              child: Column(
-                                                crossAxisAlignment: CrossAxisAlignment.start,
-                                                children: [
-                                                  const Text(
-                                                    'Video',
-                                                    style: TextStyle(
-                                                      fontSize: 18,
-                                                      fontWeight: FontWeight.bold,
-                                                    ),
-                                                  ),
-                                                  const SizedBox(height: 8),
-                                                  InkWell(
-                                                    onTap: () {
-                                                      // TODO: Open video URL or embed video player
-                                                    },
-                                                    child: Row(
-                                                      children: [
-                                                        const Icon(Icons.video_library),
-                                                        const SizedBox(width: 8),
-                                                        Text(
-                                                          'Watch video',
-                                                          style: TextStyle(
-                                                            color: Colors.blue[700],
-                                                            decoration: TextDecoration.underline,
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          
-                                          // Add comment form
-                                          const SizedBox(height: 32),
-                                          const Text(
-                                            'Add a comment',
-                                            style: TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 8),
-                                          TextField(
-                                            controller: _commentController,
-                                            maxLines: 3,
-                                            decoration: const InputDecoration(
-                                              hintText: 'Write your comment here...',
-                                              border: OutlineInputBorder(),
-                                            ),
-                                          ),
-                                          const SizedBox(height: 8),
-                                          Align(
-                                            alignment: Alignment.centerRight,
-                                            child: ElevatedButton(
-                                              onPressed: () async {
-                                                if (_commentController.text.trim().isNotEmpty) {
-                                                  await newsProvider.addComment(
-                                                    _selectedNews!.id,
-                                                    _commentController.text.trim(),
-                                                  );
-                                                  _commentController.clear();
-                                                }
-                                              },
-                                              style: ElevatedButton.styleFrom(
-                                                backgroundColor: Theme.of(context).primaryColor,
-                                                foregroundColor: Colors.white,
-                                              ),
-                                              child: const Text('Add Comment'),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                    
+                    const SizedBox(height: 16),
+                    
+                    // Submit button
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: _isLoading ? null : _saveNews,
+                        child: _isLoading
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
                               ),
                             )
-                          : Card(
-                              child: Padding(
-                                padding: const EdgeInsets.all(16.0),
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  crossAxisAlignment: CrossAxisAlignment.center,
-                                  children: [
-                                    const Text(
-                                      'Select a news article to view details or create a new one',
-                                      style: TextStyle(fontSize: 18),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                    const SizedBox(height: 24),
-                                    ElevatedButton.icon(
-                                      onPressed: () {
-                                        setState(() {
-                                          _isEditing = true;
-                                          _titleController.clear();
-                                          _contentController.clear();
-                                          _videoUrlController.clear();
-                                          _selectedImages.clear();
-                                          _selectedImageNames.clear();
-                                          _imagesToKeep.clear();
-                                        });
-                                      },
-                                      icon: const Icon(Icons.add),
-                                      label: const Text('Create New News'),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Theme.of(context).primaryColor,
-                                        foregroundColor: Colors.white,
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 24,
-                                          vertical: 12,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
+                          : Text(_selectedNews == null ? 'Dodaj vijest' : 'Spremi izmjene'),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
+          ),
+        ],
+      ),
     );
   }
 }

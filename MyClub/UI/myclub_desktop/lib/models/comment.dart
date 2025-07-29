@@ -1,8 +1,3 @@
-import 'package:myclub_desktop/models/category.dart';
-import 'package:myclub_desktop/models/color.dart' as model;
-import 'package:myclub_desktop/models/asset.dart';
-import 'package:myclub_desktop/models/product_size.dart';
-
 class Comment {
   final int? id;
   final String? content;

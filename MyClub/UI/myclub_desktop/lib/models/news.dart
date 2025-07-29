@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:myclub_desktop/models/asset.dart';
 import 'package:myclub_desktop/models/comment.dart';
 
