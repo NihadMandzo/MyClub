@@ -91,7 +91,7 @@ class NavbarLayout extends StatelessWidget {
                   );
                 } else if (value == 'settings') {
                   if (onNavSelected != null) {
-                    onNavSelected!(9); // 9 is the index for Settings in the screens list
+                    onNavSelected!(8); // 8 is the index for Settings in the screens list
                   }
                 }
               },
