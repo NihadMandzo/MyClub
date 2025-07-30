@@ -1,11 +1,9 @@
 import 'dart:io';
-import 'dart:typed_data';
-
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:myclub_desktop/models/club.dart';
 import 'package:myclub_desktop/providers/club_provider.dart';
+import 'package:myclub_desktop/utilities/notification_utility.dart';
 import 'package:provider/provider.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -79,9 +77,7 @@ class _SettingsContentState extends State<_SettingsContent> {
         }
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error loading club information: $e')),
-      );
+      NotificationUtility.showError(context, message: 'Greška prilikom učitavanja informacija o klubu: $e');
     } finally {
       setState(() {
         _isLoading = false;
@@ -127,33 +123,15 @@ class _SettingsContentState extends State<_SettingsContent> {
           _isEditing = false;
           _selectedLogoFile = null;
         });
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Club information updated successfully')),
-        );
+
+        NotificationUtility.showSuccess(context, message: 'Informacije o klubu su uspješno ažurirane');
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error updating club information: $e')),
-      );
+      NotificationUtility.showError(context, message: 'Greška prilikom ažuriranja informacija o klubu: $e');
     } finally {
       setState(() {
         _isLoading = false;
       });
-    }
-  }
-
-  Future<Uint8List?> _loadImage(String imageUrl) async {
-    try {
-      final uri = Uri.parse(imageUrl);
-      final response = await http.get(uri);
-      
-      if (response.statusCode == 200) {
-        return response.bodyBytes;
-      }
-      return null;
-    } catch (e) {
-      return null;
     }
   }
 
@@ -171,13 +149,13 @@ class _SettingsContentState extends State<_SettingsContent> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Text(
-              'No club information available',
+              'Nema dostupnih informacija o klubu',
               style: TextStyle(fontSize: 18),
             ),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: _loadClub,
-              child: const Text('Retry'),
+              child: const Text('Pokušaj ponovo'),
             ),
           ],
         ),
@@ -200,43 +178,64 @@ class _SettingsContentState extends State<_SettingsContent> {
                 children: [
                   // Logo on the left
                   if (_club!.imageUrl != null && _club!.imageUrl!.isNotEmpty)
-                    FutureBuilder<Uint8List?>(
-                      future: _loadImage(_club!.imageUrl!),
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState == ConnectionState.waiting) {
-                          return const SizedBox(
-                            width: 180,
-                            height: 180,
-                            child: Center(child: CircularProgressIndicator()),
-                          );
-                        }
-                        
-                        if (snapshot.hasError || !snapshot.hasData || snapshot.data == null) {
-                          return Container(
-                            width: 180,
-                            height: 180,
-                            decoration: BoxDecoration(
-                              color: Colors.grey[300],
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: const Icon(
-                              Icons.image_not_supported,
-                              size: 80,
-                              color: Colors.grey,
-                            ),
-                          );
-                        }
-                        
-                        return ClipRRect(
-                          borderRadius: BorderRadius.circular(16),
-                          child: Image.memory(
-                            snapshot.data!,
-                            width: 180,
-                            height: 180,
-                            fit: BoxFit.cover,
+                    Container(
+                      width: 180,
+                      height: 180,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.2),
+                            spreadRadius: 1,
+                            blurRadius: 3,
+                            offset: const Offset(0, 2),
                           ),
-                        );
-                      },
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Image.network(
+                          _club!.imageUrl!,
+                          width: 180,
+                          height: 180,
+                          fit: BoxFit.cover,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return Container(
+                              width: 180,
+                              height: 180,
+                              decoration: BoxDecoration(
+                                color: Colors.grey[200],
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Center(
+                                child: CircularProgressIndicator(
+                                  value: loadingProgress.expectedTotalBytes != null
+                                      ? loadingProgress.cumulativeBytesLoaded / 
+                                          loadingProgress.expectedTotalBytes!
+                                      : null,
+                                ),
+                              ),
+                            );
+                          },
+                          errorBuilder: (context, error, stackTrace) {
+                            print('Error rendering image: $error');
+                            return Container(
+                              width: 180,
+                              height: 180,
+                              decoration: BoxDecoration(
+                                color: Colors.grey[200],
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: const Icon(
+                                Icons.broken_image,
+                                size: 80,
+                                color: Colors.grey,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
                     )
                   else
                     Container(
@@ -295,7 +294,7 @@ class _SettingsContentState extends State<_SettingsContent> {
                 _isEditing = true;
               });
             },
-            tooltip: 'Edit Club Information',
+            tooltip: 'Uredi informacije o klubu',
           ),
         ),
       ],
@@ -312,7 +311,7 @@ class _SettingsContentState extends State<_SettingsContent> {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               const Text(
-                'Edit Club Information',
+                'Uredi informacije o klubu',
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -333,20 +332,59 @@ class _SettingsContentState extends State<_SettingsContent> {
                               image: FileImage(_selectedLogoFile!),
                               fit: BoxFit.cover,
                             )
-                          : _club!.imageUrl != null && _club!.imageUrl!.isNotEmpty
-                              ? DecorationImage(
-                                  image: NetworkImage(_club!.imageUrl!),
-                                  fit: BoxFit.cover,
-                                )
-                              : null,
+                          : null,
                     ),
-                    child: _selectedLogoFile == null &&
-                            (_club!.imageUrl == null || _club!.imageUrl!.isEmpty)
-                        ? const Icon(
-                            Icons.image,
-                            size: 80,
-                            color: Colors.grey,
-                          )
+                    child: _selectedLogoFile == null
+                        ? _club!.imageUrl != null && _club!.imageUrl!.isNotEmpty
+                            ? ClipRRect(
+                                borderRadius: BorderRadius.circular(16),
+                                child: Image.network(
+                                  _club!.imageUrl!,
+                                  width: 200,
+                                  height: 200,
+                                  fit: BoxFit.cover,
+                                  loadingBuilder: (context, child, loadingProgress) {
+                                    if (loadingProgress == null) return child;
+                                    return Container(
+                                      width: 200,
+                                      height: 200,
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey[200],
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
+                                      child: Center(
+                                        child: CircularProgressIndicator(
+                                          value: loadingProgress.expectedTotalBytes != null
+                                              ? loadingProgress.cumulativeBytesLoaded / 
+                                                  loadingProgress.expectedTotalBytes!
+                                              : null,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  errorBuilder: (context, error, stackTrace) {
+                                    print('Error rendering image in edit form: $error');
+                                    return Container(
+                                      width: 200,
+                                      height: 200,
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey[200],
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
+                                      child: const Icon(
+                                        Icons.broken_image,
+                                        size: 80,
+                                        color: Colors.grey,
+                                      ),
+                                    );
+                                  },
+                                ),
+                              )
+                            : const Icon(
+                                Icons.image,
+                                size: 80,
+                                color: Colors.grey,
+                              )
                         : null,
                   ),
                   Positioned(
@@ -369,12 +407,12 @@ class _SettingsContentState extends State<_SettingsContent> {
               TextFormField(
                 controller: _nameController,
                 decoration: const InputDecoration(
-                  labelText: 'Club Name',
+                  labelText: 'Naziv kluba',
                   border: OutlineInputBorder(),
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Please enter the club name';
+                    return 'Molimo unesite naziv kluba';
                   }
                   return null;
                 },
@@ -383,14 +421,14 @@ class _SettingsContentState extends State<_SettingsContent> {
               TextFormField(
                 controller: _descriptionController,
                 decoration: const InputDecoration(
-                  labelText: 'Club Description',
+                  labelText: 'Opis kluba',
                   border: OutlineInputBorder(),
                   alignLabelWithHint: true,
                 ),
                 maxLines: 5,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Please enter the club description';
+                    return 'Molimo unesite opis kluba';
                   }
                   return null;
                 },
@@ -411,7 +449,7 @@ class _SettingsContentState extends State<_SettingsContent> {
                       });
                     },
                     icon: const Icon(Icons.cancel),
-                    label: const Text('Cancel'),
+                    label: const Text('Otkaži'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.grey,
                     ),
@@ -419,7 +457,7 @@ class _SettingsContentState extends State<_SettingsContent> {
                   ElevatedButton.icon(
                     onPressed: _saveClub,
                     icon: const Icon(Icons.save),
-                    label: const Text('Save Changes'),
+                    label: const Text('Spremi promjene'),
                   ),
                 ],
               ),
