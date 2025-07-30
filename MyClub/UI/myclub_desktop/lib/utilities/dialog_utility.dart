@@ -9,8 +9,8 @@ class DialogUtility {
     BuildContext context, {
     required String title,
     required String message,
-    String confirmLabel = 'Confirm',
-    String cancelLabel = 'Cancel',
+    String confirmLabel = 'Potvrdi',
+    String cancelLabel = 'Otkaži',
     Color? confirmColor,
   }) async {
     final result = await showDialog<bool>(
@@ -54,67 +54,13 @@ class DialogUtility {
       context,
       title: title,
       message: message,
-      confirmLabel: 'Delete',
+      confirmLabel: 'Izbriši',
       confirmColor: Colors.red,
     );
   }
 
-  /// Shows an alert dialog with customizable title and message.
-  static Future<void> showAlert(
-    BuildContext context, {
-    required String title,
-    required String message,
-    String buttonLabel = 'OK',
-  }) async {
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: true,
-      barrierColor: Colors.black54,
-      useRootNavigator: false, // Use false to keep current context active
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          title: Text(title),
-          content: Text(message),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: Text(buttonLabel),
-            ),
-          ],
-        );
-      },
-    );
-  }
 
-  /// Shows an error dialog with a red title.
-  static Future<void> showError(
-    BuildContext context, {
-    String title = 'Error',
-    required String message,
-    String buttonLabel = 'OK',
-  }) async {
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: true,
-      barrierColor: Colors.black54,
-      useRootNavigator: false, // Use false to keep current context active
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          title: Text(
-            title,
-            style: const TextStyle(color: Colors.red),
-          ),
-          content: Text(message),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: Text(buttonLabel),
-            ),
-          ],
-        );
-      },
-    );
-  }
+
   
   /// Shows a custom dialog with custom content and actions.
   /// This is useful for more complex dialogs like file pickers.

@@ -47,6 +47,7 @@ class _NewsContentState extends State<_NewsContent> {
   List<List<int>> _selectedImagesBytes = [];
   List<String> _selectedImageNames = [];
   List<int> _imagesToKeep = [];
+  bool _showValidationErrors = false;
 
   // Form fields
   final TextEditingController _titleController = TextEditingController();
@@ -56,7 +57,7 @@ class _NewsContentState extends State<_NewsContent> {
   // Search fields
   BaseSearchObject _searchObject = BaseSearchObject(
     page: 0,
-    pageSize: 10,
+    pageSize: 4,
   );
 
   @override
@@ -227,8 +228,14 @@ class _NewsContentState extends State<_NewsContent> {
       child: ElevatedButton(
         onPressed: isCurrentPage ? null : () => _changePage(page),
         style: ElevatedButton.styleFrom(
-          backgroundColor: isCurrentPage ? Theme.of(context).primaryColor : null,
-          foregroundColor: isCurrentPage ? Colors.white : null,
+          backgroundColor: isCurrentPage ? Colors.blue.shade700 : Colors.blue.shade200,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          minimumSize: const Size(40, 40),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(4),
+          ),
+          disabledBackgroundColor: Colors.blue.shade700,
         ),
         child: Text('${page + 1}'),
       ),
@@ -258,7 +265,7 @@ class _NewsContentState extends State<_NewsContent> {
       _selectedImagesBytes = [];
       _selectedImageNames = [];
 
-      // Populate image IDs to keep for editing
+      // Initialize _imagesToKeep with all image IDs from the news
       _imagesToKeep = [];
       if (detailedNews.images.isNotEmpty) {
         for (var image in detailedNews.images) {
@@ -270,6 +277,9 @@ class _NewsContentState extends State<_NewsContent> {
       
       // Make sure we have the selected news with all its images
       _selectedNews = detailedNews;
+      
+      // Reset validation state
+      _showValidationErrors = false;
       
       print("News images loaded: ${_selectedNews?.images.length ?? 0}");
       print("Image IDs to keep: $_imagesToKeep");
@@ -305,6 +315,9 @@ class _NewsContentState extends State<_NewsContent> {
       _selectedImagesBytes = [];
       _selectedImageNames = [];
       _imagesToKeep = [];
+      
+      // Reset validation state
+      _showValidationErrors = false;
     });
     
     // Rebuild the UI to ensure all validators are refreshed
@@ -471,6 +484,9 @@ class _NewsContentState extends State<_NewsContent> {
     
     // If there are validation errors, show them all at once
     if (validationErrors.isNotEmpty) {
+      setState(() {
+        _showValidationErrors = true;
+      });
       NotificationUtility.showError(
         context,
         message: validationErrors.join('\n'),
@@ -480,10 +496,28 @@ class _NewsContentState extends State<_NewsContent> {
     
     // If form validation failed but we didn't catch specific errors above
     if (!isFormValid) {
+      setState(() {
+        _showValidationErrors = true;
+      });
       NotificationUtility.showError(
         context,
         message: 'Molimo provjerite unesene podatke i pokušajte ponovo.',
       );
+      return;
+    }
+    
+    // Show confirmation dialog before saving
+    final bool confirmSave = await DialogUtility.showConfirmation(
+      context,
+      title: _selectedNews == null ? 'Potvrdi dodavanje' : 'Potvrdi izmjene',
+      message: _selectedNews == null 
+          ? 'Da li ste sigurni da želite dodati novu vijest?' 
+          : 'Da li ste sigurni da želite sačuvati izmjene vijesti?',
+      confirmLabel: 'Da',
+      cancelLabel: 'Ne',
+    );
+    
+    if (!confirmSave) {
       return;
     }
 
@@ -575,6 +609,15 @@ class _NewsContentState extends State<_NewsContent> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Text(
+                    'Vijesti',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue.shade700,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                   // Search and filter row
                   Row(
                     children: [
@@ -582,21 +625,42 @@ class _NewsContentState extends State<_NewsContent> {
                         child: TextField(
                           controller: _searchController,
                           decoration: InputDecoration(
-                            labelText: 'Pretraži vijesti',
-                            suffixIcon: IconButton(
-                              icon: const Icon(Icons.search),
-                              onPressed: _search,
+                            hintText: 'Pretraži vijesti...',
+                            prefixIcon: Icon(
+                              Icons.search,
+                              color: Colors.blue.shade600,
                             ),
-                            border: OutlineInputBorder(),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(
+                                color: Colors.blue.shade300,
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(
+                                color: Colors.blue.shade600,
+                                width: 2,
+                              ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(
+                                color: Colors.blue.shade300,
+                              ),
+                            ),
                           ),
                           onSubmitted: (_) => _search(),
                         ),
                       ),
-                      const SizedBox(width: 16),
-                      ElevatedButton.icon(
-                        onPressed: _clearForm,
-                        icon: const Icon(Icons.add),
-                        label: const Text('Nova vijest'),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: _search,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          foregroundColor: Colors.white,
+                        ),
+                        child: const Text('Pretraži'),
                       ),
                     ],
                   ),
@@ -683,31 +747,71 @@ class _NewsContentState extends State<_NewsContent> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          IconButton(
-                            icon: const Icon(Icons.arrow_back),
+                          // Page size selector
+                          const Text('Stavki po stranici: '),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 0,
+                            ),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.blue.shade200),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: DropdownButton<int>(
+                              value: _searchObject.pageSize,
+                              underline: const SizedBox(),
+                              items: [4, 6, 8,10]
+                                  .map(
+                                    (pageSize) => DropdownMenuItem<int>(
+                                      value: pageSize,
+                                      child: Text(pageSize.toString()),
+                                    ),
+                                  )
+                                  .toList(),
+                              onChanged: _changePageSize,
+                              style: const TextStyle(color: Colors.blue),
+                            ),
+                          ),
+                          const SizedBox(width: 24),
+
+                          // Previous button
+                          ElevatedButton(
                             onPressed: (_searchObject.page ?? 0) > 0
                                 ? () => _changePage((_searchObject.page ?? 0) - 1)
                                 : null,
-                          ),
-                          const SizedBox(width: 8),
-                          DropdownButton<int>(
-                            value: _searchObject.pageSize,
-                            items: [10, 20, 50].map((size) {
-                              return DropdownMenuItem<int>(
-                                value: size,
-                                child: Text('$size po stranici'),
-                              );
-                            }).toList(),
-                            onChanged: _changePageSize,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              disabledBackgroundColor: Colors.blue.shade100,
+                            ),
+                            child: const Text('Prethodni'),
                           ),
                           const SizedBox(width: 16),
+
+                          // Page numbers
                           ..._buildPageNumbers(),
-                          const SizedBox(width: 8),
-                          IconButton(
-                            icon: const Icon(Icons.arrow_forward),
+
+                          const SizedBox(width: 16),
+
+                          // Next button
+                          ElevatedButton(
                             onPressed: (_searchObject.page ?? 0) < (_result!.totalPages - 1)
                                 ? () => _changePage((_searchObject.page ?? 0) + 1)
                                 : null,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              disabledBackgroundColor: Colors.blue.shade100,
+                            ),
+                            child: const Text('Sljedeći'),
                           ),
                         ],
                       ),
@@ -722,8 +826,8 @@ class _NewsContentState extends State<_NewsContent> {
             flex: 2,
             child: Container(
               decoration: BoxDecoration(
-                border: Border.symmetric(
-                  vertical: BorderSide(color: Colors.grey.shade300),
+                border: Border(
+                  left: BorderSide(color: Colors.grey.shade300),
                 ),
               ),
               child: Padding(
@@ -789,56 +893,365 @@ class _NewsContentState extends State<_NewsContent> {
           // Right side - News form
           Expanded(
             flex: 3,
-            child: Padding(
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.grey.shade200,
+                border: Border.all(color: Colors.blue.shade600, width: 2.0),
+                borderRadius: BorderRadius.circular(8.0),
+              ),
               padding: const EdgeInsets.all(16.0),
               child: Form(
                 key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _selectedNews == null ? 'Dodaj novu vijest' : 'Uredi vijest',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 16),
-                    
-                    // Title field
-                    TextFormField(
-                      controller: _titleController,
-                      decoration: const InputDecoration(
-                        labelText: 'Naslov*',
-                        border: OutlineInputBorder(),
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Title
+                      Text(
+                        _selectedNews == null ? 'Dodaj novu vijest' : 'Uredi vijest',
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Naslov je obavezan';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    
-                    // Video URL field (optional)
-                    TextFormField(
-                      controller: _videoUrlController,
-                      decoration: const InputDecoration(
-                        labelText: 'Video URL (opcionalno)',
-                        border: OutlineInputBorder(),
+                      const SizedBox(height: 16),
+
+                      // First row - Image upload (full width)
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Slike vijesti',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              // Add new images button
+                              ElevatedButton.icon(
+                                icon: const Icon(Icons.add_photo_alternate, size: 16),
+                                label: const Text('Dodaj nove slike'),
+                                onPressed: _pickImages,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.blue,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          
+                          // Show existing images if editing
+                          if (_selectedNews != null && _selectedNews!.images.isNotEmpty)
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: const [
+                                    Icon(Icons.photo_library, size: 18, color: Colors.grey),
+                                    SizedBox(width: 4),
+                                    Text(
+                                      'Postojeće slike vijesti',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                // Show existing images
+                                Container(
+                                  height: 120,
+                                  margin: const EdgeInsets.only(bottom: 8),
+                                  child: _selectedNews!.images
+                                      .where((image) => image.id == null || _imagesToKeep.contains(image.id))
+                                      .isEmpty
+                                      ? Container(
+                                          height: 120,
+                                          width: double.infinity,
+                                          decoration: BoxDecoration(
+                                            border: Border.all(color: Colors.grey),
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: const Center(
+                                            child: Text('Nema slika za prikaz'),
+                                          ),
+                                        )
+                                      : ListView.builder(
+                                          scrollDirection: Axis.horizontal,
+                                          itemCount: _selectedNews!.images
+                                              .where((image) => image.id == null || _imagesToKeep.contains(image.id))
+                                              .length,
+                                          itemBuilder: (context, index) {
+                                            final image = _selectedNews!.images
+                                                .where((image) => image.id == null || _imagesToKeep.contains(image.id))
+                                                .toList()[index];
+                                      
+                                      return Padding(
+                                        padding: const EdgeInsets.only(right: 8.0),
+                                        child: Stack(
+                                          children: [
+                                            Container(
+                                              height: 120,
+                                              width: 120,
+                                              decoration: BoxDecoration(
+                                                border: Border.all(
+                                                  color: Colors.grey.shade400,
+                                                  width: 1,
+                                                ),
+                                                borderRadius: BorderRadius.circular(8),
+                                              ),
+                                              child: image.imageUrl != null
+                                                ? Image.network(
+                                                    image.imageUrl!,
+                                                    fit: BoxFit.cover,
+                                                    errorBuilder: (context, error, stackTrace) {
+                                                      return const Center(
+                                                        child: Icon(Icons.broken_image, color: Colors.grey, size: 40),
+                                                      );
+                                                    },
+                                                  )
+                                                : const Center(
+                                                    child: Icon(Icons.image_not_supported),
+                                                  ),
+                                            ),
+                                            Positioned(
+                                              top: 5,
+                                              right: 5,
+                                              child: InkWell(
+                                                onTap: () {
+                                                  // Check if this would remove the last image
+                                                  final bool isLastImage = 
+                                                      _selectedNews!.images.length == 1 && 
+                                                      _selectedImagesBytes.isEmpty;
+                                                      
+                                                  if (isLastImage) {
+                                                    NotificationUtility.showError(
+                                                      context, 
+                                                      message: 'Ne možete ukloniti zadnju sliku vijesti. Dodajte novu sliku prije uklanjanja postojeće.'
+                                                    );
+                                                    return;
+                                                  }
+                                                  
+                                                  if (image.id != null) {
+                                                    setState(() {
+                                                      _imagesToKeep.remove(image.id);
+                                                    });
+                                                  }
+                                                },
+                                                child: Container(
+                                                  padding: const EdgeInsets.all(4),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.red,
+                                                    shape: BoxShape.circle,
+                                                  ),
+                                                  child: const Icon(
+                                                    Icons.close,
+                                                    color: Colors.white,
+                                                    size: 14,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                              ],
+                            ),
+                          
+                          // New selected images section header
+                          if (_selectedImagesBytes.isNotEmpty)
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: const [
+                                    Icon(Icons.add_photo_alternate, size: 18, color: Colors.blue),
+                                    SizedBox(width: 4),
+                                    Text(
+                                      'Nove slike vijesti',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.blue,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                // Selected images preview
+                                Container(
+                                  height: 120,
+                                  margin: const EdgeInsets.only(bottom: 8),
+                                  child: ListView.builder(
+                                    scrollDirection: Axis.horizontal,
+                                    itemCount: _selectedImagesBytes.length,
+                                    itemBuilder: (context, index) {
+                                      return Padding(
+                                        padding: const EdgeInsets.only(right: 8.0),
+                                        child: Stack(
+                                          children: [
+                                            Container(
+                                              height: 120,
+                                              width: 120,
+                                              decoration: BoxDecoration(
+                                                border: Border.all(
+                                                  color: Colors.grey.shade400,
+                                                  width: 1,
+                                                ),
+                                                borderRadius: BorderRadius.circular(8),
+                                              ),
+                                              child: Image.memory(
+                                                Uint8List.fromList(_selectedImagesBytes[index]),
+                                                fit: BoxFit.cover,
+                                                errorBuilder: (context, error, stackTrace) {
+                                                  return const Center(
+                                                    child: Icon(Icons.broken_image, color: Colors.grey, size: 40),
+                                                  );
+                                                },
+                                              ),
+                                            ),
+                                            Positioned(
+                                              top: 5,
+                                              right: 5,
+                                              child: InkWell(
+                                                onTap: () => _removeImage(index),
+                                                child: Container(
+                                                  padding: const EdgeInsets.all(4),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.red,
+                                                    shape: BoxShape.circle,
+                                                  ),
+                                                  child: const Icon(
+                                                    Icons.close,
+                                                    color: Colors.white,
+                                                    size: 14,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+
+                          // If no images at all (neither existing nor new ones)
+                          if (_selectedImagesBytes.isEmpty && 
+                              (_selectedNews == null || 
+                               _selectedNews!.images.isEmpty ||
+                               _imagesToKeep.isEmpty))
+                            Container(
+                              height: 120,
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: _showValidationErrors ? Colors.red : Colors.grey,
+                                  width: _showValidationErrors ? 2.0 : 1.0,
+                                ),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.image,
+                                      size: 40,
+                                      color: _showValidationErrors ? Colors.red.shade300 : Colors.grey,
+                                    ),
+                                    Text(
+                                      'Nema odabranih slika',
+                                      style: TextStyle(
+                                        color: _showValidationErrors ? Colors.red.shade300 : Colors.grey,
+                                      ),
+                                    ),
+                                    if (_showValidationErrors)
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 4.0),
+                                        child: Text(
+                                          'Obavezno dodajte barem jednu sliku',
+                                          style: TextStyle(
+                                            color: Colors.red.shade300,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ),
+
+                          const Padding(
+                            padding: EdgeInsets.symmetric(
+                              vertical: 8.0,
+                            ),
+                            child: Text(
+                              'JPG, PNG, JPEG formati su podržani. Maksimalna veličina slike je 5MB.',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    
-                    // Content field
-                    Expanded(
-                      child: TextFormField(
-                        controller: _contentController,
-                        maxLines: null,
-                        expands: true,
-                        textAlignVertical: TextAlignVertical.top,
+
+                      const SizedBox(height: 16),
+
+                      // News Title field
+                      TextFormField(
+                        controller: _titleController,
                         decoration: const InputDecoration(
-                          labelText: 'Sadržaj*',
+                          labelText: 'Naslov vijesti*',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Naslov je obavezan';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      
+                      // Video URL field (optional)
+                      TextFormField(
+                        controller: _videoUrlController,
+                        decoration: const InputDecoration(
+                          labelText: 'Video URL (opcionalno)',
+                          border: OutlineInputBorder(),
+                          hintText: 'Unesite URL do YouTube ili drugog video sadržaja',
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      
+                      // Content field
+                      TextFormField(
+                        controller: _contentController,
+                        maxLines: 8,
+                        minLines: 5,
+                        decoration: const InputDecoration(
+                          labelText: 'Sadržaj vijesti*',
                           alignLabelWithHint: true,
                           border: OutlineInputBorder(),
+                          hintText: 'Unesite sadržaj vijesti',
                         ),
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
@@ -847,159 +1260,58 @@ class _NewsContentState extends State<_NewsContent> {
                           return null;
                         },
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    
-                    // Images section
-                    Text(
-                      'Slike',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 8),
-                    
-                    // Show existing images if editing
-                    if (_selectedNews != null && _selectedNews!.images.isNotEmpty)
-                      Container(
-                        height: 120,
-                        margin: const EdgeInsets.only(bottom: 8),
-                        child: ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: _selectedNews!.images.length,
-                          itemBuilder: (context, index) {
-                            final image = _selectedNews!.images[index];
-                            final shouldKeep = image.id != null && _imagesToKeep.contains(image.id);
-                            
-                            return Padding(
-                              padding: const EdgeInsets.only(right: 8),
-                              child: Stack(
-                                children: [
-                                  Container(
-                                    width: 100,
-                                    height: 100,
-                                    decoration: BoxDecoration(
-                                      border: Border.all(
-                                        color: shouldKeep ? Colors.green : Colors.red,
-                                        width: 2,
-                                      ),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: image.imageUrl != null
-                                      ? Image.network(
-                                          image.imageUrl!,
-                                          fit: BoxFit.cover,
-                                          errorBuilder: (context, error, stackTrace) {
-                                            return const Center(
-                                              child: Icon(Icons.image_not_supported),
-                                            );
-                                          },
-                                        )
-                                      : const Center(
-                                          child: Icon(Icons.image_not_supported),
-                                        ),
-                                  ),
-                                  Positioned(
-                                    top: 0,
-                                    right: 0,
-                                    child: IconButton(
-                                      icon: Icon(
-                                        shouldKeep ? Icons.check_circle : Icons.remove_circle,
-                                        color: shouldKeep ? Colors.green : Colors.red,
-                                      ),
-                                      onPressed: () {
-                                        if (image.id != null) {
-                                          setState(() {
-                                            if (shouldKeep) {
-                                              _imagesToKeep.remove(image.id);
-                                            } else {
-                                              _imagesToKeep.add(image.id!);
-                                            }
-                                          });
-                                        }
-                                      },
-                                    ),
-                                  ),
-                                ],
+                      
+                      const SizedBox(height: 24),
+                      
+                      // Form buttons
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          ElevatedButton(
+                            onPressed: _isLoading ? null : _clearForm,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.grey,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 12,
                               ),
-                            );
-                          },
-                        ),
-                      ),
-                    
-                    // Show newly selected images
-                    if (_selectedImagesBytes.isNotEmpty)
-                      Container(
-                        height: 120,
-                        margin: const EdgeInsets.only(bottom: 8),
-                        child: ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: _selectedImagesBytes.length,
-                          itemBuilder: (context, index) {
-                            return Padding(
-                              padding: const EdgeInsets.only(right: 8),
-                              child: Stack(
-                                children: [
-                                  Container(
-                                    width: 100,
-                                    height: 100,
-                                    decoration: BoxDecoration(
-                                      border: Border.all(
-                                        color: Colors.blue,
-                                        width: 2,
-                                      ),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Image.memory(
-                                      Uint8List.fromList(_selectedImagesBytes[index]),
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (context, error, stackTrace) {
-                                        return const Center(
-                                          child: Icon(Icons.image_not_supported),
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                  Positioned(
-                                    top: 0,
-                                    right: 0,
-                                    child: IconButton(
-                                      icon: const Icon(Icons.remove_circle, color: Colors.red),
-                                      onPressed: () => _removeImage(index),
-                                    ),
-                                  ),
-                                ],
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
                               ),
-                            );
-                          },
-                        ),
-                      ),
-                    
-                    // Button to add images
-                    ElevatedButton.icon(
-                      onPressed: _pickImages,
-                      icon: const Icon(Icons.add_photo_alternate),
-                      label: const Text('Dodaj slike'),
-                    ),
-                    
-                    const SizedBox(height: 16),
-                    
-                    // Submit button
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: _isLoading ? null : _saveNews,
-                        child: _isLoading
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
+                            ),
+                            child: const Text('Otkaži'),
+                          ),
+                          ElevatedButton(
+                            onPressed: _isLoading ? null : _saveNews,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 12,
                               ),
-                            )
-                          : Text(_selectedNews == null ? 'Dodaj vijest' : 'Spremi izmjene'),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: _isLoading
+                              ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : Text(
+                                  _selectedNews == null ? 'Dodaj vijest' : 'Sačuvaj izmjene',
+                                ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
