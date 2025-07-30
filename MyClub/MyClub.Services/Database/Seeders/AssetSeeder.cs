@@ -83,7 +83,7 @@ namespace MyClub.Services.Database.Seeders
                 new Asset { Id = 72, Url = "https://nihadfit.blob.core.windows.net/products/32.jpg" },
 
                 //Asset for club picture
-                new Asset { Id = 73, Url = "https://nihadfit.blob.core.windows.net/club/club.jpg" },
+                new Asset { Id = 73, Url = "https://nihadfit.blob.core.windows.net/club/club.png" },
             
                 //Asset for player picture
                 new Asset { Id = 74, Url = "https://nihadfit.blob.core.windows.net/players/soccer_player_1.png" },
