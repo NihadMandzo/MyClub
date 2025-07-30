@@ -1,22 +1,26 @@
 using System;
 using System.Linq;
-using MapsterMapper;
+using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
-using MyClub.Model.Requests;
-using MyClub.Model.Responses;
-using MyClub.Model.SearchObjects;
 using MyClub.Services.Database;
 using MyClub.Services.Interfaces;
+using MyClub.Model.Requests;
+using MyClub.Model.Responses;   
+using MyClub.Model.SearchObjects;
+using MapsterMapper;
 
 namespace MyClub.Services.Services
 {
     public class ClubService : BaseCRUDService<ClubResponse, BaseSearchObject, ClubRequest, ClubRequest, Club>, IClubService
     {
         private readonly MyClubContext _context;
+        private readonly IBlobStorageService _blobStorageService;
+        private readonly string _containerName = "club";
 
-        public ClubService(MyClubContext context, IMapper mapper) : base(context, mapper)
+        public ClubService(MyClubContext context, IMapper mapper, IBlobStorageService blobStorageService) : base(context, mapper)
         {
             _context = context;
+            _blobStorageService = blobStorageService;
         }
 
         public override async Task<ClubResponse> CreateAsync(ClubRequest request)
@@ -32,9 +36,12 @@ namespace MyClub.Services.Services
 
         public override async Task<ClubResponse> GetByIdAsync(int id)
         {
-            var entity = await _context.Clubs.FindAsync(id);
+            var entity = await _context.Clubs
+                .Include(x => x.LogoImage)
+                .FirstOrDefaultAsync(c => c.Id == id);
+                
             if (entity == null)
-                throw new Exception($"Club with id {id} not found");
+                throw new UserException($"Club with id {id} not found");
 
             return MapToResponse(entity);
         }
@@ -43,8 +50,9 @@ namespace MyClub.Services.Services
         {
             if (entity == null)
                 throw new ArgumentNullException(nameof(entity));
-
-            return _mapper.Map<ClubResponse>(entity);
+            var response = _mapper.Map<ClubResponse>(entity);
+            response.ImageUrl = entity.LogoImage?.Url;
+            return response;
         }
 
         protected override Club MapInsertToEntity(Club entity, ClubRequest request)
@@ -73,18 +81,60 @@ namespace MyClub.Services.Services
 
         protected override async Task BeforeInsert(Club entity, ClubRequest request)
         {
-            // Handle file upload logic for LogoImage here
-            await Task.CompletedTask;
+            if (request.LogoImage != null && request.LogoImage.Length > 0)
+            {
+                // Upload logo image to blob storage
+                string logoUrl = await _blobStorageService.UploadAsync(request.LogoImage, _containerName);
+
+                // Create a new Asset entity and associate it with the Club
+                var asset = new Asset
+                {
+                    Url = logoUrl
+                };
+
+                // Set the relationship
+                entity.LogoImage = asset;
+            }
         }
 
         protected override async Task BeforeUpdate(Club entity, ClubRequest request)
         {
-            // Handle file upload logic for LogoImage here
-            await Task.CompletedTask;
+            if (request.LogoImage != null && request.LogoImage.Length > 0)
+            {
+                // If there's an existing logo, delete it
+                if (entity.LogoImage != null && !string.IsNullOrEmpty(entity.LogoImage.Url))
+                {
+                    await _blobStorageService.DeleteAsync(entity.LogoImage.Url, _containerName);
+
+                    // Upload new logo image and update the existing Asset
+                    string logoUrl = await _blobStorageService.UploadAsync(request.LogoImage, _containerName);
+                    entity.LogoImage.Url = logoUrl;
+                }
+                else
+                {
+                    // Upload new logo image and create a new Asset
+                    string logoUrl = await _blobStorageService.UploadAsync(request.LogoImage, _containerName);
+
+                    // Create a new Asset entity and associate it with the Club
+                    var asset = new Asset
+                    {
+                        Url = logoUrl
+                    };
+
+                    // Set the relationship
+                    entity.LogoImage = asset;
+                }
+            }
         }
 
         protected override async Task<bool> BeforeDelete(Club entity)
         {
+            // Delete the logo image if it exists
+            if (!string.IsNullOrEmpty(entity.LogoImage?.Url))
+            {
+                await _blobStorageService.DeleteAsync(entity.LogoImage.Url, _containerName);
+            }
+
             // Check if the club has any players or matches before deletion
             if (entity.Players.Count > 0 || entity.Matches.Count > 0)
             {
@@ -95,7 +145,7 @@ namespace MyClub.Services.Services
 
         public override async Task<PagedResult<ClubResponse>> GetAsync(BaseSearchObject search)
         {
-            var query = _context.Clubs.AsQueryable();
+            var query = _context.Clubs.Include(c => c.LogoImage).AsQueryable();
 
             // Apply search filters
             query = ApplyFilter(query, search);
@@ -106,11 +156,11 @@ namespace MyClub.Services.Services
             {
                 totalCount = await query.CountAsync();
             }
-            
+
             // Apply pagination
             int pageSize = search.PageSize ?? 10;
             int currentPage = search.Page ?? 0;
-            
+
             if (!search.RetrieveAll)
             {
                 query = query.Skip(currentPage * pageSize).Take(pageSize);
@@ -138,7 +188,10 @@ namespace MyClub.Services.Services
 
         public override async Task<ClubResponse> UpdateAsync(int id, ClubRequest request)
         {
-            var entity = await _context.Clubs.FindAsync(id);
+            var entity = await _context.Clubs
+                .Include(c => c.LogoImage)
+                .FirstOrDefaultAsync(c => c.Id == id);
+                
             if (entity == null)
                 throw new Exception($"Club with id {id} not found");
 
@@ -152,7 +205,10 @@ namespace MyClub.Services.Services
 
         public override async Task<bool> DeleteAsync(int id)
         {
-            var entity = await _context.Clubs.FindAsync(id);
+            var entity = await _context.Clubs
+                .Include(c => c.LogoImage)
+                .FirstOrDefaultAsync(c => c.Id == id);
+                
             if (entity == null)
                 throw new Exception($"Club with id {id} not found");
 
