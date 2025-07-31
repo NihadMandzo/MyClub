@@ -29,7 +29,7 @@ namespace MyClub.Model.Requests
         
         public string Benefits { get; set; }
         
-        public IFormFile Image { get; set; }
+        public IFormFile? Image { get; set; }
 
         public bool? KeepImage { get; set; } = false;
         
