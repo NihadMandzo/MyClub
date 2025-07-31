@@ -1,9 +1,9 @@
 ﻿import 'package:flutter/material.dart';
+import 'package:myclub_desktop/providers/base_provider.dart';
 import 'package:myclub_desktop/utilities/membership_card_dialog.dart';
 import 'package:myclub_desktop/models/membership_card.dart';
 import 'package:myclub_desktop/providers/membership_card_provider.dart';
 import 'package:myclub_desktop/providers/auth_provider.dart';
-import 'package:myclub_desktop/utilities/dialog_utility.dart';
 import 'package:myclub_desktop/utilities/notification_utility.dart';
 import 'package:myclub_desktop/models/search_objects/membership_search_object.dart';
 import 'package:intl/intl.dart';
@@ -33,8 +33,8 @@ class _MembershipContentState extends State<_MembershipContent> {
   List<MembershipCard> _campaigns = [];
   bool _isLoading = true;
   String? _error;
-  
-  bool _includeInactive = true;
+
+  bool _includeInactive = false;
   final TextEditingController _searchController = TextEditingController();
 
   @override
@@ -78,7 +78,19 @@ class _MembershipContentState extends State<_MembershipContent> {
         fts: _searchController.text.isEmpty ? null : _searchController.text,
         includeInactive: _includeInactive,
       );
+
+      print("Search object before: ${searchObject.toJson()}");
+      print("includeInactive value: ${_includeInactive}");
+      print("includeInactive in object: ${searchObject.includeInactive}");
       
+      // Create the URL with query parameters to see what's actually being sent
+      var filter = searchObject.toJson();
+      print("Filter map: $filter");
+      var queryString = Provider.of<MembershipCardProvider>(context, listen: false)
+          .getQueryString(filter);
+      var debugUrl = "${BaseProvider.baseUrl}${provider.endpoint}?$queryString";
+      print("Debug URL: $debugUrl");
+
       final result = await provider.get(searchObject: searchObject);
       setState(() {
         _campaigns = result.data;
@@ -103,181 +115,65 @@ class _MembershipContentState extends State<_MembershipContent> {
   }
 
   Future<void> _createNewCampaign() async {
-    final result = await MembershipCardDialog.show(
-      context,
-      initialData: MembershipCardForm(
-        year: DateTime.now().year,
-        startDate: DateTime.now(),
-        isActive: true,
-      ),
-    );
-    
-    if (result != null) {
-      setState(() {
-        _isLoading = true;
-      });
-      
-      try {
-        final provider = Provider.of<MembershipCardProvider>(context, listen: false);
-        
-        // Handle image upload if present
-        if (result.containsKey('imageBytes') && result.containsKey('fileName')) {
-          await provider.insertWithImage(
-            result, 
-            result['imageBytes'], 
-            result['fileName']
-          );
-        } else {
-          await provider.insert(result);
-        }
-        
-        // Reset filters to show all campaigns including the new one
-        setState(() {
-          _searchController.clear();
-          _includeInactive = true;
-        });
-        
-        // Refresh the campaign list
-        await _loadCampaigns();
-        
-        NotificationUtility.showSuccess(
-          context,
-          message: 'Campaign created successfully',
-        );
-      } catch (e) {
-        setState(() {
-          _error = 'Failed to create campaign: ${e.toString()}';
-          _isLoading = false;
-        });
-        
-        NotificationUtility.showError(
-          context,
-          message: 'Failed to create campaign: ${e.toString()}',
-        );
-      }
-    }
-  }
-
-  Future<void> _editCampaign(MembershipCard campaign) async {
-    final result = await MembershipCardDialog.show(
-      context,
-      initialData: MembershipCardForm(
-        year: campaign.year,
-        name: campaign.name,
-        description: campaign.description,
-        targetMembers: campaign.targetMembers,
-        price: campaign.price,
-        startDate: campaign.startDate,
-        endDate: campaign.endDate,
-        benefits: campaign.benefits,
-        image: campaign.imageUrl,
-        isActive: campaign.isActive,
-      ),
-      isEdit: true,
-    );
-    
-    if (result != null) {
-      // Ask for confirmation before updating
-      final confirm = await DialogUtility.showConfirmation(
-        context, 
-        title: 'Update Campaign',
-        message: 'Are you sure you want to save changes to ${campaign.name}?',
-      );
-      
-      if (!confirm) return;
-      
-      setState(() {
-        _isLoading = true;
-      });
-      
-      try {
-        final provider = Provider.of<MembershipCardProvider>(context, listen: false);
-        
-        // Handle image upload if present
-        if (result.containsKey('imageBytes') && result.containsKey('fileName')) {
-          await provider.updateWithImage(
-            campaign.id,
-            result, 
-            result['imageBytes'], 
-            result['fileName']
-          );
-        } else {
-          await provider.update(campaign.id, result);
-        }
-        
-        // Refresh the campaign list with current filters
-        await _loadCampaigns();
-        
-        NotificationUtility.showSuccess(
-          context,
-          message: 'Campaign updated successfully',
-        );
-      } catch (e) {
-        setState(() {
-          _error = 'Failed to update campaign: ${e.toString()}';
-          _isLoading = false;
-        });
-        
-        NotificationUtility.showError(
-          context,
-          message: 'Failed to update campaign: ${e.toString()}',
-        );
-      }
-    }
-  }
-
-  Future<void> _toggleCampaignStatus(MembershipCard campaign) async {
-    // Ask for confirmation before changing status
-    final confirm = await DialogUtility.showConfirmation(
-      context, 
-      title: campaign.isActive ? 'Deactivate Campaign' : 'Activate Campaign',
-      message: campaign.isActive 
-        ? 'Are you sure you want to deactivate ${campaign.name}?' 
-        : 'Are you sure you want to activate ${campaign.name}?',
-    );
-    
-    if (!confirm) return;
-    
     setState(() {
       _isLoading = true;
     });
     
-    try {
-      final provider = Provider.of<MembershipCardProvider>(context, listen: false);
-      final updateData = {
-        'year': campaign.year,
-        'name': campaign.name,
-        'description': campaign.description,
-        'targetMembers': campaign.targetMembers,
-        'price': campaign.price,
-        'startDate': campaign.startDate.toIso8601String(),
-        'endDate': campaign.endDate?.toIso8601String(),
-        'benefits': campaign.benefits,
-        'isActive': !campaign.isActive,
-        'keepPicture': true,
-      };
-      
-      await provider.update(campaign.id, updateData);
-      
-      // Refresh the campaign list with current filters
-      await _loadCampaigns();
-      
-      NotificationUtility.showSuccess(
-        context,
-        message: campaign.isActive 
-          ? 'Campaign has been deactivated' 
-          : 'Campaign has been activated',
-      );
-    } catch (e) {
+    final success = await MembershipCardDialog.createCampaign(context);
+    
+    if (success) {
+      // Reset filters to show all campaigns including the new one
       setState(() {
-        _error = 'Failed to update campaign status: ${e.toString()}';
-        _isLoading = false;
+        _searchController.clear();
+        _includeInactive = true; // Set to true to include inactive campaigns
       });
       
-      NotificationUtility.showError(
-        context,
-        message: 'Failed to update campaign status: ${e.toString()}',
-      );
+      // Add a small delay to ensure state is updated before loading
+      await Future.delayed(const Duration(milliseconds: 100));
+    }
+    
+    // Refresh the campaign list regardless of success/failure
+    await _loadCampaigns();
+  }
+
+  Future<void> _editCampaign(MembershipCard campaign) async {
+    setState(() {
+      _isLoading = true;
+    });
+    
+    final success = await MembershipCardDialog.editCampaign(context, campaign);
+    
+    if (success) {
+      // Refresh the campaign list
+      await _loadCampaigns();
+    } else {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+  
+  Future<void> _deleteCampaign(MembershipCard campaign) async {
+    setState(() {
+      _isLoading = true;
+    });
+    
+    final success = await MembershipCardDialog.deleteCampaign(context, campaign);
+    
+    if (success) {
+      // Clear selection if deleted item was selected
+      if (_selectedCampaign?.id == campaign.id) {
+        setState(() {
+          _selectedCampaign = null;
+        });
+      }
+      
+      // Refresh the campaign list
+      await _loadCampaigns();
+    } else {
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
@@ -322,7 +218,10 @@ class _MembershipContentState extends State<_MembershipContent> {
                             _searchController.clear();
                             _includeInactive = false;
                           });
-                          _loadCampaigns();
+                          // Add a small delay to ensure the UI updates before loading
+                          Future.delayed(const Duration(milliseconds: 100), () {
+                            _loadCampaigns();
+                          });
                         },
                         tooltip: 'Refresh',
                       ),
@@ -367,7 +266,7 @@ class _MembershipContentState extends State<_MembershipContent> {
                               dense: true,
                               onChanged: (bool? value) {
                                 setState(() {
-                                  _includeInactive = value ?? true;
+                                  _includeInactive = value ?? false;
                                   _loadCampaigns();
                                 });
                               },
@@ -428,6 +327,11 @@ class _MembershipContentState extends State<_MembershipContent> {
                                     campaign.isActive ? Icons.check : Icons.cancel_outlined,
                                     color: Colors.white,
                                   ),
+                                ),
+                                trailing: IconButton(
+                                  icon: const Icon(Icons.delete, color: Colors.red),
+                                  onPressed: () => _deleteCampaign(campaign),
+                                  tooltip: 'Delete Campaign',
                                 ),
                                 selected: isSelected,
                                 selectedTileColor: Colors.blue.withOpacity(0.1),
@@ -784,6 +688,15 @@ class _MembershipContentState extends State<_MembershipContent> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
+                            TextButton.icon(
+                              icon: const Icon(Icons.delete, color: Colors.red),
+                              label: const Text('Delete', style: TextStyle(color: Colors.red)),
+                              onPressed: () => _deleteCampaign(_selectedCampaign!),
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
                             ElevatedButton.icon(
                               icon: const Icon(Icons.edit),
                               label: const Text('Edit Campaign'),
@@ -791,16 +704,7 @@ class _MembershipContentState extends State<_MembershipContent> {
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.blue,
                                 foregroundColor: Colors.white,
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            ElevatedButton.icon(
-                              icon: Icon(_selectedCampaign!.isActive ? Icons.cancel : Icons.check_circle),
-                              label: Text(_selectedCampaign!.isActive ? 'Deactivate' : 'Activate'),
-                              onPressed: () => _toggleCampaignStatus(_selectedCampaign!),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: _selectedCampaign!.isActive ? Colors.red : Colors.green,
-                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                               ),
                             ),
                           ],

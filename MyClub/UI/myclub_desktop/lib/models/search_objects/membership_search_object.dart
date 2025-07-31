@@ -10,7 +10,7 @@ class MembershipSearchObject extends BaseSearchObject {
     int? pageSize,
     bool includeTotalCount = true,
     bool retrieveAll = false,
-    bool? includeInactive,
+    this.includeInactive = false, // Use 'this' to assign to field
   }) : super(
     page: page,
     pageSize: pageSize,
@@ -22,13 +22,8 @@ class MembershipSearchObject extends BaseSearchObject {
   @override
   Map<String, dynamic> toJson() {
     final json = super.toJson();
-    
-
-    
-    if (includeInactive != null) {
-      json['IncludeInactive'] = includeInactive;
-    }
-    
+    // Always include the parameter with its current value
+    json['IncludeInactive'] = includeInactive;
     return json;
   }
 }
