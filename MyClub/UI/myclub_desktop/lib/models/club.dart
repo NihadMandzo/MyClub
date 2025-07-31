@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 class Club {
   final int id;
   final String name;

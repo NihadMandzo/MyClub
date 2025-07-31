@@ -5,6 +5,7 @@ import 'package:myclub_desktop/providers/membership_card_provider.dart';
 import 'package:myclub_desktop/providers/auth_provider.dart';
 import 'package:myclub_desktop/utilities/dialog_utility.dart';
 import 'package:myclub_desktop/utilities/notification_utility.dart';
+import 'package:myclub_desktop/models/search_objects/membership_search_object.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
@@ -32,11 +33,20 @@ class _MembershipContentState extends State<_MembershipContent> {
   List<MembershipCard> _campaigns = [];
   bool _isLoading = true;
   String? _error;
+  
+  bool _includeInactive = true;
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _loadCampaigns();
+  }
+  
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
   
   @override
@@ -63,7 +73,13 @@ class _MembershipContentState extends State<_MembershipContent> {
       print("Loading membership campaigns...");
       print("Auth token available: ${authProvider.token != null}");
       
-      final result = await provider.get();
+      // Create search object with filters
+      final searchObject = MembershipSearchObject(
+        fts: _searchController.text.isEmpty ? null : _searchController.text,
+        includeInactive: _includeInactive,
+      );
+      
+      final result = await provider.get(searchObject: searchObject);
       setState(() {
         _campaigns = result.data;
         _isLoading = false;
@@ -114,6 +130,12 @@ class _MembershipContentState extends State<_MembershipContent> {
         } else {
           await provider.insert(result);
         }
+        
+        // Reset filters to show all campaigns including the new one
+        setState(() {
+          _searchController.clear();
+          _includeInactive = true;
+        });
         
         // Refresh the campaign list
         await _loadCampaigns();
@@ -183,7 +205,7 @@ class _MembershipContentState extends State<_MembershipContent> {
           await provider.update(campaign.id, result);
         }
         
-        // Refresh the campaign list
+        // Refresh the campaign list with current filters
         await _loadCampaigns();
         
         NotificationUtility.showSuccess(
@@ -237,7 +259,7 @@ class _MembershipContentState extends State<_MembershipContent> {
       
       await provider.update(campaign.id, updateData);
       
-      // Refresh the campaign list
+      // Refresh the campaign list with current filters
       await _loadCampaigns();
       
       NotificationUtility.showSuccess(
@@ -280,13 +302,80 @@ class _MembershipContentState extends State<_MembershipContent> {
                   padding: const EdgeInsets.all(16.0),
                   color: Colors.blue,
                   width: double.infinity,
-                  child: const Text(
-                    'Membership Campaigns',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  child: Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Membership Campaigns',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.refresh, color: Colors.white),
+                        onPressed: () {
+                          setState(() {
+                            // Reset filters
+                            _searchController.clear();
+                            _includeInactive = false;
+                          });
+                          _loadCampaigns();
+                        },
+                        tooltip: 'Refresh',
+                      ),
+                    ],
+                  ),
+                ),
+                
+                // Search and filters
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      TextField(
+                        controller: _searchController,
+                        decoration: InputDecoration(
+                          labelText: 'Search campaigns',
+                          prefixIcon: const Icon(Icons.search),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8.0),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 12.0),
+                        ),
+                        onChanged: (value) {
+                          // Debounce search
+                          Future.delayed(const Duration(milliseconds: 500), () {
+                            if (value == _searchController.text) {
+                              _loadCampaigns();
+                            }
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: CheckboxListTile(
+                              title: const Text('Include inactive', style: TextStyle(fontSize: 14)),
+                              value: _includeInactive,
+                              controlAffinity: ListTileControlAffinity.leading,
+                              contentPadding: EdgeInsets.zero,
+                              dense: true,
+                              onChanged: (bool? value) {
+                                setState(() {
+                                  _includeInactive = value ?? true;
+                                  _loadCampaigns();
+                                });
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
                 
@@ -304,7 +393,14 @@ class _MembershipContentState extends State<_MembershipContent> {
                               Text(_error!, textAlign: TextAlign.center),
                               const SizedBox(height: 16),
                               ElevatedButton(
-                                onPressed: _loadCampaigns,
+                                onPressed: () {
+                                  setState(() {
+                                    // Reset filters
+                                    _searchController.clear();
+                                    _includeInactive = false;
+                                  });
+                                  _loadCampaigns();
+                                },
                                 child: const Text('Retry'),
                               ),
                             ],
@@ -717,5 +813,4 @@ class _MembershipContentState extends State<_MembershipContent> {
       ),
     );
   }
-
 }

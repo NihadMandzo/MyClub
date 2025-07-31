@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 class MembershipCard {
   final int id;
   final int year;
