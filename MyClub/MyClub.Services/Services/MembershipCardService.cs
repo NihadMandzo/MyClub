@@ -41,10 +41,10 @@ namespace MyClub.Services.Services
             {
                 query = query.Where(x => x.Name.Contains(search.NameFTS));
             }
-            if (search.IncludeInactive.HasValue && search.IncludeInactive.Value)
+            if (!search.IncludeInactive)
             {
                 // If IncludeInactive is true, return all membership cards regardless of their active status
-                query = query.Where(x => x.IsActive || !x.IsActive);
+                query = query.Where(x => x.IsActive);
             }
             return query.OrderByDescending(x => x.Year);
         }
@@ -197,8 +197,12 @@ namespace MyClub.Services.Services
                 entity = MapUpdateToEntity(entity, request);
                 await BeforeUpdate(entity, request);
 
-                // Handle image upload if provided
-                if (request.Image != null && request.Image.Length > 0)
+                // Handle image based on KeepImage flag and provided Image
+                if (request.KeepImage == true)
+                {
+                    // Keep the existing image, do nothing with images
+                }
+                else if (request.Image != null && request.Image.Length > 0)
                 {
                     try
                     {
@@ -242,6 +246,27 @@ namespace MyClub.Services.Services
                     {
                         // Log error and continue without updating the image
                         // In a real app, you would add proper error handling and logging
+                    }
+                }
+                else if (request.KeepImage == false)
+                {
+                    // User explicitly wants to remove the image without providing a new one
+                    if (entity.ImageId.HasValue)
+                    {
+                        var asset = await _context.Assets.FindAsync(entity.ImageId.Value);
+                        if (asset != null)
+                        {
+                            // Delete the image from blob storage
+                            await _blobStorageService.DeleteAsync(asset.Url, _containerName);
+                            
+                            // Remove the asset
+                            _context.Assets.Remove(asset);
+                            
+                            // Clear the relationship
+                            entity.ImageId = null;
+                            entity.Image = null;
+                            await _context.SaveChangesAsync();
+                        }
                     }
                 }
 
@@ -297,7 +322,13 @@ namespace MyClub.Services.Services
                 // Check if there are any user memberships
                 if (entity.UserMemberships.Any())
                 {
-                    throw new Exception("Cannot delete membership card with existing user memberships");
+                    // Instead of deleting, just inactivate the campaign
+                    entity.IsActive = false;
+                    await _context.SaveChangesAsync();
+                    await transaction.CommitAsync();
+                    
+                    // Return the inactivated entity as a response
+                    return true;
                 }
 
                 // Delete the image from blob storage if exists
