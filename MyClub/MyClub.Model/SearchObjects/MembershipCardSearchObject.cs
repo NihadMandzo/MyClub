@@ -6,7 +6,6 @@ namespace MyClub.Model.SearchObjects
     {
         public int? Year { get; set; }
         public string? NameFTS { get; set; }
-        public bool? IsActive { get; set; }
         public bool IncludeInactive { get; set; } = false;
     }
 } 

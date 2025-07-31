@@ -16,12 +16,12 @@ public static class UserMembershipSeeder
         for (int i = 1; i <= 50; i++)
         {
             int userId = random.Next(1, 4); // User IDs from your UserSeeder
-            int membershipCardId = random.Next(1, 51); // MembershipCard IDs from MembershipCardSeeder
+            int membershipCardId = random.Next(1, 5); // MembershipCard IDs from MembershipCardSeeder
             int paymentId = i; // Payment IDs from PaymentSeeder
             
             var joinDate = DateTime.Now.AddDays(-random.Next(1, 365));
             bool isRenewal = random.Next(0, 10) < 3; // 30% are renewals
-            int? previousMembershipId = isRenewal ? random.Next(1, i) : null;
+            int? previousMembershipId = isRenewal ? random.Next(1, 5) : null;
             
             bool physicalCardRequested = random.Next(0, 10) < 7; // 70% want physical cards
             int? shippingDetailsId = physicalCardRequested ? random.Next(1, 20) : null;

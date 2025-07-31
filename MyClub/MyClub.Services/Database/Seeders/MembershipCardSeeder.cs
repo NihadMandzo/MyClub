@@ -9,8 +9,8 @@ public static class MembershipCardSeeder
     {
         var random = new Random(200);
         var membershipCards = new List<MembershipCard>();
-        
-        string[] cardTypes = { "Standard", "Srebrena", "Zlatna", "Platinum", "Dijamant" };
+
+        string[] cardTypes = { "Standard", "Srebrena", "Zlatna", "Platinum" };
         string[] benefitsList = {
             "Dzaba ulaz na domaće utakmice, 10% popusta u klupskom dućanu",
             "Dzaba ulaz na domaće utakmicehes, 15% popusta u klupskom dućanu, prioritetna kupovina karata",
@@ -19,21 +19,20 @@ public static class MembershipCardSeeder
             "Puni pristup svim događanjima, 30% popusta u klupskom dućanu, osobni susret s igračem"
         };
 
-        for (int i = 1; i <= 50; i++)
+        for (int i = 1; i <= 4; i++)
         {
-            int year = 2020 + random.Next(0, 6); // Years from 2020 to 2025
+            int year = 2020 + i; // Years from 2021 to 2025
             int targetMembers = random.Next(500, 5001);
             int totalMembers = random.Next(0, targetMembers + 1);
-            
+
             var cardName = $"{cardTypes[random.Next(0, cardTypes.Length)]} Članstvo {year}";
             var price = Math.Round((decimal)(random.Next(50, 501)), 2);
-            
+
             var startDate = new DateTime(year, 1, 1);
             var endDate = new DateTime(year, 12, 31);
-            
-            // Image IDs start from around 73 based on your context
-            var imageId = 73 + random.Next(0, 10);
-            
+
+            var imageId = 98 + i; // Assuming images are seeded from ID 99 onwards
+
             membershipCards.Add(new MembershipCard
             {
                 Id = i,
@@ -50,7 +49,6 @@ public static class MembershipCardSeeder
                 IsActive = year >= DateTime.Now.Year
             });
         }
-
         entity.HasData(membershipCards);
     }
 }

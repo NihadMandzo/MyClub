@@ -110,8 +110,13 @@ namespace MyClub.Services.Database.Seeders
                 new Asset { Id = 95, Url = "https://nihadfit.blob.core.windows.net/players/soccer_player_22.png" },
                 new Asset { Id = 96, Url = "https://nihadfit.blob.core.windows.net/players/soccer_player_23.png" },
                 new Asset { Id = 97, Url = "https://nihadfit.blob.core.windows.net/players/soccer_player_24.png" },
-                new Asset { Id = 98, Url = "https://nihadfit.blob.core.windows.net/players/soccer_player_25.png" }
+                new Asset { Id = 98, Url = "https://nihadfit.blob.core.windows.net/players/soccer_player_25.png" },
 
+                //Asset for Membership Cards
+                new Asset { Id = 99, Url = "https://nihadfit.blob.core.windows.net/membership_cards/1.png" },
+                new Asset { Id = 100, Url = "https://nihadfit.blob.core.windows.net/membership_cards/2.png" },
+                new Asset { Id = 101, Url = "https://nihadfit.blob.core.windows.net/membership_cards/3.png" },
+                new Asset { Id = 102, Url = "https://nihadfit.blob.core.windows.net/membership_cards/4.png" }
                 
             );
         }

@@ -41,17 +41,11 @@ namespace MyClub.Services.Services
             {
                 query = query.Where(x => x.Name.Contains(search.NameFTS));
             }
-
-            if (search.IsActive.HasValue)
+            if (search.IncludeInactive.HasValue && search.IncludeInactive.Value)
             {
-                query = query.Where(x => x.IsActive == search.IsActive.Value);
+                // If IncludeInactive is true, return all membership cards regardless of their active status
+                query = query.Where(x => x.IsActive || !x.IsActive);
             }
-            else if (!search.IncludeInactive)
-            {
-                // By default, only return active membership cards
-                query = query.Where(x => x.IsActive);
-            }
-
             return query.OrderByDescending(x => x.Year);
         }
 
