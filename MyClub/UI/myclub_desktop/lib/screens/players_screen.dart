@@ -33,7 +33,7 @@ class _PlayersContent extends StatefulWidget {
 class _PlayersContentState extends State<_PlayersContent> {
   late PlayerProvider _playerProvider;
   final TextEditingController _searchController = TextEditingController();
-  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   
   Player? _selectedPlayer;
   PagedResult<Player>? _result;
@@ -257,26 +257,43 @@ class _PlayersContentState extends State<_PlayersContent> {
   }
 
   void _clearForm() {
+    // Clear state variables first
     setState(() {
       _selectedPlayer = null;
-      _firstNameController.clear();
-      _lastNameController.clear();
-      _numberController.clear();
-      _positionController.clear();
-      _nationalityController.clear();
-      _heightController.clear();
-      _weightController.clear();
-      _biographyController.clear();
       _selectedDate = null;
       _selectedImageBytes = null;
       _selectedImageName = null;
-      _keepPicture = true; // Reset to default
+      _keepPicture = true;
     });
     
-    // Reset form validation state
-    if (_formKey.currentState != null) {
-      _formKey.currentState!.reset();
-    }
+    // Force recreate the form key to completely rebuild the form
+    _formKey = GlobalKey<FormState>();
+    
+    // Clear controllers aggressively with multiple methods
+    _firstNameController.clear();
+    _lastNameController.clear();
+    _numberController.clear();
+    _positionController.clear();
+    _nationalityController.clear();
+    _heightController.clear();
+    _weightController.clear();
+    _biographyController.clear();
+    
+    _firstNameController.value = const TextEditingValue(text: '');
+    _lastNameController.value = const TextEditingValue(text: '');
+    _numberController.value = const TextEditingValue(text: '');
+    _positionController.value = const TextEditingValue(text: '');
+    _nationalityController.value = const TextEditingValue(text: '');
+    _heightController.value = const TextEditingValue(text: '');
+    _weightController.value = const TextEditingValue(text: '');
+    _biographyController.value = const TextEditingValue(text: '');
+    
+    // Force multiple rebuilds to ensure everything is cleared
+    setState(() {});
+    
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      setState(() {});
+    });
   }
   
   // Add delete player functionality

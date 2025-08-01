@@ -5,14 +5,16 @@ class Match {
   DateTime? matchDate;
   String? opponentName;
   String? status;
-  String? clubId;
+  int? clubId;
   String? clubName;
   String? location;
   String? description;
   MatchTicket? ticket;
+  MatchResult? result;
 
   Match({this.id, this.matchDate, this.opponentName, this.status,
-  this.clubId, this.clubName, this.location, this.description, this.ticket});
+  this.clubId, this.clubName, this.location, this.description, 
+  this.ticket, this.result});
 
   factory Match.fromJson(Map<String, dynamic> json) {
     return Match(
@@ -24,6 +26,8 @@ class Match {
       clubName: json['clubName'],
       location: json['location'],
       description: json['description'],
+      ticket: json['ticket'] != null ? MatchTicket.fromJson(json['ticket']) : null,
+      result: json['result'] != null ? MatchResult.fromJson(json['result']) : null,
     );
   }
 
@@ -37,6 +41,28 @@ class Match {
       'clubName': clubName,
       'location': location,
       'description': description,
+      'result': result?.toJson(),
+    };
+  }
+}
+
+class MatchResult {
+  int? homeGoals;
+  int? awayGoals;
+
+  MatchResult({this.homeGoals, this.awayGoals});
+
+  factory MatchResult.fromJson(Map<String, dynamic> json) {
+    return MatchResult(
+      homeGoals: json['homeGoals'],
+      awayGoals: json['awayGoals'],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'homeGoals': homeGoals,
+      'awayGoals': awayGoals,
     };
   }
 }
