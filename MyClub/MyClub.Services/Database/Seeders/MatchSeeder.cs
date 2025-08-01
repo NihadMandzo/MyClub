@@ -23,7 +23,7 @@ public static class MatchSeeder
             "Pecara, Široki Brijeg", "Gradski stadion, Bijeljina", "Vrapčići, Mostar"
         };
         
-        string[] statuses = { "Zakazana", "Završena", "Otkažena", "Odgođena", "U Tijeku" };
+        string[] statuses = { "Zakazana", "Završena", "Otkazana", "Odgođena", "Uživo" };
         
         for (int i = 1; i <= 50; i++)
         {
@@ -35,11 +35,11 @@ public static class MatchSeeder
             string status;
             if (matchDate < DateTime.Now)
             {
-                status = random.Next(0, 10) < 8 ? "Završena" : "Otkažena";
+                status = random.Next(0, 10) < 8 ? "Završena" : "Otkazana";
             }
             else if (matchDate.Date == DateTime.Now.Date)
             {
-                status = random.Next(0, 10) < 5 ? "U Tijeku" : "Zakazana";
+                status = random.Next(0, 10) < 5 ? "Uživo" : "Zakazana";
             }
             else
             {
