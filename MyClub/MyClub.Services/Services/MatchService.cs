@@ -132,28 +132,6 @@ namespace MyClub.Services
                 await BeforeInsert(entity, request);
                 _context.Matches.Add(entity);
                 await _context.SaveChangesAsync();
-
-                // Add tickets if provided
-                if (request.Tickets != null && request.Tickets.Count > 0)
-                {
-                    foreach (var ticketRequest in request.Tickets)
-                    {
-                        var ticket = new MatchTicket
-                        {
-                            MatchId = entity.Id,
-                            TotalQuantity = ticketRequest.TotalQuantity,
-                            AvailableQuantity = ticketRequest.AvailableQuantity,
-                            Price = ticketRequest.Price,
-                            StadiumSectorId = ticketRequest.StadiumSectorId,
-                            IsActive = ticketRequest.IsActive
-                        };
-                        
-                        await _context.MatchTickets.AddAsync(ticket);
-                    }
-                    
-                    await _context.SaveChangesAsync();
-                }
-
                 await transaction.CommitAsync();
                 return await GetByIdAsync(entity.Id);
             }
@@ -178,31 +156,7 @@ namespace MyClub.Services
 
                 await BeforeUpdate(entity, request);
                 MapUpdateToEntity(entity, request);
-
-                // Handle tickets update
-                if (request.Tickets != null)
-                {
-                    // Remove existing tickets
-                    _context.MatchTickets.RemoveRange(entity.Tickets);
-                    await _context.SaveChangesAsync();
-
-                    // Add new tickets
-                    foreach (var ticketRequest in request.Tickets)
-                    {
-                        var ticket = new MatchTicket
-                        {
-                            MatchId = entity.Id,
-                            TotalQuantity = ticketRequest.TotalQuantity,
-                            AvailableQuantity = ticketRequest.AvailableQuantity,
-                            Price = ticketRequest.Price,
-                            StadiumSectorId = ticketRequest.StadiumSectorId,
-                            IsActive = ticketRequest.IsActive
-                        };
-                        
-                        await _context.MatchTickets.AddAsync(ticket);
-                    }
-                }
-
+                _context.Matches.Update(entity);
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
                 return await GetByIdAsync(id);
@@ -508,17 +462,7 @@ namespace MyClub.Services
             if (!clubExists)
                 throw new Exception($"Club with ID {request.ClubId} does not exist");
 
-            // Validate stadium sectors exist
-            if (request.Tickets != null && request.Tickets.Count > 0)
-            {
-                foreach (var ticket in request.Tickets)
-                {
-                    var sectorExists = await _context.StadiumSectors.AnyAsync(s => s.Id == ticket.StadiumSectorId);
-                    if (!sectorExists)
-                        throw new Exception($"Stadium sector with ID {ticket.StadiumSectorId} does not exist");
-                }
-            }
-
+            
             return true;
         }
 

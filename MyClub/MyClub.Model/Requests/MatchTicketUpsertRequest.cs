@@ -5,6 +5,9 @@ namespace MyClub.Model.Requests
 {
     public class MatchTicketUpsertRequest
     {
+        [Required(ErrorMessage = "Match ID is required")]
+        public int MatchId { get; set; }
+
         [Required(ErrorMessage = "Total quantity is required")]
         [Range(1, int.MaxValue, ErrorMessage = "Total quantity must be at least 1")]
         public int TotalQuantity { get; set; }
