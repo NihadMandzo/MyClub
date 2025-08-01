@@ -83,16 +83,32 @@ namespace MyClub.WebAPI
 
             throw new UnauthorizedAccessException("User ID not found in token");
         }
+
+        [HttpPut("result/{matchId}")]
+        public async Task<IActionResult> UpdateMatchResultAsync(int matchId, [FromBody] MatchResultRequest request)
+        {
+            if (request == null)
+            {
+                return BadRequest("Match result request cannot be null");
+            }
+
+            // Validate the match ID
+            if (matchId <= 0)
+            {
+                return BadRequest("Invalid match ID");
+            }
+
+            // Call the service to set the match result
+            try
+            {
+                var result = await _matchService.UpdateMatchResultAsync(matchId, request);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
     }
 
-    public class UpdateMatchResultRequest
-    {
-        public int HomeGoals { get; set; }
-        public int AwayGoals { get; set; }
-    }
-
-    public class UpdateMatchStatusRequest
-    {
-        public string Status { get; set; }
-    }
 } 

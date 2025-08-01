@@ -13,8 +13,14 @@ namespace MyClub.Model.Responses
         public string ClubName { get; set; }
         public string Location { get; set; }
         public string Description { get; set; }
+        public MatchResultResponse Result { get; set; }
         public List<MatchTicketResponse> Tickets { get; set; } = new List<MatchTicketResponse>();
     }
 
-
+    public class MatchResultResponse
+    {
+        public int HomeGoals { get; set; }
+        public int AwayGoals { get; set; }
+    }
+    
 } 

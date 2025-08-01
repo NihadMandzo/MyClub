@@ -32,6 +32,9 @@ namespace MyClub.Services.Database
         
         [ForeignKey("ClubId")]
         public virtual Club Club { get; set; }
+
+        public int HomeGoals { get; set; } = 0;
+        public int AwayGoals { get; set; } = 0;
         
         // Navigation properties
         public virtual ICollection<MatchTicket> Tickets { get; set; }
