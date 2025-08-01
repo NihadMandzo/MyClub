@@ -257,43 +257,38 @@ class _PlayersContentState extends State<_PlayersContent> {
   }
 
   void _clearForm() {
-    // Clear state variables first
+    // First reset the form state to clear validators
+    if (_formKey.currentState != null) {
+      _formKey.currentState!.reset();
+    }
+    
     setState(() {
+      // Reset player selection and state variables
       _selectedPlayer = null;
       _selectedDate = null;
       _selectedImageBytes = null;
       _selectedImageName = null;
       _keepPicture = true;
+      
+      // Clear all text controllers
+      _firstNameController.clear();
+      _lastNameController.clear();
+      _numberController.clear();
+      _positionController.clear();
+      _nationalityController.clear();
+      _heightController.clear();
+      _weightController.clear();
+      _biographyController.clear();
     });
     
-    // Force recreate the form key to completely rebuild the form
-    _formKey = GlobalKey<FormState>();
-    
-    // Clear controllers aggressively with multiple methods
-    _firstNameController.clear();
-    _lastNameController.clear();
-    _numberController.clear();
-    _positionController.clear();
-    _nationalityController.clear();
-    _heightController.clear();
-    _weightController.clear();
-    _biographyController.clear();
-    
-    _firstNameController.value = const TextEditingValue(text: '');
-    _lastNameController.value = const TextEditingValue(text: '');
-    _numberController.value = const TextEditingValue(text: '');
-    _positionController.value = const TextEditingValue(text: '');
-    _nationalityController.value = const TextEditingValue(text: '');
-    _heightController.value = const TextEditingValue(text: '');
-    _weightController.value = const TextEditingValue(text: '');
-    _biographyController.value = const TextEditingValue(text: '');
-    
-    // Force multiple rebuilds to ensure everything is cleared
-    setState(() {});
-    
+    // Rebuild the UI to ensure all validators are refreshed
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      setState(() {});
+      setState(() {
+        // This triggers a rebuild after the frame is done
+      });
     });
+    
+    print("Player form has been cleared successfully");
   }
   
   // Add delete player functionality

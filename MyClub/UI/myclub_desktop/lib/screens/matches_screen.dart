@@ -233,36 +233,34 @@ class _MatchesContentState extends State<_MatchesContent> {
   }
 
   void _clearForm() {
-    // Clear state variables first
+    // First reset the form state to clear validators
+    if (_formKey.currentState != null) {
+      _formKey.currentState!.reset();
+    }
+    
     setState(() {
+      // Reset match selection and state variables
       _selectedMatch = null;
       _selectedMatchDate = null;
       _selectedStatus = null;
       _showResultForm = false;
+      
+      // Clear all text controllers
+      _opponentNameController.clear();
+      _locationController.clear();
+      _descriptionController.clear();
+      _homeScoreController.clear();
+      _awayScoreController.clear();
     });
     
-    // Force recreate the form key to completely rebuild the form
-    _formKey = GlobalKey<FormState>();
-    
-    // Clear controllers aggressively with multiple methods
-    _opponentNameController.clear();
-    _locationController.clear();
-    _descriptionController.clear();
-    _homeScoreController.clear();
-    _awayScoreController.clear();
-    
-    _opponentNameController.value = const TextEditingValue(text: '');
-    _locationController.value = const TextEditingValue(text: '');
-    _descriptionController.value = const TextEditingValue(text: '');
-    _homeScoreController.value = const TextEditingValue(text: '');
-    _awayScoreController.value = const TextEditingValue(text: '');
-    
-    // Force multiple rebuilds to ensure everything is cleared
-    setState(() {});
-    
+    // Rebuild the UI to ensure all validators are refreshed
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      setState(() {});
+      setState(() {
+        // This triggers a rebuild after the frame is done
+      });
     });
+    
+    print("Match form has been cleared successfully");
   }
 
   bool _isFormPopulated() {
