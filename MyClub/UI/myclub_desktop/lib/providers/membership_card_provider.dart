@@ -72,19 +72,45 @@ class MembershipCardProvider extends BaseProvider<MembershipCard> {
     var request2 = http.MultipartRequest('PUT', uri);
     request2.headers.addAll(headers);
     
+
+    // Validate required fields before sending
+    if (request['name'] == null || request['name'].toString().isEmpty) {
+      throw Exception("The Name field is required.");
+    }
+    
+    if (request['description'] == null || request['description'].toString().isEmpty) {
+      throw Exception("The Description field is required.");
+    }
+    
+    if (request['benefits'] == null || request['benefits'].toString().isEmpty) {
+      throw Exception("The Benefits field is required.");
+    }
+    
+    double? price = double.tryParse(request['price']?.toString() ?? '0');
+    if (price == null || price < 0.01) {
+      throw Exception("The Price field must be greater than 0.01.");
+    }
+    
+    // Check both keepImage and keepPicture fields for backward compatibility
+    if (imageBytes == null && request['keepPicture'] != true && request['keepImage'] != true) {
+      throw Exception("The Image field is required.");
+    }
+    
     // Ensure all required fields are properly cased
     final mappedRequest = {
       'Year': request['year']?.toString() ?? DateTime.now().year.toString(),
-      'Name': request['name'] ?? '',
-      'Description': request['description'] ?? '',
+      'Name': request['name']?.toString() ?? '',
+      'Description': request['description']?.toString() ?? '',
       'TargetMembers': request['targetMembers']?.toString() ?? '0',
-      'Price': request['price']?.toString() ?? '0',
-      'StartDate': request['startDate'] ?? DateTime.now().toIso8601String(),
-      'EndDate': request['endDate'] ?? null,
-      'Benefits': request['benefits'] ?? '',
+      'Price': request['price']?.toString() ?? '0.01',
+      'StartDate': request['startDate']?.toString() ?? DateTime.now().toIso8601String(),
+      'EndDate': request['endDate']?.toString(),
+      'Benefits': request['benefits']?.toString() ?? '',
       'IsActive': request['isActive']?.toString() ?? 'true',
-      'KeepPicture': request['keepPicture']?.toString() ?? 'false',
+      // Use keepPicture first, fall back to keepImage if needed
+      'KeepImage': request['keepImage']?.toString() ?? 'false',
     };
+    
     
     // Add form fields
     mappedRequest.forEach((key, value) {
@@ -102,6 +128,7 @@ class MembershipCardProvider extends BaseProvider<MembershipCard> {
         contentType: MediaType('image', fileName.split('.').last),
       );
       request2.files.add(multipartFile);
+    } else {
     }
     
     var streamedResponse = await request2.send();
@@ -111,7 +138,7 @@ class MembershipCardProvider extends BaseProvider<MembershipCard> {
       var data = jsonDecode(response.body);
       return fromJson(data);
     } else {
-      throw Exception("Greška tokom ažuriranja kampanje članstva");
+      throw Exception("Greška tokom ažuriranja kampanje članstva: ${response.body}");
     }
   }
 }

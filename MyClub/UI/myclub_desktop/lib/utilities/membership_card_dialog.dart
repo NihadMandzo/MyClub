@@ -80,14 +80,14 @@ class MembershipCardDialog extends StatefulWidget {
         
         NotificationUtility.showSuccess(
           context,
-          message: 'Campaign created successfully',
+          message: 'Kampanja je uspješno kreirana',
         );
         
         return true;
       } catch (e) {
         NotificationUtility.showError(
           context,
-          message: 'Failed to create campaign: ${e.toString()}',
+          message: 'Kreiranje kampanje nije uspjelo: ${e.toString()}',
         );
         return false;
       }
@@ -98,72 +98,126 @@ class MembershipCardDialog extends StatefulWidget {
   
   /// Edits an existing campaign
   static Future<bool> editCampaign(BuildContext context, MembershipCard campaign) async {
-    final result = await show(
-      context,
-      initialData: MembershipCardForm(
-        year: campaign.year,
-        name: campaign.name,
-        description: campaign.description,
-        targetMembers: campaign.targetMembers,
-        price: campaign.price,
-        startDate: campaign.startDate,
-        endDate: campaign.endDate,
-        benefits: campaign.benefits,
-        image: campaign.imageUrl,
-        isActive: campaign.isActive,
+    // Show loading indicator
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    scaffoldMessenger.showSnackBar(
+      const SnackBar(
+        content: Row(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 16),
+            Text('Učitavanje detalja kampanje...'),
+          ],
+        ),
+        duration: Duration(seconds: 1),
       ),
-      isEdit: true,
     );
     
-    if (result != null) {
-      // Ask for confirmation before updating
-      final confirm = await DialogUtility.showConfirmation(
-        context, 
-        title: 'Update Campaign',
-        message: 'Are you sure you want to save changes to ${campaign.name}?',
+    try {
+      // Fetch latest campaign data from the server
+      final provider = Provider.of<MembershipCardProvider>(context, listen: false);
+      final freshCampaign = await provider.getById(campaign.id);
+      
+      // Hide the loading indicator
+      scaffoldMessenger.hideCurrentSnackBar();
+      
+      final result = await show(
+        context,
+        initialData: MembershipCardForm(
+          year: freshCampaign.year,
+          name: freshCampaign.name,
+          description: freshCampaign.description,
+          targetMembers: freshCampaign.targetMembers,
+          price: freshCampaign.price,
+          startDate: freshCampaign.startDate,
+          endDate: freshCampaign.endDate,
+          benefits: freshCampaign.benefits,
+          image: freshCampaign.imageUrl,
+          isActive: freshCampaign.isActive,
+          keepImage: true,  // Explicitly set to true for editing
+        ),
+        isEdit: true,
       );
       
-      if (!confirm) return false;
-      
-      try {
-        final provider = Provider.of<MembershipCardProvider>(context, listen: false);
-        
-        // Handle image upload if present
-        if (result.containsKey('imageBytes') && result.containsKey('fileName')) {
-          await provider.updateWithImage(
-            campaign.id,
-            result, 
-            result['imageBytes'], 
-            result['fileName']
+      if (result != null) {
+        try {
+          // Create a new map with all required fields
+          Map<String, dynamic> updatedResult = {
+            'year': result['year'] ?? freshCampaign.year,
+            'name': result['name'] ?? freshCampaign.name,
+            'description': result['description'] ?? freshCampaign.description ?? '',
+            'targetMembers': result['targetMembers'] ?? freshCampaign.targetMembers,
+            'price': (double.tryParse(result['price']?.toString() ?? '0') ?? 0) >= 0.01 
+                ? result['price'] 
+                : freshCampaign.price >= 0.01 ? freshCampaign.price : 0.01,
+            'startDate': result['startDate'] ?? freshCampaign.startDate.toIso8601String(),
+            'endDate': result['endDate'],
+            'benefits': result['benefits'] ?? freshCampaign.benefits ?? '',
+            'isActive': result['isActive'] ?? freshCampaign.isActive,
+          };
+          
+          // Set the correct keepPicture value with the proper field name expected by the API
+          bool hasNewImage = result.containsKey('imageBytes') && result['imageBytes'] != null;
+          updatedResult['keepPicture'] = !hasNewImage;
+          
+          // Handle image upload if present
+          if (hasNewImage && result.containsKey('fileName')) {
+            print("Sending with image update");
+            await provider.updateWithImage(
+              freshCampaign.id,
+              updatedResult, 
+              result['imageBytes'], 
+              result['fileName']
+            );
+          } else {
+            // Make sure we're using the API endpoint that supports image retention
+            print("Sending without image update");
+            
+            // Try using updateWithImage with null imageBytes for API consistency
+            await provider.updateWithImage(
+              freshCampaign.id,
+              updatedResult, 
+              null,
+              null, // No file name since we're not uploading a new image
+            );
+          }
+          
+          NotificationUtility.showSuccess(
+            context,
+            message: 'Kampanja je uspješno ažurirana',
           );
-        } else {
-          await provider.update(campaign.id, result);
+          
+          return true;
+        } catch (e) {
+          NotificationUtility.showError(
+            context,
+            message: 'Ažuriranje kampanje nije uspjelo: ${e.toString()}',
+          );
+          return false;
         }
-        
-        NotificationUtility.showSuccess(
-          context,
-          message: 'Campaign updated successfully',
-        );
-        
-        return true;
-      } catch (e) {
-        NotificationUtility.showError(
-          context,
-          message: 'Failed to update campaign: ${e.toString()}',
-        );
-        return false;
       }
+      
+      return false;
+    } catch (e) {
+      // Hide the loading indicator
+      scaffoldMessenger.hideCurrentSnackBar();
+      
+      // Handle error when fetching campaign details
+      NotificationUtility.showError(
+        context,
+        message: 'Greška prilikom učitavanja detalja kampanje: ${e.toString()}',
+      );
+      return false;
     }
-    
-    return false;
   }
+
   
   /// Deletes an existing campaign
   static Future<bool> deleteCampaign(BuildContext context, MembershipCard campaign) async {
     final shouldDelete = await DialogUtility.showDeleteConfirmation(
       context, 
-      title: 'Delete Campaign',
-      message: 'Are you sure you want to delete the campaign "${campaign.name}"? This action cannot be undone.',
+      title: 'Obriši kampanju',
+      message: 'Da li ste sigurni da želite obrisati kampanju "${campaign.name}"? Ova radnja se ne može poništiti.',
     );
     
     if (!shouldDelete) return false;
@@ -174,14 +228,14 @@ class MembershipCardDialog extends StatefulWidget {
       
       NotificationUtility.showSuccess(
         context,
-        message: 'Campaign deleted successfully',
+        message: 'Kampanja je uspješno obrisana',
       );
       
       return true;
     } catch (e) {
       NotificationUtility.showError(
         context,
-        message: 'Failed to delete campaign: ${e.toString()}',
+        message: 'Brisanje kampanje nije uspjelo: ${e.toString()}',
       );
       return false;
     }
@@ -274,7 +328,7 @@ class _MembershipCardDialogState extends State<MembershipCardDialog> {
             
             NotificationUtility.showSuccess(
               context,
-              message: 'Image successfully selected',
+              message: 'Slika uspješno odabrana',
             );
           });
         } else if (file.path != null) {
@@ -288,7 +342,7 @@ class _MembershipCardDialogState extends State<MembershipCardDialog> {
             
             NotificationUtility.showSuccess(
               context,
-              message: 'Image successfully selected',
+              message: 'Slika uspješno odabrana',
             );
           });
         }
@@ -296,7 +350,7 @@ class _MembershipCardDialogState extends State<MembershipCardDialog> {
     } catch (e) {
       NotificationUtility.showError(
         context,
-        message: 'Error selecting image: ${e.toString()}',
+        message: 'Greška prilikom odabira slike: ${e.toString()}',
       );
     }
   }
@@ -325,7 +379,7 @@ class _MembershipCardDialogState extends State<MembershipCardDialog> {
                 children: [
                   Icon(Icons.edit, color: Colors.white, size: 16),
                   SizedBox(width: 4),
-                  Text('Change Image', style: TextStyle(color: Colors.white, fontSize: 12)),
+                  Text('Promijeni Sliku', style: TextStyle(color: Colors.white, fontSize: 12)),
                 ],
               ),
             ),
@@ -347,7 +401,7 @@ class _MembershipCardDialogState extends State<MembershipCardDialog> {
                   children: [
                     Icon(Icons.error, color: Colors.red, size: 36),
                     SizedBox(height: 8),
-                    Text('Error loading image'),
+                    Text('Greška prilikom učitavanja slike'),
                   ],
                 ),
               );
@@ -367,7 +421,7 @@ class _MembershipCardDialogState extends State<MembershipCardDialog> {
                 children: [
                   Icon(Icons.edit, color: Colors.white, size: 16),
                   SizedBox(width: 4),
-                  Text('Change Image', style: TextStyle(color: Colors.white, fontSize: 12)),
+                  Text('Promijeni Sliku', style: TextStyle(color: Colors.white, fontSize: 12)),
                 ],
               ),
             ),
@@ -385,7 +439,7 @@ class _MembershipCardDialogState extends State<MembershipCardDialog> {
               Icon(Icons.add_photo_alternate, size: 64, color: Colors.blue[300]),
               const SizedBox(height: 12),
               const Text(
-                'Click to upload membership card design',
+                'Kliknite za otpremu dizajna članske karte',
                 style: TextStyle(
                   color: Colors.black87,
                   fontWeight: FontWeight.w500,
@@ -393,7 +447,7 @@ class _MembershipCardDialogState extends State<MembershipCardDialog> {
               ),
               const SizedBox(height: 4),
               Text(
-                'Recommended size: 1024×576 pixels',
+                'Preporučena veličina: 1024×576 piksela',
                 style: TextStyle(
                   color: Colors.grey[600],
                   fontSize: 12,
@@ -436,7 +490,7 @@ class _MembershipCardDialogState extends State<MembershipCardDialog> {
                     child: Padding(
                       padding: const EdgeInsets.only(right: 40.0),
                       child: Text(
-                        widget.isEdit ? 'Edit Membership Campaign' : 'Start New Campaign',
+                        widget.isEdit ? 'Ažuriraj Kampanju Članstva' : 'Započni Novu Kampanju',
                         style: const TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
@@ -460,16 +514,16 @@ class _MembershipCardDialogState extends State<MembershipCardDialog> {
                             TextFormField(
                               controller: _nameController,
                               decoration: const InputDecoration(
-                                labelText: 'Campaign Name',
+                                labelText: 'Naziv Kampanje',
                                 border: OutlineInputBorder(),
                                 contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                               ),
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
-                                  return 'Please enter a campaign name';
+                                  return 'Molimo unesite naziv kampanje';
                                 }
                                 if (value.length > 100) {
-                                  return 'Name cannot exceed 100 characters';
+                                  return 'Naziv ne može biti duži od 100 karaktera';
                                 }
                                 return null;
                               },
@@ -485,7 +539,7 @@ class _MembershipCardDialogState extends State<MembershipCardDialog> {
                                   flex: 1,
                                   child: DropdownButtonFormField<int>(
                                     decoration: const InputDecoration(
-                                      labelText: 'Year',
+                                      labelText: 'Godina',
                                       border: OutlineInputBorder(),
                                       contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                                     ),
@@ -517,7 +571,7 @@ class _MembershipCardDialogState extends State<MembershipCardDialog> {
                                     },
                                     validator: (value) {
                                       if (value == null) {
-                                        return 'Required';
+                                        return 'Obavezno';
                                       }
                                       
                                       // Now we're automatically syncing the date and year, so no additional validation needed
@@ -562,12 +616,12 @@ class _MembershipCardDialogState extends State<MembershipCardDialog> {
                                       validator: (value) {
                                         // Add validation if needed for start date
                                         if (value == null) {
-                                          return 'Start date is required';
+                                          return 'Početni datum je obavezan';
                                         }
                                         
                                         // Check if start date is in the past (more than 1 year)
                                         if (value.isBefore(DateTime.now().subtract(const Duration(days: 365)))) {
-                                          return 'Start date cannot be more than 1 year in the past';
+                                          return 'Početni datum ne može biti više od 1 godine u prošlosti';
                                         }
                                         
                                         return null;
@@ -575,7 +629,7 @@ class _MembershipCardDialogState extends State<MembershipCardDialog> {
                                       builder: (FormFieldState<DateTime> field) {
                                         return InputDecorator(
                                           decoration: InputDecoration(
-                                            labelText: 'Start Date',
+                                            labelText: 'Početni Datum',
                                             border: const OutlineInputBorder(),
                                             contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                                             errorText: field.errorText,
@@ -616,17 +670,17 @@ class _MembershipCardDialogState extends State<MembershipCardDialog> {
                                         // End date is optional, but if specified must be after start date
                                         if (value != null) {
                                           if (value.isBefore(_startDate) || value.isAtSameMomentAs(_startDate)) {
-                                            return 'End date must be after start date';
+                                            return 'Krajnji datum mora biti nakon početnog datuma';
                                           }
                                           
                                           // End date shouldn't be too far in the future (e.g., more than 5 years)
                                           if (value.isAfter(_startDate.add(const Duration(days: 365 * 5)))) {
-                                            return 'End date too far in the future';
+                                            return 'Krajnji datum je previše udaljen u budućnosti';
                                           }
                                           
                                           // End date year should be related to campaign year
                                           if (value.year > _selectedYear + 3) {
-                                            return 'End date too far from campaign year';
+                                            return 'Krajnji datum je previše udaljen od godine kampanje';
                                           }
                                         }
                                         return null;
@@ -634,7 +688,7 @@ class _MembershipCardDialogState extends State<MembershipCardDialog> {
                                       builder: (FormFieldState<DateTime?> field) {
                                         return InputDecorator(
                                           decoration: InputDecoration(
-                                            labelText: 'End Date (Optional)',
+                                            labelText: 'Krajnji Datum (Opcionalno)',
                                             border: const OutlineInputBorder(),
                                             contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                                             errorText: field.errorText,
@@ -668,7 +722,7 @@ class _MembershipCardDialogState extends State<MembershipCardDialog> {
                                           ),
                                           child: Text(_endDate != null
                                               ? DateFormat('yyyy-MM-dd').format(_endDate!)
-                                              : 'Not specified'),
+                                              : 'Nije specificirano'),
                                         );
                                       },
                                     ),
@@ -687,9 +741,9 @@ class _MembershipCardDialogState extends State<MembershipCardDialog> {
                                   child: TextFormField(
                                     controller: _targetGoalController,
                                     decoration: const InputDecoration(
-                                      labelText: 'Target Goal',
+                                      labelText: 'Cilj Članova',
                                       border: OutlineInputBorder(),
-                                      hintText: 'e.g., 9823',
+                                      hintText: 'npr., 9823',
                                       contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                                     ),
                                     keyboardType: TextInputType.number,
@@ -698,16 +752,16 @@ class _MembershipCardDialogState extends State<MembershipCardDialog> {
                                     ],
                                     validator: (value) {
                                       if (value == null || value.isEmpty) {
-                                        return 'Required';
+                                        return 'Obavezno polje';
                                       }
                                       
                                       final target = int.tryParse(value);
                                       if (target == null) {
-                                        return 'Enter a valid number';
+                                        return 'Unesite važeći broj';
                                       }
                                       
                                       if (target <= 0) {
-                                        return 'Target must be greater than 0';
+                                        return 'Cilj mora biti veći od 0';
                                       }
                                       
                                       return null;
@@ -721,9 +775,9 @@ class _MembershipCardDialogState extends State<MembershipCardDialog> {
                                   child: TextFormField(
                                     controller: _priceController,
                                     decoration: const InputDecoration(
-                                      labelText: 'Price',
+                                      labelText: 'Cijena',
                                       border: OutlineInputBorder(),
-                                      prefixText: '\$',
+                                      prefixText: 'BAM ',
                                       contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                                     ),
                                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -732,16 +786,16 @@ class _MembershipCardDialogState extends State<MembershipCardDialog> {
                                     ],
                                     validator: (value) {
                                       if (value == null || value.isEmpty) {
-                                        return 'Required';
+                                        return 'Obavezno polje';
                                       }
                                       
                                       final price = double.tryParse(value);
                                       if (price == null) {
-                                        return 'Enter a valid number';
+                                        return 'Unesite važeći broj';
                                       }
                                       
-                                      if (price <= 0) {
-                                        return 'Price must be greater than 0';
+                                      if (price < 0.01) {
+                                        return 'Cijena mora biti najmanje 0.01';
                                       }
                                       
                                       return null;
@@ -756,7 +810,7 @@ class _MembershipCardDialogState extends State<MembershipCardDialog> {
                             TextFormField(
                               controller: _descriptionController,
                               decoration: const InputDecoration(
-                                labelText: 'Description',
+                                labelText: 'Opis',
                                 border: OutlineInputBorder(),
                                 alignLabelWithHint: true,
                                 contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -764,7 +818,7 @@ class _MembershipCardDialogState extends State<MembershipCardDialog> {
                               maxLines: 3,
                               validator: (value) {
                                 if (value == null || value.trim().isEmpty) {
-                                  return 'Please enter a description for the campaign';
+                                  return 'Molimo navedite opis kampanje';
                                 }
                                 return null;
                               },
@@ -775,7 +829,7 @@ class _MembershipCardDialogState extends State<MembershipCardDialog> {
                             TextFormField(
                               controller: _benefitsController,
                               decoration: const InputDecoration(
-                                labelText: 'Benefits',
+                                labelText: 'Pogodnosti',
                                 border: OutlineInputBorder(),
                                 alignLabelWithHint: true,
                                 contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -783,7 +837,7 @@ class _MembershipCardDialogState extends State<MembershipCardDialog> {
                               maxLines: 3,
                               validator: (value) {
                                 if (value == null || value.trim().isEmpty) {
-                                  return 'Please list membership benefits';
+                                  return 'Molimo navedite pogodnosti članstva';
                                 }
                                 return null;
                               },
@@ -795,7 +849,7 @@ class _MembershipCardDialogState extends State<MembershipCardDialog> {
                               initialValue: _imageBytes != null || (_initialImageUrl != null && _keepExistingImage),
                               validator: (value) {
                                 if (_imageBytes == null && (_initialImageUrl == null || !_keepExistingImage)) {
-                                  return 'Please add a membership card design image';
+                                  return 'Molimo dodajte sliku dizajna članarske kartice';
                                 }
                                 return null;
                               },
@@ -806,7 +860,7 @@ class _MembershipCardDialogState extends State<MembershipCardDialog> {
                                     const Padding(
                                       padding: EdgeInsets.only(left: 4.0, bottom: 8.0),
                                       child: Text(
-                                        'Membership Card Design',
+                                        'Dizajn Članarske Kartice',
                                         style: TextStyle(
                                           fontSize: 14,
                                           color: Colors.black87,
@@ -864,13 +918,14 @@ class _MembershipCardDialogState extends State<MembershipCardDialog> {
                                                 onChanged: (value) {
                                                   setState(() {
                                                     _keepExistingImage = value!;
+                                                    print("Keep existing image changed to: $_keepExistingImage");
                                                     field.didChange(_imageBytes != null || (_initialImageUrl != null && _keepExistingImage));
                                                   });
                                                 },
                                               ),
                                             ),
                                             const SizedBox(width: 8),
-                                            const Text('Keep existing image if no new one is selected'),
+                                            const Text('Zadrži postojeću sliku ako nova nije odabrana'),
                                           ],
                                         ),
                                       ),
@@ -898,12 +953,12 @@ class _MembershipCardDialogState extends State<MembershipCardDialog> {
                               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                               side: BorderSide(color: Colors.grey.shade300),
                             ),
-                            child: const Text('Cancel'),
+                            child: const Text('Otkaži'),
                           ),
                           const SizedBox(width: 16),
                           ElevatedButton.icon(
                             icon: Icon(widget.isEdit ? Icons.check : Icons.add_card),
-                            label: Text(widget.isEdit ? 'Update Campaign' : 'Start Campaign'),
+                            label: Text(widget.isEdit ? 'Ažuriraj Kampanju' : 'Kreiraj Kampanju'),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.blue,
                               foregroundColor: Colors.white,
@@ -917,64 +972,27 @@ class _MembershipCardDialogState extends State<MembershipCardDialog> {
                                 // Create form object to use our model validation
                                 final formData = MembershipCardForm(
                                   year: _selectedYear,
-                                  name: _nameController.text,
-                                  description: _descriptionController.text.isEmpty ? null : _descriptionController.text,
+                                  name: _nameController.text.trim(),
+                                  description: _descriptionController.text.trim(),  // Don't make null if empty
                                   targetMembers: int.tryParse(_targetGoalController.text),
-                                  price: double.tryParse(_priceController.text),
+                                  price: double.tryParse(_priceController.text) ?? 0.01,
                                   startDate: _startDate,
                                   endDate: _endDate,
-                                  benefits: _benefitsController.text.isEmpty ? null : _benefitsController.text,
+                                  benefits: _benefitsController.text.trim(),  // Don't make null if empty
                                   isActive: true,
                                   keepImage: _keepExistingImage,
                                   image: _imageBytes ?? (_initialImageUrl != null && _keepExistingImage ? _initialImageUrl : null),
                                 );
                                 
-                                // Validate using our model validation
-                                final modelErrors = formData.validate();
-                                if (modelErrors.isNotEmpty) {
-                                  // Show errors
-                                  String errorMessage = 'Please fix the following errors:\n';
-                                  modelErrors.forEach((field, error) {
-                                    if (error != null) {
-                                      errorMessage += '• $error\n';
-                                    }
-                                  });
-                                  
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(errorMessage),
-                                      backgroundColor: Colors.red,
-                                      duration: const Duration(seconds: 5),
-                                    ),
-                                  );
-                                  return;
-                                }
-
-                                // Show in-dialog confirmation
-                                final shouldContinue = await showDialog<bool>(
-                                  context: context,
-                                  builder: (dialogContext) => AlertDialog(
-                                    title: Text(widget.isEdit ? 'Update Campaign?' : 'Create New Campaign?'),
-                                    content: Text(
-                                      widget.isEdit 
-                                        ? 'Are you sure you want to update this campaign?'
-                                        : 'Are you sure you want to create this campaign?'
-                                    ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () => Navigator.of(dialogContext).pop(false),
-                                        child: const Text('Cancel'),
-                                      ),
-                                      ElevatedButton(
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: Colors.blue,
-                                          foregroundColor: Colors.white,
-                                        ),
-                                        onPressed: () => Navigator.of(dialogContext).pop(true),
-                                        child: Text(widget.isEdit ? 'Update' : 'Create'),
-                                      ),
-                                    ],
-                                  ),
+                                final shouldContinue = await DialogUtility.showConfirmation(
+                                  context,
+                                  title: widget.isEdit ? 'Ažuriraj Kampanju?' : 'Kreiraj Novu Kampanju?',
+                                  message: widget.isEdit 
+                                    ? 'Da li ste sigurni da želite da ažurirate ovu kampanju?'
+                                    : 'Da li ste sigurni da želite da kreirate ovu kampanju?',
+                                  confirmLabel: widget.isEdit ? 'Ažuriraj' : 'Kreiraj',
+                                  cancelLabel: 'Otkaži',
+                                  confirmColor: Colors.blue,
                                 );
                                 
                                 if (shouldContinue == true) {

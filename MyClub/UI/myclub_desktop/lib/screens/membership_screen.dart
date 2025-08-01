@@ -103,77 +103,68 @@ class _MembershipContentState extends State<_MembershipContent> {
       });
     } catch (e) {
       setState(() {
-        _error = 'Failed to load membership campaigns: ${e.toString()}';
+        _error = 'Greška prilikom učitavanja kampanja članstva: ${e.toString()}';
         _isLoading = false;
       });
       
       NotificationUtility.showError(
         context,
-        message: 'Failed to load membership campaigns: ${e.toString()}',
+        message: 'Greška prilikom učitavanja kampanja članstva: ${e.toString()}',
       );
     }
   }
 
   Future<void> _createNewCampaign() async {
-    setState(() {
-      _isLoading = true;
-    });
-    
+    // Show dialog without setting loading state first
     final success = await MembershipCardDialog.createCampaign(context);
     
     if (success) {
-      // Reset filters to show all campaigns including the new one
+      // Only set loading state after user has confirmed adding a campaign
       setState(() {
+        _isLoading = true;
         _searchController.clear();
         _includeInactive = true; // Set to true to include inactive campaigns
       });
       
       // Add a small delay to ensure state is updated before loading
       await Future.delayed(const Duration(milliseconds: 100));
+      
+      // Refresh the campaign list
+      await _loadCampaigns();
     }
-    
-    // Refresh the campaign list regardless of success/failure
-    await _loadCampaigns();
   }
 
   Future<void> _editCampaign(MembershipCard campaign) async {
-    setState(() {
-      _isLoading = true;
-    });
-    
+    // Show dialog without setting loading state first
     final success = await MembershipCardDialog.editCampaign(context, campaign);
     
     if (success) {
+      // Only set loading state after user has confirmed editing
+      setState(() {
+        _isLoading = true;
+      });
+      
       // Refresh the campaign list
       await _loadCampaigns();
-    } else {
-      setState(() {
-        _isLoading = false;
-      });
     }
   }
   
   Future<void> _deleteCampaign(MembershipCard campaign) async {
-    setState(() {
-      _isLoading = true;
-    });
-    
+    // Show confirmation dialog without setting loading state first
     final success = await MembershipCardDialog.deleteCampaign(context, campaign);
     
     if (success) {
-      // Clear selection if deleted item was selected
-      if (_selectedCampaign?.id == campaign.id) {
-        setState(() {
+      // Only set loading state after user has confirmed deletion
+      setState(() {
+        _isLoading = true;
+        // Clear selection if deleted item was selected
+        if (_selectedCampaign?.id == campaign.id) {
           _selectedCampaign = null;
-        });
-      }
+        }
+      });
       
       // Refresh the campaign list
       await _loadCampaigns();
-    } else {
-      setState(() {
-        _isLoading = false;
-      });
     }
   }
 
@@ -202,7 +193,7 @@ class _MembershipContentState extends State<_MembershipContent> {
                     children: [
                       const Expanded(
                         child: Text(
-                          'Membership Campaigns',
+                          'Kampanje članstva',
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 20,
@@ -223,7 +214,7 @@ class _MembershipContentState extends State<_MembershipContent> {
                             _loadCampaigns();
                           });
                         },
-                        tooltip: 'Refresh',
+                        tooltip: 'Osvježi',
                       ),
                     ],
                   ),
@@ -238,7 +229,7 @@ class _MembershipContentState extends State<_MembershipContent> {
                       TextField(
                         controller: _searchController,
                         decoration: InputDecoration(
-                          labelText: 'Search campaigns',
+                          labelText: 'Pretraži kampanje',
                           prefixIcon: const Icon(Icons.search),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8.0),
@@ -259,7 +250,7 @@ class _MembershipContentState extends State<_MembershipContent> {
                         children: [
                           Expanded(
                             child: CheckboxListTile(
-                              title: const Text('Include inactive', style: TextStyle(fontSize: 14)),
+                              title: const Text('Uključi neaktivne', style: TextStyle(fontSize: 14)),
                               value: _includeInactive,
                               controlAffinity: ListTileControlAffinity.leading,
                               contentPadding: EdgeInsets.zero,
@@ -300,7 +291,7 @@ class _MembershipContentState extends State<_MembershipContent> {
                                   });
                                   _loadCampaigns();
                                 },
-                                child: const Text('Retry'),
+                                child: const Text('Ponovno pokušaj'),
                               ),
                             ],
                           ),
@@ -308,7 +299,7 @@ class _MembershipContentState extends State<_MembershipContent> {
                       : _campaigns.isEmpty 
                         ? const Center(
                             child: Text(
-                              'No campaigns found.\nClick the button below to create one.',
+                              'Nema pronađenih kampanja.\nKliknite dugme ispod da kreirate novu.',
                               textAlign: TextAlign.center,
                             ),
                           )
@@ -331,7 +322,7 @@ class _MembershipContentState extends State<_MembershipContent> {
                                 trailing: IconButton(
                                   icon: const Icon(Icons.delete, color: Colors.red),
                                   onPressed: () => _deleteCampaign(campaign),
-                                  tooltip: 'Delete Campaign',
+                                  tooltip: 'Obriši kampanju',
                                 ),
                                 selected: isSelected,
                                 selectedTileColor: Colors.blue.withOpacity(0.1),
@@ -352,7 +343,7 @@ class _MembershipContentState extends State<_MembershipContent> {
                     width: double.infinity,
                     child: ElevatedButton.icon(
                       icon: const Icon(Icons.add),
-                      label: const Text('Start New Campaign'),
+                      label: const Text('Pokreni novu kampanju'),
                       onPressed: _createNewCampaign,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.blue,
@@ -371,7 +362,7 @@ class _MembershipContentState extends State<_MembershipContent> {
             child: _selectedCampaign == null
                 ? const Center(
                     child: Text(
-                      'Select a campaign or create a new one',
+                      'Odaberite kampanju ili kreirajte novu',
                       style: TextStyle(
                         fontSize: 18,
                         color: Colors.grey,
@@ -403,7 +394,7 @@ class _MembershipContentState extends State<_MembershipContent> {
                                   const SizedBox(height: 8),
                                   
                                   Text(
-                                    'Campaign for ${_selectedCampaign!.year}',
+                                    'Kampanja za ${_selectedCampaign!.year}',
                                     style: TextStyle(
                                       fontSize: 18,
                                       color: Colors.grey[700],
@@ -430,7 +421,7 @@ class _MembershipContentState extends State<_MembershipContent> {
                                         Expanded(
                                           child: Chip(
                                             label: Text(
-                                              _selectedCampaign!.isActive ? 'Active' : 'Inactive',
+                                              _selectedCampaign!.isActive ? 'Aktivna' : 'Neaktivna',
                                               style: const TextStyle(color: Colors.white),
                                             ),
                                             backgroundColor: _selectedCampaign!.isActive ? Colors.green : Colors.grey,
@@ -450,7 +441,7 @@ class _MembershipContentState extends State<_MembershipContent> {
                                         SizedBox(
                                           width: 120,
                                           child: Text(
-                                            'Target Goal:',
+                                            'Cilj:',
                                             style: TextStyle(
                                               fontWeight: FontWeight.bold,
                                               color: Colors.grey[700],
@@ -458,7 +449,7 @@ class _MembershipContentState extends State<_MembershipContent> {
                                           ),
                                         ),
                                         Expanded(
-                                          child: Text('${_selectedCampaign!.targetMembers} members'),
+                                          child: Text('${_selectedCampaign!.targetMembers} članova'),
                                         ),
                                       ],
                                     ),
@@ -473,7 +464,7 @@ class _MembershipContentState extends State<_MembershipContent> {
                                         SizedBox(
                                           width: 120,
                                           child: Text(
-                                            'Current Members:',
+                                            'Trenutni članovi:',
                                             style: TextStyle(
                                               fontWeight: FontWeight.bold,
                                               color: Colors.grey[700],
@@ -481,7 +472,7 @@ class _MembershipContentState extends State<_MembershipContent> {
                                           ),
                                         ),
                                         Expanded(
-                                          child: Text('${_selectedCampaign!.totalMembers} members'),
+                                          child: Text('${_selectedCampaign!.totalMembers} članova'),
                                         ),
                                       ],
                                     ),
@@ -496,7 +487,7 @@ class _MembershipContentState extends State<_MembershipContent> {
                                         SizedBox(
                                           width: 120,
                                           child: Text(
-                                            'Price:',
+                                            'Cijena:',
                                             style: TextStyle(
                                               fontWeight: FontWeight.bold,
                                               color: Colors.grey[700],
@@ -519,7 +510,7 @@ class _MembershipContentState extends State<_MembershipContent> {
                                         SizedBox(
                                           width: 120,
                                           child: Text(
-                                            'Start Date:',
+                                            'Početak:',
                                             style: TextStyle(
                                               fontWeight: FontWeight.bold,
                                               color: Colors.grey[700],
@@ -543,7 +534,7 @@ class _MembershipContentState extends State<_MembershipContent> {
                                           SizedBox(
                                             width: 120,
                                             child: Text(
-                                              'End Date:',
+                                              'Kraj:',
                                               style: TextStyle(
                                                 fontWeight: FontWeight.bold,
                                                 color: Colors.grey[700],
@@ -575,7 +566,7 @@ class _MembershipContentState extends State<_MembershipContent> {
                                             height: 250,
                                             color: Colors.grey[200],
                                             child: const Center(
-                                              child: Text('Image not available'),
+                                              child: Text('Slika nije dostupna'),
                                             ),
                                           );
                                         },
@@ -584,7 +575,7 @@ class _MembershipContentState extends State<_MembershipContent> {
                                         height: 250,
                                         color: Colors.grey[200],
                                         child: const Center(
-                                          child: Text('No image available'),
+                                          child: Text('Slika nije dostupna'),
                                         ),
                                       ),
                               ),
@@ -602,7 +593,7 @@ class _MembershipContentState extends State<_MembershipContent> {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 const Text(
-                                  'Campaign Progress',
+                                  'Napredak kampanje',
                                   style: TextStyle(
                                     fontSize: 20,
                                     fontWeight: FontWeight.bold,
@@ -628,7 +619,7 @@ class _MembershipContentState extends State<_MembershipContent> {
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              '${_selectedCampaign!.totalMembers} of ${_selectedCampaign!.targetMembers} members',
+                              '${_selectedCampaign!.totalMembers} od ${_selectedCampaign!.targetMembers} članova',
                               style: TextStyle(
                                 fontSize: 16,
                                 color: Colors.grey[700],
@@ -642,7 +633,7 @@ class _MembershipContentState extends State<_MembershipContent> {
                         // Description section
                         if (_selectedCampaign!.description != null && _selectedCampaign!.description!.isNotEmpty) ...[
                           const Text(
-                            'Description',
+                            'Opis',
                             style: TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
@@ -664,7 +655,7 @@ class _MembershipContentState extends State<_MembershipContent> {
                         // Benefits section
                         if (_selectedCampaign!.benefits != null && _selectedCampaign!.benefits!.isNotEmpty) ...[
                           const Text(
-                            'Membership Benefits',
+                            'Pogodnosti članstva',
                             style: TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
@@ -690,7 +681,7 @@ class _MembershipContentState extends State<_MembershipContent> {
                           children: [
                             TextButton.icon(
                               icon: const Icon(Icons.delete, color: Colors.red),
-                              label: const Text('Delete', style: TextStyle(color: Colors.red)),
+                              label: const Text('Izbriši', style: TextStyle(color: Colors.red)),
                               onPressed: () => _deleteCampaign(_selectedCampaign!),
                               style: TextButton.styleFrom(
                                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -699,7 +690,7 @@ class _MembershipContentState extends State<_MembershipContent> {
                             const SizedBox(width: 16),
                             ElevatedButton.icon(
                               icon: const Icon(Icons.edit),
-                              label: const Text('Edit Campaign'),
+                              label: const Text('Uredi kampanju'),
                               onPressed: () => _editCampaign(_selectedCampaign!),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.blue,

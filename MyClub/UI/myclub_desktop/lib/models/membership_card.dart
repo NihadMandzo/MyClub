@@ -97,52 +97,6 @@ class MembershipCardForm {
     this.keepImage = false,
   });
 
-  // Validation method to match backend requirements
-  Map<String, String?> validate() {
-    final errors = <String, String?>{};
-    
-    // Required validations
-    if (year == null) {
-      errors['year'] = 'Year is required';
-    }
-    
-    if (name == null || name!.isEmpty) {
-      errors['name'] = 'Name is required';
-    } else if (name!.length > 100) {
-      errors['name'] = 'Name cannot exceed 100 characters';
-    }
-    
-    if (targetMembers == null) {
-      errors['targetMembers'] = 'Target members is required';
-    }
-    
-    if (price == null) {
-      errors['price'] = 'Price is required';
-    } else if (price! <= 0) {
-      errors['price'] = 'Price must be greater than 0';
-    }
-    
-    if (startDate == null) {
-      errors['startDate'] = 'Start date is required';
-    }
-    
-    // Optional validations with conditions
-    if (endDate != null && startDate != null && endDate!.isBefore(startDate!)) {
-      errors['endDate'] = 'End date must be after start date';
-    }
-    
-    // Image validation - frontend specific
-    if (image == null && keepImage != true) {
-      errors['image'] = 'An image is required';
-    }
-    
-    return errors;
-  }
-
-  bool isValid() {
-    return validate().isEmpty;
-  }
-
   Map<String, dynamic> toJson() {
     return {
       'year': year,
