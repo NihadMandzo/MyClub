@@ -26,5 +26,44 @@ class MatchProvider extends BaseProvider<Match> {
       throw Exception("Error updating match result");
     }
   }
+
+  Future<List<Match>> getUpcomingMatches() async {
+    var url = "${BaseProvider.baseUrl}$endpoint/upcoming";
+    var headers = createHeaders();
+
+    var response = await http.get(Uri.parse(url), headers: headers);
+
+    if (isValidResponse(response)) {
+      var data = jsonDecode(response.body) as List;
+      return data.map((item) => fromJson(item)).toList();
+    } else {
+      throw Exception("Error fetching upcoming matches");
+    }
+  }
+
+  Future<void> addTicketsForMatch(int matchId, List<Map<String, dynamic>> tickets) async {
+    var url = "${BaseProvider.baseUrl}$endpoint/tickets/$matchId";
+    var headers = createHeaders();
+
+    var response = await http.post(Uri.parse(url), headers: headers, body: jsonEncode(tickets));
+
+    if (!isValidResponse(response)) {
+      throw Exception("Error adding tickets for match");
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getTicketsForMatch(int matchId) async {
+    var url = "${BaseProvider.baseUrl}$endpoint/$matchId/tickets";
+    var headers = createHeaders();
+
+    var response = await http.get(Uri.parse(url), headers: headers);
+
+    if (isValidResponse(response)) {
+      var data = jsonDecode(response.body) as List;
+      return data.cast<Map<String, dynamic>>();
+    } else {
+      throw Exception("Error fetching tickets for match");
+    }
+  }
   
 }
