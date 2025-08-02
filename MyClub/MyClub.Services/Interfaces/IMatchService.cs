@@ -16,5 +16,7 @@ namespace MyClub.Services
         Task<QRValidationResponse> ValidateQRCodeAsync(QRValidationRequest request);
         Task<PagedResult<MatchResponse>> GetAvailableMatchesAsync(BaseSearchObject search);
         Task<MatchResponse> UpdateMatchResultAsync(int matchId, MatchResultRequest request);
+
+        Task<MatchResponse> CreateOrUpdateMatchTicketAsync(int matchId, List<MatchTicketUpsertRequest> request);
     }
 } 

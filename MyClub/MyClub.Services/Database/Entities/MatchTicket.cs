@@ -9,12 +9,9 @@ namespace MyClub.Services.Database
         [Key]
         public int Id { get; set; }
         
-        [Required]
-        public int TotalQuantity { get; set; }
-        
-        [Required]
-        public int AvailableQuantity { get; set; }
-        
+        [Required(ErrorMessage = "Released quantity is required")]
+        [Range(0, int.MaxValue, ErrorMessage = "Released quantity cannot be negative")]
+        public int ReleasedQuantity { get; set; }
         [Required]
         [Column(TypeName = "decimal(10,2)")]
         public decimal Price { get; set; }

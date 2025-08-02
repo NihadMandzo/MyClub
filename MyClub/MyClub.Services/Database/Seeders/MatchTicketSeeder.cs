@@ -36,8 +36,7 @@ public static class MatchTicketSeeder
                 Id = i,
                 MatchId = matchId,
                 StadiumSectorId = sectorId,
-                TotalQuantity = totalQuantity,
-                AvailableQuantity = availableQuantity,
+                ReleasedQuantity = totalQuantity,
                 Price = price,
                 IsActive = matchDate >= DateTime.Now
             });

@@ -109,6 +109,32 @@ namespace MyClub.WebAPI
                 return StatusCode(500, $"Internal server error: {ex.Message}");
             }
         }
+
+        [HttpPost("tickets/{matchId}")]
+        public async Task<IActionResult> CreateOrUpdateMatchTicket(int matchId, [FromBody] List<MatchTicketUpsertRequest> request)
+        {
+            if (request == null)
+            {
+                return BadRequest("Match ticket request cannot be null");
+            }
+
+            // Validate the match ID
+            if (matchId <= 0)
+            {
+                return BadRequest("Invalid match ID");
+            }
+
+            // Call the service to create or update the match ticket
+            try
+            {
+                var result = await _matchService.CreateOrUpdateMatchTicketAsync(matchId, request);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
     }
 
 } 

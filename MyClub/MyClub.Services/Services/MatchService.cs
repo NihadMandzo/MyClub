@@ -168,8 +168,6 @@ namespace MyClub.Services
             }
         }
 
-
-
         public async Task<UserTicketResponse> PurchaseTicketAsync(TicketPurchaseRequest request)
         {
             //     using var transaction = await _context.Database.BeginTransactionAsync();
@@ -383,7 +381,7 @@ namespace MyClub.Services
                     .ThenInclude(t => t.StadiumSector)
                     .ThenInclude(s => s.StadiumSide)
                 .Where(m => m.MatchDate > now) // Only upcoming matches
-                .Where(m => m.Tickets.Any(t => t.IsActive && t.AvailableQuantity > 0)) // With available tickets
+                .Where(m => m.Tickets.Any(t => t.IsActive)) // With available tickets
                 .AsQueryable();
 
             // Apply any text search
@@ -504,8 +502,7 @@ namespace MyClub.Services
                 {
                     Id = t.Id,
                     MatchId = t.MatchId,
-                    TotalQuantity = t.TotalQuantity,
-                    AvailableQuantity = t.AvailableQuantity,
+                    ReleasedQuantity = t.ReleasedQuantity,
                     Price = t.Price,
                     StadiumSectorId = t.StadiumSectorId,
                     SectorName = t.StadiumSector?.Code,
@@ -588,6 +585,80 @@ namespace MyClub.Services
                 await transaction.CommitAsync();
 
                 return MapToResponse(match);
+            }
+            catch (Exception)
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+        }
+
+        public override async Task<bool> DeleteAsync(int id)
+        {
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                var entity = await _context.Matches
+                    .Include(m => m.Tickets)
+                    .FirstOrDefaultAsync(m => m.Id == id);
+
+                if (entity == null)
+                    throw new Exception($"Match with ID {id} not found");
+
+                await BeforeDelete(entity);
+                _context.Matches.Remove(entity);
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                return true;
+            }
+            catch (Exception)
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+        }
+
+        public async Task<MatchResponse> CreateOrUpdateMatchTicketAsync(int matchId, List<MatchTicketUpsertRequest> request)
+        {
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                var matchTickets = new List<Database.MatchTicket>();
+                foreach (var ticketRequest in request)
+                {
+                    var matchTicket = await _context.MatchTickets
+                        .FirstOrDefaultAsync(mt => mt.MatchId == matchId && mt.StadiumSectorId == ticketRequest.StadiumSectorId);
+
+                    if (matchTicket == null)
+                    {
+                        // Create new ticket
+                        matchTicket = new Database.MatchTicket
+                        {
+                            MatchId = matchId,
+                            ReleasedQuantity = ticketRequest.ReleasedQuantity,
+                            Price = ticketRequest.Price,
+                            StadiumSectorId = ticketRequest.StadiumSectorId,
+                            IsActive = ticketRequest.IsActive
+                        };
+                        _context.MatchTickets.Add(matchTicket);
+                    }
+                    else
+                    {
+                        // Update existing ticket
+                        matchTicket.ReleasedQuantity = ticketRequest.ReleasedQuantity;
+                        matchTicket.Price = ticketRequest.Price;
+                        matchTicket.IsActive = ticketRequest.IsActive;
+                    }
+
+                    matchTickets.Add(matchTicket);
+                }
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                // Return the complete match response with all tickets
+                return await GetByIdAsync(matchId);
             }
             catch (Exception)
             {
