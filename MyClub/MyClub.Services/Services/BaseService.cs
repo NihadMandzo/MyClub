@@ -53,11 +53,9 @@ namespace MyClub.Services
         protected virtual IQueryable<TEntity> ApplyFilter(IQueryable<TEntity> query, TSearch search){
             return query;
         }
-
         protected virtual T MapToResponse(TEntity entity){
             return _mapper.Map<T>(entity);
         }
-
         public virtual async Task<T?> GetByIdAsync(int id){
             var entity = await _context.Set<TEntity>().FindAsync(id);
             if(entity == null){
@@ -65,7 +63,5 @@ namespace MyClub.Services
             }
             return MapToResponse(entity);
         }
-
-
     }
 }

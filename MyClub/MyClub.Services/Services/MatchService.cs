@@ -92,36 +92,36 @@ namespace MyClub.Services
         public async Task<List<MatchResponse>> GetUpcomingMatchesAsync(int? clubId = null, int? count = null)
         {
             // Create a simple IQueryable first
-            IQueryable<Database.Match> baseQuery = _context.Matches
+            var query = _context.Matches
                 .AsNoTracking()
                 .Include(m => m.Club)
                 .Include(m => m.Tickets)
                 .ThenInclude(t => t.StadiumSector)
-                .Where(m => m.MatchDate > DateTime.UtcNow);
+                .ThenInclude(s => s.StadiumSide)
+                .Where(m => m.MatchDate > DateTime.UtcNow).AsQueryable();
 
             // Apply club filter if needed
             if (clubId.HasValue)
             {
-                baseQuery = baseQuery.Where(m => m.ClubId == clubId.Value);
+                query = query.Where(m => m.ClubId == clubId.Value);
             }
 
             // Order the query
-            var orderedQuery = baseQuery.OrderBy(m => m.MatchDate);
+            var orderedQuery = query.OrderBy(m => m.MatchDate);
 
             // Apply limit if needed
             if (count.HasValue)
             {
-                baseQuery = orderedQuery.Take(count.Value);
+                query = orderedQuery.Take(count.Value);
             }
             else
             {
-                baseQuery = orderedQuery;
+                query = orderedQuery;
             }
 
-            var matches = await baseQuery.ToListAsync();
+            var matches = await query.ToListAsync();
             return matches.Select(m => MapToResponse(m)).ToList();
         }
-
 
         public override async Task<MatchResponse> CreateAsync(MatchUpsertRequest request)
         {
@@ -381,7 +381,6 @@ namespace MyClub.Services
                     .ThenInclude(t => t.StadiumSector)
                     .ThenInclude(s => s.StadiumSide)
                 .Where(m => m.MatchDate > now) // Only upcoming matches
-                .Where(m => m.Tickets.Any(t => t.IsActive)) // With available tickets
                 .AsQueryable();
 
             // Apply any text search
@@ -418,13 +417,12 @@ namespace MyClub.Services
             // Map to response
             return new PagedResult<MatchResponse>
             {
-                Data = list.Select(x => MapToResponse(x)).ToList(),
+                Data = list.Select(MapToResponse).ToList(),
                 TotalCount = totalCount,
                 CurrentPage = currentPage,
                 PageSize = pageSize
             };
         }
-
         protected override async Task BeforeInsert(Database.Match entity, MatchUpsertRequest request)
         {
             await ValidateAsync(request);
@@ -504,10 +502,15 @@ namespace MyClub.Services
                     MatchId = t.MatchId,
                     ReleasedQuantity = t.ReleasedQuantity,
                     Price = t.Price,
-                    StadiumSectorId = t.StadiumSectorId,
-                    SectorName = t.StadiumSector?.Code,
-                    SideName = t.StadiumSector?.StadiumSide?.Name,
-                    IsActive = t.IsActive
+                    StadiumSector = new StadiumSectorResponse
+                    {
+                        Id = t.StadiumSectorId,
+                        Capacity = t.StadiumSector.Capacity,
+                        Code = t.StadiumSector.Code,
+                        SideName = t.StadiumSector.StadiumSide.Name
+                    },
+                    AvailableQuantity = t.AvailableQuantity,
+                    UsedQuantity = t.UsedQuantity
                 }).ToList();
             }
             // Map match result
@@ -639,7 +642,6 @@ namespace MyClub.Services
                             ReleasedQuantity = ticketRequest.ReleasedQuantity,
                             Price = ticketRequest.Price,
                             StadiumSectorId = ticketRequest.StadiumSectorId,
-                            IsActive = ticketRequest.IsActive
                         };
                         _context.MatchTickets.Add(matchTicket);
                     }
@@ -648,7 +650,6 @@ namespace MyClub.Services
                         // Update existing ticket
                         matchTicket.ReleasedQuantity = ticketRequest.ReleasedQuantity;
                         matchTicket.Price = ticketRequest.Price;
-                        matchTicket.IsActive = ticketRequest.IsActive;
                     }
 
                     matchTickets.Add(matchTicket);

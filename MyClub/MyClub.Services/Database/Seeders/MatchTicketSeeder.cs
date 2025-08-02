@@ -24,10 +24,8 @@ public static class MatchTicketSeeder
 
             var matchDate = matchDates[matchId];
 
-            int totalQuantity = random.Next(100, 1001);
-            int availableQuantity = matchDate < DateTime.Now
-                ? random.Next(0, 50)
-                : random.Next(totalQuantity / 2, totalQuantity + 1);
+            int ReleasedQuantity = random.Next(0, 100);
+            int availableQuantity = random.Next(0, ReleasedQuantity / 2);
 
             decimal price = Math.Round((decimal)(10 + random.NextDouble() * 40), 2);
 
@@ -36,9 +34,9 @@ public static class MatchTicketSeeder
                 Id = i,
                 MatchId = matchId,
                 StadiumSectorId = sectorId,
-                ReleasedQuantity = totalQuantity,
+                ReleasedQuantity = ReleasedQuantity,
+                AvailableQuantity = availableQuantity,
                 Price = price,
-                IsActive = matchDate >= DateTime.Now
             });
         }
 

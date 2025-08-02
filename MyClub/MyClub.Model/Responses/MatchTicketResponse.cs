@@ -6,11 +6,10 @@ namespace MyClub.Model
     {
         public int Id { get; set; }
         public int MatchId { get; set; }
-        public int StadiumSectorId { get; set; }
-        public string SectorName { get; set; }
-        public string SideName { get; set; }
+        public StadiumSectorResponse StadiumSector { get; set; }
         public int ReleasedQuantity { get; set; }
         public decimal Price { get; set; }
-        public bool IsActive { get; set; }
+        public int AvailableQuantity { get; set; }
+        public int UsedQuantity { get; set; }
     }
 } 
