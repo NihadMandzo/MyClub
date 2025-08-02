@@ -125,8 +125,8 @@ namespace MyClub.WebAPI
             }
 
                 var result = await _matchService.CreateOrUpdateMatchTicketAsync(matchId, request);
-                return result;
-            
+                return Ok(result);
+
         }
     }
 

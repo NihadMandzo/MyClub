@@ -33,7 +33,7 @@ namespace MyClub.WebAPI.Controllers
         {
             return await _orderService.GetAsync(search);
         }
-
+ 
         [HttpPut("{id}/status")]
         [Authorize(Policy = "AdminOnly")]
         public async Task<ActionResult<OrderResponse>> ChangeOrderStatus(int id, [FromBody] OrderStateUpdateRequest request)
