@@ -33,7 +33,6 @@ namespace MyClub.Services.Database
         public virtual ICollection<UserTicket> UserTickets { get; set; }
 
         public int UsedQuantity => ReleasedQuantity - AvailableQuantity;
-
         public int AvailableQuantity { get; set; }
     }
 } 

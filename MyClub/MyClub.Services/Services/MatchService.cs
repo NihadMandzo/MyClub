@@ -642,13 +642,15 @@ namespace MyClub.Services
                             ReleasedQuantity = ticketRequest.ReleasedQuantity,
                             Price = ticketRequest.Price,
                             StadiumSectorId = ticketRequest.StadiumSectorId,
+                            AvailableQuantity = ticketRequest.ReleasedQuantity // Initially all released tickets are available
                         };
                         _context.MatchTickets.Add(matchTicket);
                     }
                     else
                     {
                         // Update existing ticket
-                        matchTicket.ReleasedQuantity = ticketRequest.ReleasedQuantity;
+                        matchTicket.ReleasedQuantity += ticketRequest.ReleasedQuantity;
+                        matchTicket.AvailableQuantity += ticketRequest.ReleasedQuantity; // Reset available quantity
                         matchTicket.Price = ticketRequest.Price;
                     }
 
