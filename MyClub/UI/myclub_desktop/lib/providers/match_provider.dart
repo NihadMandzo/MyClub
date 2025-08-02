@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 import 'package:myclub_desktop/models/match.dart';
+import 'package:myclub_desktop/models/match_ticket.dart';
 import 'package:myclub_desktop/providers/base_provider.dart';
 
 class MatchProvider extends BaseProvider<Match> {
@@ -52,7 +53,7 @@ class MatchProvider extends BaseProvider<Match> {
     }
   }
 
-  Future<List<Map<String, dynamic>>> getTicketsForMatch(int matchId) async {
+  Future<List<MatchTicket>> getTicketsForMatch(int matchId) async {
     var url = "${BaseProvider.baseUrl}$endpoint/$matchId/tickets";
     var headers = createHeaders();
 
@@ -60,7 +61,7 @@ class MatchProvider extends BaseProvider<Match> {
 
     if (isValidResponse(response)) {
       var data = jsonDecode(response.body) as List;
-      return data.cast<Map<String, dynamic>>();
+      return data.map((item) => MatchTicket.fromJson(item)).toList();
     } else {
       throw Exception("Error fetching tickets for match");
     }

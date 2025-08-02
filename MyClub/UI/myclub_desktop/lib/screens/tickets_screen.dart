@@ -1,19 +1,27 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:myclub_desktop/models/match.dart';
+import 'package:myclub_desktop/models/match_ticket.dart';
 import 'package:myclub_desktop/models/match_ticket_upsert_request.dart';
+import 'package:myclub_desktop/models/paged_result.dart';
+import 'package:myclub_desktop/models/stadium_sector.dart';
 import 'package:myclub_desktop/providers/match_provider.dart';
+import 'package:myclub_desktop/providers/stadium_sector_provider.dart';
 import 'package:myclub_desktop/utilities/notification_utility.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'dart:math' as math;
 
 class TicketsScreen extends StatelessWidget {
   const TicketsScreen({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => MatchProvider(),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => MatchProvider()),
+        ChangeNotifierProvider(create: (_) => StadiumSectorProvider()),
+      ],
       child: const _TicketsContent(),
     );
   }
@@ -28,112 +36,49 @@ class _TicketsContent extends StatefulWidget {
 
 class _TicketsContentState extends State<_TicketsContent> {
   late MatchProvider _matchProvider;
+  late StadiumSectorProvider _stadiumSectorProvider;
+  
+  // Form key for proper form state management
+  // Using separate keys for different forms to avoid widget tree conflicts
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final GlobalKey<FormState> _addTicketsFormKey = GlobalKey<FormState>();
+  
+  // Form rebuild counter to force TextFormField recreation
+  int _formRebuildCounter = 0;
   
   List<Match> _upcomingMatches = [];
+  List<StadiumSector> _stadiumSectors = [];
   Match? _selectedMatch;
   bool _isLoading = false;
   bool _isLoadingTickets = false;
   
-  // Stadium sectors mapping (hardcoded based on your seeder)
-  final Map<String, List<Map<String, dynamic>>> _stadiumSectors = {
-    'Jug': [
-      {'id': 1, 'code': 'A1', 'capacity': 100},
-      {'id': 2, 'code': 'A2', 'capacity': 100},
-    ],
-    'Zapad': [
-      {'id': 3, 'code': 'B1', 'capacity': 100},
-      {'id': 4, 'code': 'B2', 'capacity': 100},
-      {'id': 5, 'code': 'B3', 'capacity': 100},
-    ],
-    'Sjever': [
-      {'id': 6, 'code': 'C1', 'capacity': 100},
-      {'id': 7, 'code': 'C2', 'capacity': 100},
-    ],
-    'Istok': [
-      {'id': 8, 'code': 'D1', 'capacity': 100},
-      {'id': 9, 'code': 'D2', 'capacity': 100},
-      {'id': 10, 'code': 'D3', 'capacity': 100},
-    ],
-  };
-  
   // Form values for each sector
   final Map<int, Map<String, dynamic>> _sectorValues = {};
   // Existing tickets for the selected match
-  Map<int, Map<String, dynamic>> _existingTickets = {};
+  Map<int, MatchTicket> _existingTickets = {};
+  
+  // ScrollController for the horizontal matches scroll
+  final ScrollController _matchesScrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
-    _initializeProvider();
+    _initializeProviders();
     _loadData();
   }
 
-  void _initializeProvider() {
+  void _initializeProviders() {
     _matchProvider = context.read<MatchProvider>();
     _matchProvider.setContext(context);
+    
+    _stadiumSectorProvider = context.read<StadiumSectorProvider>();
+    _stadiumSectorProvider.setContext(context);
   }
 
   @override
   void dispose() {
+    _matchesScrollController.dispose();
     super.dispose();
-  }
-
-  Future<void> _loadData() async {
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      _upcomingMatches = await _matchProvider.getUpcomingMatches();
-      if (_upcomingMatches.isNotEmpty) {
-        _selectedMatch = _upcomingMatches.first;
-        await _loadTicketsForMatch();
-      }
-    } catch (e) {
-      NotificationUtility.showError(
-        context,
-        message: "Greška tokom učitavanja utakmica: ${_formatErrorMessage(e)}",
-      );
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
-
-  Future<void> _loadTicketsForMatch() async {
-    if (_selectedMatch == null) return;
-
-    setState(() {
-      _isLoadingTickets = true;
-    });
-
-    try {
-      final tickets = await _matchProvider.getTicketsForMatch(_selectedMatch!.id!);
-      
-      setState(() {
-        _existingTickets.clear();
-        for (var ticket in tickets) {
-          int sectorId = ticket['stadiumSectorId'];
-          _existingTickets[sectorId] = ticket;
-          
-          // Pre-fill form with existing values
-          _sectorValues[sectorId] = {
-            'quantity': ticket['releasedQuantity'] ?? 0,
-            'price': ticket['price'] ?? 0.0,
-          };
-        }
-      });
-    } catch (e) {
-      // It's okay if there are no tickets yet
-      setState(() {
-        _existingTickets.clear();
-      });
-    } finally {
-      setState(() {
-        _isLoadingTickets = false;
-      });
-    }
   }
 
   String _formatErrorMessage(dynamic error) {
@@ -144,413 +89,165 @@ class _TicketsContentState extends State<_TicketsContent> {
     return errorMessage;
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey[100],
-      body: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildMatchSlider(),
-            const SizedBox(height: 20),
-            Expanded(
-              child: _buildStadiumForm(),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMatchSlider() {
-    return SizedBox(
-      height: 120,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Izaberi utakmicu',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Expanded(
-            child: _isLoading 
-              ? const Center(child: CircularProgressIndicator())
-              : _upcomingMatches.isEmpty
-                ? const Center(
-                    child: Text(
-                      'Nema predstojećih utakmica',
-                      style: TextStyle(fontSize: 16, color: Colors.grey),
-                    ),
-                  )
-                : ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: _upcomingMatches.length,
-                    itemBuilder: (context, index) {
-                      final match = _upcomingMatches[index];
-                      final isSelected = _selectedMatch?.id == match.id;
-                      
-                      return GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _selectedMatch = match;
-                            _sectorValues.clear();
-                          });
-                          _loadTicketsForMatch();
-                        },
-                        child: Container(
-                          width: 200,
-                          margin: const EdgeInsets.only(right: 15),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: isSelected ? Colors.blue[600] : Colors.white,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: isSelected ? Colors.blue[600]! : Colors.grey[300]!,
-                              width: 2,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.grey.withValues(alpha: 0.1),
-                                spreadRadius: 1,
-                                blurRadius: 3,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    width: 8,
-                                    height: 8,
-                                    decoration: BoxDecoration(
-                                      color: isSelected ? Colors.white : Colors.blue,
-                                      shape: BoxShape.circle,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      match.opponentName ?? 'Nepoznat',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                        color: isSelected ? Colors.white : Colors.black87,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                match.matchDate != null 
-                                    ? DateFormat('dd.MM.\nHH:mm').format(match.matchDate!)
-                                    : 'TBD',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: isSelected ? Colors.white70 : Colors.grey[600],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStadiumForm() {
-    if (_selectedMatch == null) {
-      return const Center(
-        child: Text(
-          'Molim izaberite utakmicu za konfiguraciju ulaznica',
-          style: TextStyle(fontSize: 16, color: Colors.grey),
-        ),
-      );
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.1),
-            spreadRadius: 1,
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Sektori stadiona - ${_selectedMatch!.opponentName}',
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                ),
-              ),
-              if (_isLoadingTickets)
-                const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          
-          // Stadium Layout
-          Expanded(
-            child: Row(
-              children: [
-                // Left side (Zapad)
-                Expanded(
-                  child: _buildSideColumn('Zapad', _stadiumSectors['Zapad']!),
-                ),
-                
-                // Center columns (Istok and Sjever)
-                Expanded(
-                  flex: 2,
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: _buildSideColumn('Istok', _stadiumSectors['Istok']!),
-                      ),
-                      Expanded(
-                        child: _buildSideColumn('Sjever', _stadiumSectors['Sjever']!),
-                      ),
-                    ],
-                  ),
-                ),
-                
-                // Right side (Jug)
-                Expanded(
-                  child: _buildSideColumn('Jug', _stadiumSectors['Jug']!),
-                ),
-              ],
-            ),
-          ),
-          
-          const SizedBox(height: 20),
-          
-          // Add tickets button
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _isLoadingTickets ? null : _addTickets,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue[600],
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 15),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child: _isLoadingTickets
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2,
-                    ),
-                  )
-                : const Text(
-                    'Dodaj/Ažuriraj ulaznice',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSideColumn(String sideName, List<Map<String, dynamic>> sectors) {
-    return Container(
-      margin: const EdgeInsets.all(8),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.blue[200]!),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        children: [
-          Text(
-            sideName,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 15),
-          
-          Expanded(
-            child: ListView(
-              children: sectors.map((sector) => 
-                _buildSectorField(sector)
-              ).toList(),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSectorField(Map<String, dynamic> sector) {
-    final sectorId = sector['id'];
-    final existingTicket = _existingTickets[sectorId];
-    final hasExistingTicket = existingTicket != null;
+  Future<void> _loadData() async {
+    if (!mounted) return;
     
-    return Container(
-      margin: const EdgeInsets.only(bottom: 15),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: hasExistingTicket ? Colors.green[50] : Colors.grey[50],
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: hasExistingTicket ? Colors.green[200]! : Colors.grey[200]!,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(
-                sector['code'],
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              if (hasExistingTicket) ...[
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.green,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Text(
-                    'Aktivno',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ),
-          if (hasExistingTicket) ...[
-            const SizedBox(height: 4),
-            Text(
-              'Trenutno: ${existingTicket['releasedQuantity']} ulaznica po ${existingTicket['price']} KM',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.green[700],
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-          const SizedBox(height: 8),
-          
-          // Input fields in a row
-          Row(
-            children: [
-              // Quantity field
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Količina',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-                    ),
-                    const SizedBox(height: 4),
-                    TextFormField(
-                      key: ValueKey('quantity_${sector['id']}'),
-                      initialValue: _sectorValues[sectorId]?['quantity']?.toString() ?? '',
-                      decoration: const InputDecoration(
-                        hintText: 'Unesite količinu',
-                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        border: OutlineInputBorder(),
-                        isDense: true,
-                      ),
-                      style: const TextStyle(fontSize: 14),
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                      onChanged: (value) {
-                        _updateSectorValue(sector['id'], 'quantity', int.tryParse(value) ?? 0);
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              
-              // Price field  
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Cijena (KM)',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-                    ),
-                    const SizedBox(height: 4),
-                    TextFormField(
-                      key: ValueKey('price_${sector['id']}'),
-                      initialValue: _sectorValues[sectorId]?['price']?.toString() ?? '',
-                      decoration: const InputDecoration(
-                        hintText: 'Unesite cijenu',
-                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        border: OutlineInputBorder(),
-                        isDense: true,
-                      ),
-                      style: const TextStyle(fontSize: 14),
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
-                      onChanged: (value) {
-                        _updateSectorValue(sector['id'], 'price', double.tryParse(value) ?? 0.0);
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Load both matches and stadium sectors in parallel
+      final matchesFuture = _matchProvider.getUpcomingMatches();
+      final sectorsFuture = _stadiumSectorProvider.get();
+      
+      final results = await Future.wait([matchesFuture, sectorsFuture]);
+      
+      if (!mounted) return;
+      
+      _upcomingMatches = results[0] as List<Match>;
+      final sectorsResult = results[1] as PagedResult<StadiumSector>;
+      
+      // Extract stadium sectors from paged result and assign default side names if null
+      _stadiumSectors = sectorsResult.data.map((sector) {
+        if (sector.sideName == null || sector.sideName!.isEmpty) {
+          // Assign default side names based on sector code patterns
+          if (sector.code.startsWith('A')) {
+            sector.sideName = 'Sjever';
+          } else if (sector.code.startsWith('B')) {
+            sector.sideName = 'Jug';
+          } else if (sector.code.startsWith('C')) {
+            sector.sideName = 'Istok';
+          } else if (sector.code.startsWith('D')) {
+            sector.sideName = 'Zapad';
+          } else {
+            sector.sideName = 'Ostalo';
+          }
+        }
+        return sector;
+      }).toList();
+      
+      // Auto-select first match if available
+      if (_upcomingMatches.isNotEmpty) {
+        _selectedMatch = _upcomingMatches.first;
+        _loadTicketsFromSelectedMatch();
+      }
+    } catch (e) {
+      if (!mounted) return;
+      NotificationUtility.showError(
+        context,
+        message: "Greška tokom učitavanja podataka: ${_formatErrorMessage(e)}",
+      );
+      print("Error loading data: $e");
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
-  void _updateSectorValue(int sectorId, String field, dynamic value) {
+  void _loadTicketsFromSelectedMatch() {
+
+    _clearForm();
+    if (_selectedMatch == null || !mounted) return;
+
+    setState(() {
+      _isLoadingTickets = true;
+    });
+
+    try {
+      // Use tickets data from the selected match (already loaded from API)
+      final tickets = _selectedMatch!.tickets ?? [];
+      
+      if (!mounted) return;
+      
+      setState(() {
+        _existingTickets.clear();
+        _sectorValues.clear(); // Clear first
+        
+        // Group tickets by sector and sum quantities and prices
+        Map<int, List<MatchTicket>> ticketsBySector = {};
+        
+        for (var ticket in tickets) {
+          if (ticket.stadiumSector != null) {
+            int sectorId = ticket.stadiumSector!.id;
+            if (!ticketsBySector.containsKey(sectorId)) {
+              ticketsBySector[sectorId] = [];
+            }
+            ticketsBySector[sectorId]!.add(ticket);
+          }
+        }
+        
+        // Initialize values for ALL sectors with empty values
+        for (var sector in _stadiumSectors) {
+          // Always initialize with empty values (don't prefill anything)
+          _sectorValues[sector.id] = {
+            'quantity': null, // Empty quantity
+            'price': null,    // Empty price
+          };
+        }
+        
+        // Process each sector that has tickets
+        for (var entry in ticketsBySector.entries) {
+          int sectorId = entry.key;
+          List<MatchTicket> sectorTickets = entry.value;
+          
+          // Calculate total quantities for this sector
+          int totalReleasedQuantity = sectorTickets.fold(0, (sum, ticket) => sum + (ticket.releasedQuantity ?? 0));
+          int totalAvailableQuantity = sectorTickets.fold(0, (sum, ticket) => sum + (ticket.availableQuantity ?? 0));
+          int totalUsedQuantity = sectorTickets.fold(0, (sum, ticket) => sum + (ticket.usedQuantity ?? 0));
+          
+          // Use the latest price (from the last ticket)
+          double latestPrice = sectorTickets.last.price ?? 0.0;
+          
+          // Create a combined ticket object
+          MatchTicket combinedTicket = MatchTicket(
+            id: sectorTickets.first.id, // Use first ticket's ID
+            matchId: sectorTickets.first.matchId,
+            stadiumSector: sectorTickets.first.stadiumSector,
+            releasedQuantity: totalReleasedQuantity,
+            price: latestPrice,
+            availableQuantity: totalAvailableQuantity,
+            usedQuantity: totalUsedQuantity,
+          );
+          
+          _existingTickets[sectorId] = combinedTicket;
+          
+          // Don't pre-fill any form values - keep them empty
+          // This ensures all fields start empty regardless of existing tickets
+          
+          print("DEBUG: Sector $sectorId has ${sectorTickets.length} tickets with total quantity: $totalReleasedQuantity");
+        }
+      });
+    } catch (e) {
+      // It's okay if there are no tickets yet
+      if (mounted) {
+        setState(() {
+          _existingTickets.clear();
+          _sectorValues.clear();
+          
+          // Initialize all sectors with empty values
+          for (var sector in _stadiumSectors) {
+            _sectorValues[sector.id] = {
+              'quantity': null,
+              'price': null,
+            };
+          }
+        });
+      }
+      print("Error loading tickets: $e");
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingTickets = false;
+        });
+      }
+    }
+  }
+
+    void _updateSectorValue(int sectorId, String field, dynamic value) {
     setState(() {
       if (!_sectorValues.containsKey(sectorId)) {
         _sectorValues[sectorId] = {};
@@ -560,10 +257,40 @@ class _TicketsContentState extends State<_TicketsContent> {
   }
 
   Future<void> _addTickets() async {
-    if (_selectedMatch == null) return;
+    if (_selectedMatch == null || !mounted) return;
+
+    setState(() {
+      _isLoadingTickets = true;
+    });
 
     try {
       List<Map<String, dynamic>> tickets = [];
+      List<String> validationErrors = [];
+
+      // Check if user has actually entered any data before validating
+      bool hasUserInput = false;
+      for (var entry in _sectorValues.entries) {
+        Map<String, dynamic> values = entry.value;
+        int quantity = values['quantity'] ?? 0;
+        double price = values['price'] ?? 0.0;
+        
+        if (quantity > 0 || price > 0) {
+          hasUserInput = true;
+          break;
+        }
+      }
+      
+      // If no user input, don't validate - just show warning
+      if (!hasUserInput) {
+        if (!mounted) return;
+        NotificationUtility.showWarning(
+          context,
+          message: 'Molim unesite količinu i cijenu za najmanje jedan sektor',
+        );
+        return;
+      }
+      
+      print("DEBUG: User has input, proceeding with validation...");
 
       for (var entry in _sectorValues.entries) {
         int sectorId = entry.key;
@@ -572,10 +299,63 @@ class _TicketsContentState extends State<_TicketsContent> {
         int quantity = values['quantity'] ?? 0;
         double price = values['price'] ?? 0.0;
         
-        if (quantity > 0 && price > 0) {
+        // Get sector information for validation error messages
+        final sector = _stadiumSectors.firstWhere(
+          (s) => s.id == sectorId,
+          orElse: () => _stadiumSectors.isNotEmpty 
+              ? _stadiumSectors.first 
+              : StadiumSector(id: 0, capacity: 0, code: 'Nepoznat')
+        );
+        
+        // Check if there's an existing ticket for this sector
+        final existingTicket = _existingTickets[sectorId];
+        final currentReleasedQuantity = existingTicket?.releasedQuantity ?? 0;
+        
+        // If this sector has any input (quantity or price), validate it
+        if (quantity > 0 || price > 0) {
+          // Both quantity and price must be provided
+          if (quantity <= 0 || price <= 0) {
+            validationErrors.add(
+              'Sektor ${sector.code}: Molim unesite i količinu i cijenu'
+            );
+            continue;
+          }
+          
+          // IMPORTANT: The form shows existing quantity, user enters ADDITIONAL quantity
+          // So we need to calculate: currentReleasedQuantity + newQuantityToAdd
+          final newQuantityToAdd = quantity;
+          final totalAfterAddition = currentReleasedQuantity + newQuantityToAdd;
+          
+          print("DEBUG: Sector ${sector.code}: Current=$currentReleasedQuantity, Adding=$newQuantityToAdd, Total will be=$totalAfterAddition");
+          
+          // Frontend validation: Check if total after addition exceeds 100
+          if (totalAfterAddition > 100) {
+            final maxCanAdd = 100 - currentReleasedQuantity;
+            if (maxCanAdd <= 0) {
+              validationErrors.add(
+                'Sektor ${sector.code}: Već imate ${currentReleasedQuantity} ulaznica (maksimum je 100). Ne možete dodati više ulaznica.'
+              );
+            } else {
+              validationErrors.add(
+                'Sektor ${sector.code}: Trenutno imate ${currentReleasedQuantity} ulaznica. Možete dodati maksimalno ${maxCanAdd} ulaznica (ukupno 100). Pokušavate dodati ${newQuantityToAdd} ulaznica.'
+              );
+            }
+            continue;
+          }
+          
+          // If sector already has 100 tickets, don't allow any additions
+          if (currentReleasedQuantity >= 100) {
+            validationErrors.add(
+              'Sektor ${sector.code}: Već imate ${currentReleasedQuantity} ulaznica što je maksimum. Ne možete dodati više ulaznica.'
+            );
+            continue;
+          }
+          
+          print("DEBUG: Sector ${sector.code}: Validation passed, adding $newQuantityToAdd tickets");
+          
           final ticket = MatchTicketUpsertRequest(
             matchId: _selectedMatch!.id!,
-            releasedQuantity: quantity,
+            releasedQuantity: newQuantityToAdd, // Send only the additional quantity
             price: price,
             stadiumSectorId: sectorId,
           );
@@ -584,27 +364,870 @@ class _TicketsContentState extends State<_TicketsContent> {
         }
       }
 
+      // If there are validation errors, show them and don't proceed
+      if (validationErrors.isNotEmpty) {
+        print("DEBUG: Validation failed with ${validationErrors.length} errors:");
+        for (var error in validationErrors) {
+          print("DEBUG: - $error");
+        }
+        
+        if (!mounted) return;
+        NotificationUtility.showError(
+          context,
+          message: 'Greške validacije:\n${validationErrors.join('\n')}',
+        );
+        return;
+      }
+      
+      print("DEBUG: Validation passed, proceeding with ${tickets.length} tickets");
+
       if (tickets.isNotEmpty) {
         await _matchProvider.addTicketsForMatch(_selectedMatch!.id!, tickets);
         
-        NotificationUtility.showSuccess(
-          context,
-          message: 'Ulaznice su uspješno dodane/ažurirane!',
-        );
+        if (!mounted) return;
         
-        // Reload tickets to show updated data
-        await _loadTicketsForMatch();
-      } else {
-        NotificationUtility.showWarning(
-          context,
-          message: 'Molim unesite količinu i cijenu za najmanje jedan sektor',
-        );
+        // Show success message
+        NotificationUtility.showSuccess(context, message: "Ulaznice uspješno dodane");
+        
+        // Clear the form after successful operation (keeps selected match)
+        _clearForm();
+        
+        // Refresh the current match with updated ticket data
+        await _refreshCurrentMatchTickets();
       }
     } catch (e) {
-      NotificationUtility.showError(
-        context,
-        message: 'Greška tokom dodavanja ulaznica: ${_formatErrorMessage(e)}',
-      );
+      if (!mounted) return;
+      
+      String errorMessage = _formatErrorMessage(e);
+      
+      // Check if it's a backend validation error about ticket limits
+      if (errorMessage.contains('Total released quantity cannot exceed 100') || 
+          errorMessage.contains('limit') || 
+          errorMessage.contains('100') || 
+          errorMessage.contains('maksimum') ||
+          errorMessage.contains('exceed')) {
+        NotificationUtility.showError(
+          context,
+          message: 'Greška validacije: Ukupna količina ulaznica ne može premašiti 100 po sektoru. Molim smanjite količinu.',
+        );
+      } else {
+        NotificationUtility.showError(
+          context,
+          message: 'Greška tokom dodavanja ulaznica: $errorMessage',
+        );
+      }
+      
+      print("Error in _addTickets: $e");
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingTickets = false;
+        });
+      }
     }
+  }
+
+  void _clearForm() {
+    if (_selectedMatch == null) return;
+    
+    // Only reset the form fields without rebuilding the entire form
+    setState(() {
+      // Clear the sector values but keep the form state
+      _sectorValues.clear();
+      
+      // Don't attempt to initialize sectors if they're not loaded yet
+      if (_stadiumSectors.isNotEmpty) {
+        // Initialize empty values for all sectors
+        for (var sector in _stadiumSectors) {
+          _sectorValues[sector.id] = {
+            'quantity': null,
+            'price': null,
+          };
+        }
+      }
+      
+      // Increment rebuild counter to force TextFormFields to rebuild with empty values
+      _formRebuildCounter++;
+      
+      print('Ticket form has been cleared successfully (rebuild #$_formRebuildCounter) - Match preserved');
+    });
+    
+    // Don't call reset() directly inside setState to avoid widget tree conflicts
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Only reset if still mounted and state exists
+      if (mounted) {
+        if (_addTicketsFormKey.currentState != null) {
+          _addTicketsFormKey.currentState!.reset();
+        }
+        // Use a safer approach with _formKey - check if mounted first
+        if (_formKey.currentState != null) {
+          _formKey.currentState!.reset();
+        }
+      }
+    });
+  }
+
+  Future<void> _refreshCurrentMatchTickets() async {
+    if (_selectedMatch == null || !mounted) return;
+
+    try {
+      // Reload the specific match with updated ticket data
+      final updatedMatch = await _matchProvider.getUpcomingMatches();
+      final currentMatch = updatedMatch.firstWhere(
+        (match) => match.id == _selectedMatch!.id,
+        orElse: () => _selectedMatch!,
+      );
+      
+      if (!mounted) return;
+      
+      setState(() {
+        _selectedMatch = currentMatch;
+      });
+      
+      // Now reload the tickets from the updated match
+      _loadTicketsFromSelectedMatch();
+    } catch (e) {
+      if (!mounted) return;
+      print("Error refreshing match tickets: $e");
+      // Fallback to loading from current match data
+      _loadTicketsFromSelectedMatch();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.grey[100],
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Match selection section
+              Container(
+                height: 180,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Izaberi utakmicu',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // Match cards area 
+                    Expanded(
+                      child: _isLoading 
+                        ? const Center(child: CircularProgressIndicator())
+                        : _upcomingMatches.isEmpty
+                          ? const Center(
+                              child: Text(
+                                'Nema predstojećih utakmica',
+                                style: TextStyle(fontSize: 16, color: Colors.grey),
+                              ),
+                            )
+                          : Column(
+                              children: [
+                                // Match cards in their own scrolling container with scrollbar
+                                Expanded(
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(top: 15.0, bottom: 15.0), // Margin between scrollbar and content
+                                    child: Scrollbar(
+                                      controller: _matchesScrollController,
+                                      thickness: 6,
+                                      radius: Radius.circular(10),
+                                      thumbVisibility: true,
+                                      interactive: true,
+                                      child: SingleChildScrollView(
+                                        controller: _matchesScrollController,
+                                        scrollDirection: Axis.horizontal,
+                                        physics: const BouncingScrollPhysics(),
+                                        child: Row(
+                                        children: _upcomingMatches.asMap().entries.map((entry) {
+                                          final index = entry.key;
+                                          final match = entry.value;
+                                          final isSelected = _selectedMatch?.id == match.id;
+                                          
+                                          return GestureDetector(
+                                            onTap: () {
+                                              setState(() {
+                                                _selectedMatch = match;
+                                                _sectorValues.clear();
+                                              });
+                                              _loadTicketsFromSelectedMatch();
+                                            },
+                                            child: Container(
+                                              width: 180,
+                                              margin: EdgeInsets.only(
+                                                top: 5.0, // Add top margin to cards
+                                                right: index < _upcomingMatches.length - 1 ? 15 : 0,
+                                              ),
+                                              padding: const EdgeInsets.all(12),
+                                              decoration: BoxDecoration(
+                                                color: isSelected ? Colors.blue[600] : Colors.white,
+                                                borderRadius: BorderRadius.circular(8),
+                                                border: Border.all(
+                                                  color: isSelected ? Colors.blue[600]! : Colors.grey[300]!,
+                                                  width: 2,
+                                                ),
+                                                boxShadow: [
+                                                  BoxShadow(
+                                                    color: Colors.grey.withOpacity(0.1),
+                                                    spreadRadius: 1,
+                                                    blurRadius: 3,
+                                                    offset: const Offset(0, 2),
+                                                  ),
+                                                ],
+                                              ),
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Row(
+                                                    children: [
+                                                      Container(
+                                                        width: 8,
+                                                        height: 8,
+                                                        decoration: BoxDecoration(
+                                                          color: isSelected ? Colors.white : Colors.blue[600],
+                                                          shape: BoxShape.circle,
+                                                        ),
+                                                      ),
+                                                      const SizedBox(width: 8),
+                                                      Expanded(
+                                                        child: Text(
+                                                          match.opponentName ?? 'Nepoznat',
+                                                          style: TextStyle(
+                                                            fontSize: 16,
+                                                            fontWeight: FontWeight.bold,
+                                                            color: isSelected ? Colors.white : Colors.black87,
+                                                          ),
+                                                          overflow: TextOverflow.ellipsis,
+                                                          maxLines: 1,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  const Spacer(),
+                                                  Text(
+                                                    match.matchDate != null 
+                                                        ? DateFormat('dd.MM.yyyy').format(match.matchDate!)
+                                                        : 'TBD',
+                                                    style: TextStyle(
+                                                      fontSize: 15,
+                                                      fontWeight: FontWeight.w500,
+                                                      color: isSelected ? Colors.white : Colors.black87,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 4),
+                                                  Text(
+                                                    match.matchDate != null 
+                                                        ? DateFormat('HH:mm').format(match.matchDate!)
+                                                        : '',
+                                                    style: TextStyle(
+                                                      fontSize: 14,
+                                                      color: isSelected ? Colors.white70 : Colors.grey[700],
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          );
+                                        }).toList(),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                          )],
+                            ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+            
+            // Stadium Form Section
+            Expanded(
+              child: _selectedMatch == null
+                ? const Center(
+                    child: Text(
+                      'Molim izaberite utakmicu za konfiguraciju ulaznica',
+                      style: TextStyle(fontSize: 16, color: Colors.grey),
+                    ),
+                  )
+                : Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12), // Reduced padding
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.grey.withValues(alpha: 0.1),
+                          spreadRadius: 1,
+                          blurRadius: 10,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    // Use Flex layout to ensure content fits
+                    child: Flex(
+                      direction: Axis.vertical,
+                      children: [
+                      // Title row - compact
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Sektori stadiona - ${_selectedMatch!.opponentName}',
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                            ),
+                          ),
+                          if (_isLoadingTickets)
+                            const SizedBox(
+                              width: 16, // Reduced size
+                              height: 16, // Reduced size
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 10), // Reduced spacing
+                      
+                      // Flexible content area - takes all remaining space
+                      Expanded(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Left Side - Existing Ticket Information
+                            Expanded(
+                              flex: 3,
+                              child: Container(
+                                  margin: const EdgeInsets.only(right: 8), // Reduced margin
+                                  padding: const EdgeInsets.all(12), // Reduced padding
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[50],
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: Colors.grey[200]!),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Icon(Icons.stadium, color: Colors.blue[600], size: 24),
+                                          const SizedBox(width: 8),
+                                          const Text(
+                                            'Trenutno stanje ulaznica po sektorima',
+                                            style: TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.black87,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 20),
+                                      
+                                      Expanded(
+                                        child: _existingTickets.isEmpty
+                                          ? Center(
+                                              child: Column(
+                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                children: [
+                                                  Icon(Icons.inbox_outlined, 
+                                                       size: 64, 
+                                                       color: Colors.grey[400]),
+                                                  const SizedBox(height: 16),
+                                                  Text(
+                                                    'Nema izdanih ulaznica za ovu utakmicu',
+                                                    style: TextStyle(
+                                                      fontSize: 16,
+                                                      color: Colors.grey[600],
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            )
+                                          : GridView.builder(
+                                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                                crossAxisCount: 2,
+                                                childAspectRatio: 2.2,
+                                                crossAxisSpacing: 12,
+                                                mainAxisSpacing: 12,
+                                              ),
+                                              itemCount: _existingTickets.length,
+                                              itemBuilder: (context, index) {
+                                                final entry = _existingTickets.entries.elementAt(index);
+                                                final sectorId = entry.key;
+                                                final ticket = entry.value;
+                                                
+                                                final sector = _stadiumSectors.firstWhere(
+                                                  (s) => s.id == sectorId,
+                                                  orElse: () => StadiumSector(id: 0, capacity: 0, code: 'Nepoznat')
+                                                );
+                                                
+                                                final isOverLimit = (ticket.releasedQuantity ?? 0) > 100;
+                                                
+                                                return Container(
+                                                  padding: const EdgeInsets.all(16),
+                                                  decoration: BoxDecoration(
+                                                    color: isOverLimit ? Colors.red[50] : Colors.white,
+                                                    borderRadius: BorderRadius.circular(8),
+                                                    border: Border.all(
+                                                      color: isOverLimit ? Colors.red[200]! : Colors.green[200]!,
+                                                      width: 2,
+                                                    ),
+                                                    boxShadow: [
+                                                      BoxShadow(
+                                                        color: Colors.grey.withValues(alpha: 0.1),
+                                                        spreadRadius: 1,
+                                                        blurRadius: 3,
+                                                        offset: const Offset(0, 1),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  child: Column(
+                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                    children: [
+                                                      Row(
+                                                        children: [
+                                                          Container(
+                                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                            decoration: BoxDecoration(
+                                                              color: isOverLimit ? Colors.red : Colors.green,
+                                                              borderRadius: BorderRadius.circular(12),
+                                                            ),
+                                                            child: Text(
+                                                              sector.code,
+                                                              style: const TextStyle(
+                                                                color: Colors.white,
+                                                                fontWeight: FontWeight.bold,
+                                                                fontSize: 12,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                          const SizedBox(width: 8),
+                                                          Text(
+                                                            sector.sideName ?? 'Nepoznato',
+                                                            style: TextStyle(
+                                                              fontSize: 12,
+                                                              color: Colors.grey[600],
+                                                            ),
+                                                          ),
+                                                          if (isOverLimit) ...[
+                                                            const Spacer(),
+                                                            Icon(Icons.warning, 
+                                                                 color: Colors.red[600], 
+                                                                 size: 16),
+                                                          ],
+                                                        ],
+                                                      ),
+                                                      const SizedBox(height: 8),
+                                                      
+                                                      Expanded(
+                                                        child: Column(
+                                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                                          children: [
+                                                            Row(
+                                                              children: [
+                                                                Icon(Icons.confirmation_number, 
+                                                                     size: 16, 
+                                                                     color: Colors.blue[600]),
+                                                                const SizedBox(width: 4),
+                                                                Text(
+                                                                  '${ticket.releasedQuantity ?? 0}',
+                                                                  style: TextStyle(
+                                                                    fontSize: 20,
+                                                                    fontWeight: FontWeight.bold,
+                                                                    color: isOverLimit ? Colors.red[700] : Colors.black87,
+                                                                  ),
+                                                                ),
+                                                                const SizedBox(width: 4),
+                                                                Text(
+                                                                  'ulaznica',
+                                                                  style: TextStyle(
+                                                                    fontSize: 12,
+                                                                    color: Colors.grey[600],
+                                                                  ),
+                                                                ),
+                                                              ],
+                                                            ),
+                                                            const SizedBox(height: 4),
+                                                            
+                                                            Row(
+                                                              children: [
+                                                                Icon(Icons.attach_money, 
+                                                                     size: 16, 
+                                                                     color: Colors.green[600]),
+                                                                const SizedBox(width: 4),
+                                                                Text(
+                                                                  '${ticket.price?.toStringAsFixed(2) ?? '0.00'} KM',
+                                                                  style: const TextStyle(
+                                                                    fontSize: 14,
+                                                                    fontWeight: FontWeight.w600,
+                                                                  ),
+                                                                ),
+                                                              ],
+                                                            ),
+                                                            const SizedBox(height: 4),
+                                                            
+                                                            Row(
+                                                              children: [
+                                                                Icon(Icons.check_circle_outline, 
+                                                                     size: 14, 
+                                                                     color: Colors.orange[600]),
+                                                                const SizedBox(width: 4),
+                                                                Text(
+                                                                  'Dostupno: ${ticket.availableQuantity ?? 0}',
+                                                                  style: TextStyle(
+                                                                    fontSize: 11,
+                                                                    color: Colors.grey[600],
+                                                                  ),
+                                                                ),
+                                                              ],
+                                                            ),
+                                                            
+                                                            Row(
+                                                              children: [
+                                                                Icon(Icons.how_to_reg, 
+                                                                     size: 14, 
+                                                                     color: Colors.purple[600]),
+                                                                const SizedBox(width: 4),
+                                                                Text(
+                                                                  'Iskorišteno: ${ticket.usedQuantity ?? 0}',
+                                                                  style: TextStyle(
+                                                                    fontSize: 11,
+                                                                    color: Colors.grey[600],
+                                                                  ),
+                                                                ),
+                                                              ],
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                );
+                                              },
+                                            ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              
+                              // Right Side - Add Tickets Form
+                              Expanded(
+                                flex: 2,
+                                child: Container(
+                                  margin: const EdgeInsets.only(left: 8), // Reduced margin
+                                  padding: const EdgeInsets.all(12), // Reduced padding
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: Colors.blue[200]!),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.grey.withValues(alpha: 0.1),
+                                        spreadRadius: 1,
+                                        blurRadius: 10,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Form(
+                                    key: _addTicketsFormKey,
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Icon(Icons.add_circle, color: Colors.blue[600], size: 24),
+                                            const SizedBox(width: 8),
+                                            const Text(
+                                              'Dodaj nove ulaznice',
+                                              style: TextStyle(
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.black87,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 8),
+                                        
+                                        Container(
+                                          padding: const EdgeInsets.all(12),
+                                          decoration: BoxDecoration(
+                                            color: Colors.blue[50],
+                                            borderRadius: BorderRadius.circular(8),
+                                            border: Border.all(color: Colors.blue[200]!),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              Icon(Icons.info_outline, color: Colors.blue[600], size: 16),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: Text(
+                                                  'Maksimalno 100 ulaznica po sektoru',
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: Colors.blue[700],
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        const SizedBox(height: 20),
+                                        
+                                        Expanded(
+                                          child: ListView.builder(
+                                            itemCount: _stadiumSectors.length,
+                                            itemBuilder: (context, index) {
+                                              final sector = _stadiumSectors[index];
+                                              final sectorId = sector.id;
+                                              final existingTicket = _existingTickets[sectorId];
+                                              final currentQuantity = existingTicket?.releasedQuantity ?? 0;
+                                              final maxCanAdd = math.max(0, 100 - currentQuantity);
+                                              final canAddTickets = maxCanAdd > 0;
+                                              
+                                              return Container(
+                                                margin: const EdgeInsets.only(bottom: 16),
+                                                padding: const EdgeInsets.all(16),
+                                                decoration: BoxDecoration(
+                                                  color: canAddTickets ? Colors.grey[50] : Colors.red[50],
+                                                  borderRadius: BorderRadius.circular(8),
+                                                  border: Border.all(
+                                                    color: canAddTickets ? Colors.grey[200]! : Colors.red[200]!,
+                                                  ),
+                                                ),
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    Row(
+                                                      children: [
+                                                        Container(
+                                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                          decoration: BoxDecoration(
+                                                            color: canAddTickets ? Colors.blue : Colors.red,
+                                                            borderRadius: BorderRadius.circular(12),
+                                                          ),
+                                                          child: Text(
+                                                            sector.code,
+                                                            style: const TextStyle(
+                                                              color: Colors.white,
+                                                              fontWeight: FontWeight.bold,
+                                                              fontSize: 12,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                        const SizedBox(width: 8),
+                                                        Text(
+                                                          sector.sideName ?? 'Nepoznato',
+                                                          style: const TextStyle(
+                                                            fontSize: 14,
+                                                            fontWeight: FontWeight.w500,
+                                                          ),
+                                                        ),
+                                                        const Spacer(),
+                                                        if (existingTicket != null)
+                                                          Text(
+                                                            'Trenutno: $currentQuantity',
+                                                            style: TextStyle(
+                                                              fontSize: 12,
+                                                              color: Colors.grey[600],
+                                                            ),
+                                                          ),
+                                                      ],
+                                                    ),
+                                                    const SizedBox(height: 12),
+                                                    
+                                                    if (!canAddTickets) ...[
+                                                      Container(
+                                                        padding: const EdgeInsets.all(8),
+                                                        decoration: BoxDecoration(
+                                                          color: Colors.red[100],
+                                                          borderRadius: BorderRadius.circular(6),
+                                                        ),
+                                                        child: Row(
+                                                          children: [
+                                                            Icon(Icons.block, color: Colors.red[600], size: 16),
+                                                            const SizedBox(width: 8),
+                                                            Expanded(
+                                                              child: Text(
+                                                                'Sektor je popunjen (${currentQuantity}/100)',
+                                                                style: TextStyle(
+                                                                  fontSize: 12,
+                                                                  color: Colors.red[700],
+                                                                  fontWeight: FontWeight.w500,
+                                                                ),
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      ),
+                                                    ] else ...[
+                                                      Row(
+                                                        children: [
+                                                          // Quantity field
+                                                          Expanded(
+                                                            child: Column(
+                                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                                              children: [
+                                                                Text(
+                                                                  'Dodatne ulaznice (max $maxCanAdd)',
+                                                                  style: const TextStyle(
+                                                                    fontSize: 12, 
+                                                                    fontWeight: FontWeight.w500
+                                                                  ),
+                                                                ),
+                                                                const SizedBox(height: 4),
+                                                                TextFormField(
+                                                                  key: ValueKey('quantity_${sector.id}_$_formRebuildCounter'),
+                                                                  initialValue: '', // Always empty
+                                                                  enabled: canAddTickets,
+                                                                  decoration: InputDecoration(
+                                                                    hintText: 'Broj dodatnih',
+                                                                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                                                    border: const OutlineInputBorder(),
+                                                                    isDense: true,
+                                                                    fillColor: canAddTickets ? Colors.white : Colors.grey[100],
+                                                                    filled: true,
+                                                                  ),
+                                                                  style: const TextStyle(fontSize: 14),
+                                                                  keyboardType: TextInputType.number,
+                                                                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                                                                  onChanged: (value) {
+                                                                    _updateSectorValue(sector.id, 'quantity', int.tryParse(value) ?? 0);
+                                                                  },
+                                                                ),
+                                                              ],
+                                                            ),
+                                                          ),
+                                                          const SizedBox(width: 12),
+                                                          
+                                                          // Price field
+                                                          Expanded(
+                                                            child: Column(
+                                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                                              children: [
+                                                                const Text(
+                                                                  'Cijena (KM)',
+                                                                  style: TextStyle(
+                                                                    fontSize: 12, 
+                                                                    fontWeight: FontWeight.w500
+                                                                  ),
+                                                                ),
+                                                                const SizedBox(height: 4),
+                                                                TextFormField(
+                                                                  key: ValueKey('price_${sector.id}_$_formRebuildCounter'),
+                                                                  initialValue: '', // Always empty
+                                                                  enabled: canAddTickets,
+                                                                  decoration: InputDecoration(
+                                                                    hintText: 'Unesite cijenu',
+                                                                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                                                    border: const OutlineInputBorder(),
+                                                                    isDense: true,
+                                                                    fillColor: canAddTickets ? Colors.white : Colors.grey[100],
+                                                                    filled: true,
+                                                                  ),
+                                                                  style: const TextStyle(fontSize: 14),
+                                                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                                                  inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
+                                                                  onChanged: (value) {
+                                                                    _updateSectorValue(sector.id, 'price', double.tryParse(value) ?? 0.0);
+                                                                  },
+                                                                ),
+                                                              ],
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ],
+                                                  ],
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                        ),
+                                        
+                                        // Action buttons
+                                        Row(
+                                          children: [
+                                            // Cancel button
+                                            Expanded(
+                                              child: ElevatedButton(
+                                                onPressed: _isLoadingTickets ? null : _clearForm,
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor: Colors.grey[600],
+                                                  foregroundColor: Colors.white,
+                                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius: BorderRadius.circular(8),
+                                                  ),
+                                                ),
+                                                child: const Text(
+                                                  'Otkaži',
+                                                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 12),
+                                            
+                                            // Add tickets button
+                                            Expanded(
+                                              flex: 2,
+                                              child: ElevatedButton(
+                                                onPressed: _isLoadingTickets ? null : _addTickets,
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor: Colors.blue[600],
+                                                  foregroundColor: Colors.white,
+                                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius: BorderRadius.circular(8),
+                                                  ),
+                                                ),
+                                                child: _isLoadingTickets
+                                                  ? const SizedBox(
+                                                      width: 16,
+                                                      height: 16,
+                                                      child: CircularProgressIndicator(
+                                                        color: Colors.white,
+                                                        strokeWidth: 2,
+                                                      ),
+                                                    )
+                                                  : const Text(
+                                                      'Dodaj ulaznice',
+                                                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                                                    ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+            ),
+          ],
+        ),
+      ),
+    ));
   }
 }

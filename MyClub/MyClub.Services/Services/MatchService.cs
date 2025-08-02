@@ -633,6 +633,17 @@ namespace MyClub.Services
                     var matchTicket = await _context.MatchTickets
                         .FirstOrDefaultAsync(mt => mt.MatchId == matchId && mt.StadiumSectorId == ticketRequest.StadiumSectorId);
 
+
+                    if(ticketRequest.ReleasedQuantity < 0 || ticketRequest.ReleasedQuantity > 100 || ticketRequest.Price < 0)
+                    {
+                        throw new UserException("Released quantity cannot be negative and price cannot be negative");
+                    }
+
+                    // Validate ticket request
+                    if (ticketRequest.ReleasedQuantity > 100)
+                    {
+                        throw new UserException("Released quantity cannot exceed 100", 400);
+                    }
                     if (matchTicket == null)
                     {
                         // Create new ticket
@@ -649,6 +660,11 @@ namespace MyClub.Services
                     else
                     {
                         // Update existing ticket
+
+                        if(matchTicket.ReleasedQuantity + ticketRequest.ReleasedQuantity > 100)
+                        {
+                            throw new UserException("Total released quantity cannot exceed 100", 400);
+                        }
                         matchTicket.ReleasedQuantity += ticketRequest.ReleasedQuantity;
                         matchTicket.AvailableQuantity += ticketRequest.ReleasedQuantity; // Reset available quantity
                         matchTicket.Price = ticketRequest.Price;

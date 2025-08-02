@@ -124,16 +124,9 @@ namespace MyClub.WebAPI
                 return BadRequest("Invalid match ID");
             }
 
-            // Call the service to create or update the match ticket
-            try
-            {
                 var result = await _matchService.CreateOrUpdateMatchTicketAsync(matchId, request);
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
+                return result;
+            
         }
     }
 

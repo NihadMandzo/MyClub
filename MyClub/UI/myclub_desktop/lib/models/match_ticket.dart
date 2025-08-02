@@ -1,29 +1,28 @@
+import 'package:myclub_desktop/models/stadium_sector.dart';
+
 class MatchTicket {
   int? id;
   int? matchId;
-  int? stadiumSectorId;
-  String? sectorName;
-  String? sideName;
-  int? totalQuantity;
-  int? availableQuantity;
+  StadiumSector? stadiumSector;
+  int? releasedQuantity;
   double? price;
-  bool? isActive;
+  int? availableQuantity;
+  int? usedQuantity;
 
-  MatchTicket({this.id, this.matchId, this.stadiumSectorId,
-  this.sectorName, this.sideName, this.totalQuantity,
-  this.availableQuantity, this.price, this.isActive});
+  MatchTicket({this.id, this.matchId, this.stadiumSector,
+  this.releasedQuantity, this.availableQuantity, this.price, this.usedQuantity});
 
   factory MatchTicket.fromJson(Map<String, dynamic> json) {
     return MatchTicket(
       id: json['id'],
       matchId: json['matchId'],
-      stadiumSectorId: json['stadiumSectorId'],
-      sectorName: json['sectorName'],
-      sideName: json['sideName'],
-      totalQuantity: json['totalQuantity'],
+      stadiumSector: json['stadiumSector'] != null
+          ? StadiumSector.fromJson(json['stadiumSector'])
+          : null,
+      releasedQuantity: json['releasedQuantity'],
       availableQuantity: json['availableQuantity'],
       price: json['price'],
-      isActive: json['isActive'],
+      usedQuantity: json['usedQuantity'] ?? 0,
     );
   }
 
@@ -31,13 +30,11 @@ class MatchTicket {
     return {
       'id': id,
       'matchId': matchId,
-      'stadiumSectorId': stadiumSectorId,
-      'sectorName': sectorName,
-      'sideName': sideName,
-      'totalQuantity': totalQuantity,
+      'stadiumSector': stadiumSector?.toJson(),
+      'releasedQuantity': releasedQuantity,
       'availableQuantity': availableQuantity,
       'price': price,
-      'isActive': isActive,
+      'usedQuantity': usedQuantity,
     };
   }
 }

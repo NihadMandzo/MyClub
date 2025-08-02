@@ -17,27 +17,32 @@ public static class MatchTicketSeeder
             matchDates[i] = DateTime.Now.AddDays(random.Next(-180, 180));
         }
 
-        for (int i = 1; i <= 50; i++)
+        int ticketId = 1;
+        
+        // Create exactly 1 ticket per sector per match (10 matches × 10 sectors = 100 tickets)
+        for (int matchId = 1; matchId <= 10; matchId++)
         {
-            int matchId = (i % 10) + 1; // MatchId 1-10
-            int sectorId = (i % 10) + 1;
-
-            var matchDate = matchDates[matchId];
-
-            int ReleasedQuantity = random.Next(0, 100);
-            int availableQuantity = random.Next(0, ReleasedQuantity / 2);
-
-            decimal price = Math.Round((decimal)(10 + random.NextDouble() * 40), 2);
-
-            matchTickets.Add(new MatchTicket
+            for (int sectorId = 1; sectorId <= 10; sectorId++)
             {
-                Id = i,
-                MatchId = matchId,
-                StadiumSectorId = sectorId,
-                ReleasedQuantity = ReleasedQuantity,
-                AvailableQuantity = availableQuantity,
-                Price = price,
-            });
+                var matchDate = matchDates[matchId];
+
+                int ReleasedQuantity = random.Next(0, 100);
+                int availableQuantity = random.Next(0, ReleasedQuantity / 2);
+
+                decimal price = Math.Round((decimal)(10 + random.NextDouble() * 40), 2);
+
+                matchTickets.Add(new MatchTicket
+                {
+                    Id = ticketId,
+                    MatchId = matchId,
+                    StadiumSectorId = sectorId,
+                    ReleasedQuantity = ReleasedQuantity,
+                    AvailableQuantity = availableQuantity,
+                    Price = price,
+                });
+                
+                ticketId++;
+            }
         }
 
         entity.HasData(matchTickets);

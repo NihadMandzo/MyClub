@@ -10,11 +10,12 @@ class Match {
   String? location;
   String? description;
   MatchTicket? ticket;
+  List<MatchTicket>? tickets;
   MatchResult? result;
 
   Match({this.id, this.matchDate, this.opponentName, this.status,
   this.clubId, this.clubName, this.location, this.description, 
-  this.ticket, this.result});
+  this.ticket, this.tickets, this.result});
 
   factory Match.fromJson(Map<String, dynamic> json) {
     return Match(
@@ -27,6 +28,9 @@ class Match {
       location: json['location'],
       description: json['description'],
       ticket: json['ticket'] != null ? MatchTicket.fromJson(json['ticket']) : null,
+      tickets: json['tickets'] != null 
+          ? (json['tickets'] as List).map((ticket) => MatchTicket.fromJson(ticket)).toList()
+          : [],
       result: json['result'] != null ? MatchResult.fromJson(json['result']) : null,
     );
   }
