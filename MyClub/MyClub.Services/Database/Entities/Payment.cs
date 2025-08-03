@@ -29,7 +29,7 @@ namespace MyClub.Services
         public DateTime CreatedAt { get; set; }
 
         public DateTime? CompletedAt { get; set; }
-
+        public int? OrderId  { get; set; }
         public virtual Order? Order { get; set; }
         public virtual UserTicket? UserTicket { get; set; }
         public virtual UserMembership? UserMembership { get; set; }

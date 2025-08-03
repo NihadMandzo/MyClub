@@ -1,0 +1,218 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using MyClub.Model.Requests;
+using MyClub.Model.Responses;
+using MyClub.Services.Database;
+using MyClub.Services.Interfaces;
+using MyClub.Model.SearchObjects;
+using MapsterMapper;
+using Microsoft.EntityFrameworkCore.Metadata;
+using MyClub.Services.Helpers;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Http;
+
+namespace MyClub.Services.OrderStateMachine
+{
+    public class ProcessingOrderState : BaseOrderState
+    {
+        private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly IPaymentService _paymentService;
+        private readonly MyClubContext _context;
+
+        private readonly IServiceProvider _serviceProvider;
+        public ProcessingOrderState(IServiceProvider serviceProvider,
+            IHttpContextAccessor httpContextAccessor,
+            IPaymentService paymentService, MyClubContext context)
+            : base(serviceProvider)
+        {
+            _httpContextAccessor = httpContextAccessor;
+            _paymentService = paymentService;
+            _serviceProvider = serviceProvider;
+            _context = context;
+        }
+
+        public override async Task<OrderResponse> ChangeOrderState(int orderId, OrderStateUpdateRequest request)
+        {
+            try
+            {
+                var order = await _context.Orders
+                    .Include(o => o.ShippingDetails)
+                    .FirstOrDefaultAsync(o => o.Id == orderId);
+                    
+                if (order == null)
+                    throw new KeyNotFoundException($"Order with ID {orderId} not found");
+
+                // Only allow transitions to Confirmed or Cancelled
+                if (request.NewStatus != "Potvrđeno" && request.NewStatus != "Otkazano")
+                    throw new UserException($"Cannot change order from 'Procesiranje' to '{request.NewStatus}'");
+
+                order.OrderState = request.NewStatus;
+
+                await _context.SaveChangesAsync();
+
+                // Optional: Send email notification about status change
+                // await SendStatusChangeEmail(order);
+
+                return await MapOrderToResponse(order);
+            }
+            catch (Exception ex)
+            {
+                throw new UserException($"Error changing order state: {ex.Message}", 500);
+            }
+        }
+
+        public override async Task<PaymentResponse> PlaceOrder(OrderInsertRequest request)
+        {
+            try
+            {
+                // 1. Check if products are in stock
+                foreach (var item in request.Items)
+                {
+                    var productSize = await _context.ProductSizes
+                        .Where(ps => ps.Id == item.ProductSizeId)
+                        .FirstOrDefaultAsync();
+
+                    if (productSize == null || productSize.Quantity < item.Quantity)
+                    {
+                        throw new UserException("Product is out of stock");
+                    }
+                }
+
+                // 2. Create shipping details first
+                var shippingDetails = new ShippingDetails
+                {
+                    ShippingAddress = request.ShippingAddress,
+                    ShippingCity = request.ShippingCity,
+                    ShippingPostalCode = request.ShippingPostalCode,
+                    ShippingCountry = request.ShippingCountry
+                };
+
+                _context.ShippingDetails.Add(shippingDetails);
+                await _context.SaveChangesAsync(); // Save to get ShippingDetails ID
+
+                // 3. Create new order
+                var order = new Order
+                {
+                    UserId = request.UserId,
+                    OrderDate = DateTime.Now,
+                    OrderState = "Procesiranje",
+                    TotalAmount = request.Amount,
+                    Notes = request.Notes,
+                    ShippingDetailsId = shippingDetails.Id,
+                    PaymentMethod = request.PaymentMethod
+                };
+
+                _context.Orders.Add(order);
+                await _context.SaveChangesAsync(); // Save to get Order ID
+
+                // 4. Create order items
+                foreach (var itemRequest in request.Items)
+                {
+                    var productSize = await _context.ProductSizes
+                        .Include(ps => ps.Product)
+                        .FirstOrDefaultAsync(ps => ps.Id == itemRequest.ProductSizeId);
+
+                    var orderItem = new OrderItem
+                    {
+                        OrderId = order.Id,
+                        ProductSizeId = itemRequest.ProductSizeId,
+                        Quantity = itemRequest.Quantity,
+                        UnitPrice = itemRequest.UnitPrice
+                    };
+
+                    // Update stock
+                    productSize.Quantity -= itemRequest.Quantity;
+
+                    _context.OrderItems.Add(orderItem);
+                }
+
+                await _context.SaveChangesAsync();
+
+                // 5. Create payment based on type
+                PaymentResponse paymentResponse = null;
+
+                if (request.Type.Equals("Stripe", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Create payment in Stripe
+                    paymentResponse = await _paymentService.CreateStripePaymentAsync(request);
+                }
+                else if (request.Type.Equals("PayPal", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Create payment in PayPal (returns URL string, not PaymentResponse)
+                    var paypalUrl = await _paymentService.CreatePayPalPaymentAsync(request);
+                    paymentResponse = new PaymentResponse
+                    {
+                        transactionId = Guid.NewGuid().ToString(),
+                        clientSecret = paypalUrl
+                    };
+                }
+
+                // 6. Create payment record in database
+                var payment = new Payment
+                {
+                    OrderId = order.Id,
+                    Amount = request.Amount,
+                    Method = request.PaymentMethod,
+                    TransactionId = paymentResponse.transactionId,
+                    Status = "Pending",
+                    CreatedAt = DateTime.Now
+                };
+
+                _context.Payments.Add(payment);
+                await _context.SaveChangesAsync();
+
+                // 7. Update order with payment ID
+                order.PaymentId = payment.Id;
+                await _context.SaveChangesAsync();
+
+                return paymentResponse;
+            }
+            catch (Exception ex)
+            {
+                throw new UserException($"Error placing order: {ex.Message}", 500);
+            }
+        }
+
+        public override async Task<OrderResponse> ConfirmOrder(ConfirmOrderRequest request)
+        {
+
+            var userId = JwtTokenManager.GetUserIdFromToken(_httpContextAccessor.HttpContext.Request.Headers["Authorization"].ToString());
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null)
+            {
+                throw new KeyNotFoundException($"User with ID {userId} not found");
+            }
+
+
+            var payment = await _paymentService.ConfirmStripePayment(request.TransactionId);
+            if (!payment)
+            {
+                throw new Exception("Payment failed");
+            }
+
+            var order = await _context.Orders
+                                .Include(x => x.Payment)
+                                .Include(x => x.OrderItems)
+                                .ThenInclude(x => x.ProductSize)
+                                .ThenInclude(x => x.Product)
+                                .Include(x => x.User)
+                                .Include(x => x.ShippingDetails)
+                                .FirstOrDefaultAsync(x => x.Payment.TransactionId.Contains(request.TransactionId));
+            if (order == null)
+            {
+                throw new KeyNotFoundException($"Order with TransactionId {request.TransactionId} not found");
+            }
+            if (order.OrderState != "Procesiranje")
+            {
+            }
+            order.OrderState = "Potvrđeno";
+            await _context.SaveChangesAsync();
+            return await MapOrderToResponse(order);
+        }
+    }
+}

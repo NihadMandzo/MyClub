@@ -5,16 +5,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace MyClub.Services.Database
 {
-    public enum OrderStatus
-    {
-        Pending,
-        Processing,
-        Shipped,
-        Delivered,
-        Cancelled,
-        Refunded
-    }
-    
+   
     public class Order
     {
         [Key]
@@ -33,7 +24,7 @@ namespace MyClub.Services.Database
         [Required]
         public DateTime OrderDate { get; set; } = DateTime.UtcNow;
         
-        public OrderStatus Status { get; set; } = OrderStatus.Pending;
+        public string OrderState { get; set; } = string.Empty;
         
         [Column(TypeName = "decimal(18,2)")]
         public decimal TotalAmount { get; set; }

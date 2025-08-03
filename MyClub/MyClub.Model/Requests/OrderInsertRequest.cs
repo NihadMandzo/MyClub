@@ -8,8 +8,9 @@ namespace MyClub.Model.Requests
 {
     public class OrderInsertRequest : PaymentRequest
     {
+        [Required]
+        public int UserId { get; set; }
 
-        
         [Required]
         public string ShippingAddress { get; set; }
         

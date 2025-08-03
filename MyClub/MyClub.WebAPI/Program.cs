@@ -11,6 +11,7 @@ using System.Security.Claims;
 using MyClub.WebAPI.Filters;
 using MyClub.Services.Interfaces;
 using MyClub.Services.Services;
+using MyClub.Services.OrderStateMachine;
 
 var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
@@ -32,6 +33,13 @@ builder.Services.AddTransient<IUserMembershipService, UserMembershipService>();
 builder.Services.AddTransient<IPaymentService, PaymentService>();
 builder.Services.AddTransient<IOrderService, OrderService>();
 builder.Services.AddTransient<IAdminDashboardService, AdminDashboardService>();
+
+builder.Services.AddTransient<BaseOrderState>();
+builder.Services.AddTransient<ProcessingOrderState>();
+builder.Services.AddTransient<ConfirmedOrderState>();
+builder.Services.AddTransient<CancelledOrderState>();
+builder.Services.AddTransient<DeliveryOrderState>();
+builder.Services.AddTransient<FinishedOrderState>();
 
 // Add HttpContextAccessor
 builder.Services.AddHttpContextAccessor();

@@ -6,7 +6,8 @@ namespace MyClub.Model.Requests
     public class OrderStateUpdateRequest
     {
         [Required]
-        public OrderStatus NewStatus { get; set; }
+        public string NewStatus { get; set; }
         
+        public string Note { get; set; }
     }
 } 

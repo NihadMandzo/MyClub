@@ -13,6 +13,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
+using MyClub.Services.OrderStateMachine;
 
 namespace MyClub.Services.Services
 {
@@ -23,18 +24,22 @@ namespace MyClub.Services.Services
         private readonly IPaymentService _paymentService;
         private readonly MyClubContext _context;
 
+        protected readonly BaseOrderState _baseOrderState;
+
         public OrderService(
             MyClubContext context,
             IMapper mapper,
             IHttpContextAccessor httpContextAccessor,
             IUserService userService,
-            IPaymentService paymentService)
+            IPaymentService paymentService,
+            BaseOrderState baseOrderState)
             : base(context, mapper)
         {
             _httpContextAccessor = httpContextAccessor;
             _userService = userService;
             _paymentService = paymentService;
             _context = context;
+            _baseOrderState = baseOrderState;
         }
 
 
@@ -108,7 +113,7 @@ namespace MyClub.Services.Services
             }
             if (search?.Status != null)
             {
-                query = query.Where(x => x.Status.ToString() == search.Status.Value.ToString());
+                query = query.Where(x => x.OrderState == search.Status.Value.ToString());
             }
             return query;
         }
@@ -192,122 +197,24 @@ namespace MyClub.Services.Services
 
         public async Task<PaymentResponse> PlaceOrder(OrderInsertRequest request)
         {
-            var userId = JwtTokenManager.GetUserIdFromToken(_httpContextAccessor.HttpContext.Request.Headers["Authorization"].ToString());
-            var user = await _context.Users.FindAsync(userId);
-            if (user == null)
-            {
-                throw new KeyNotFoundException($"User with ID {userId} not found");
-            }
-            var payment = await _paymentService.CreateStripePaymentAsync(request);
-            
-            var shippingDetails = new ShippingDetails
-            {
-                ShippingAddress = request.ShippingAddress,
-                ShippingCity = request.ShippingCity,
-                ShippingPostalCode = request.ShippingPostalCode,
-                ShippingCountry = request.ShippingCountry,
-            };
-            await _context.ShippingDetails.AddAsync(shippingDetails);
-            await _context.SaveChangesAsync();
-
-            var order = new Order
-            {
-                UserId = userId,
-                Status = Database.OrderStatus.Pending,
-                TotalAmount = request.Amount,
-                ShippingDetailsId = shippingDetails.Id,
-            };
-            await _context.Orders.AddAsync(order);
-            await _context.SaveChangesAsync();
-
-            var orderItems = new List<OrderItem>();
-            foreach (var item in request.Items)
-            {
-                var orderItem = new OrderItem
-                {
-                    ProductSizeId = item.ProductSizeId,
-                    Quantity = item.Quantity,
-                    UnitPrice = item.UnitPrice,
-                    OrderId = order.Id
-                };
-                await _context.OrderItems.AddAsync(orderItem);
-            }
-            await _context.SaveChangesAsync();
-
-
-            var paymentEntity = new Payment
-            {
-                TransactionId = payment.transactionId,
-                Amount = request.Amount,
-                Status = "Pending",
-                Method = "Stripe",
-                CreatedAt = DateTime.UtcNow,
-            };
-            await _context.Payments.AddAsync(paymentEntity);
-            await _context.SaveChangesAsync();
-            order.PaymentId = paymentEntity.Id;
-            await _context.SaveChangesAsync();
-            return payment??throw new UserException("Payment failed");
+            var baseOrderState = _baseOrderState.GetOrderState("Procesiranje");
+            var result = await baseOrderState.PlaceOrder(request);
+            return result;
         }
         public async Task<OrderResponse> ChangeOrderState(int orderId, OrderStateUpdateRequest request)
         {
-            var order = await _context.Orders
-                                .Include(x => x.Payment)
-                                .Include(x => x.OrderItems)
-                                .ThenInclude(x => x.ProductSize)
-                                .ThenInclude(x => x.Product)
-                                .Include(x => x.User)
-                                .Include(x => x.ShippingDetails)
-                                .FirstOrDefaultAsync(x => x.Id == orderId);
-            if (order == null)
-            {
-                throw new KeyNotFoundException($"Order with ID {orderId} not found");
-            }
-            order.Status = (Database.OrderStatus)request.NewStatus;
-            await _context.SaveChangesAsync();
+            var entity = await _context.Orders.FindAsync(orderId);
 
-            return MapToResponse(order);
-        }
-        private async Task AfterConfirmedOrder(int orderId)
-        {
-            var order = await _context.Orders.FindAsync(orderId);
-            if (order == null)
-            {
-                throw new KeyNotFoundException($"Order with ID {orderId} not found");
-            }
-            order.Status = Database.OrderStatus.Processing;
-            await _context.SaveChangesAsync();
+            var orderState = _baseOrderState.GetOrderState(entity.OrderState);
+
+            return await orderState.ChangeOrderState(orderId, request);
+           
         }
         public async Task<OrderResponse> ConfirmOrder(ConfirmOrderRequest request)
         {
-            var userId = JwtTokenManager.GetUserIdFromToken(_httpContextAccessor.HttpContext.Request.Headers["Authorization"].ToString());
-            var user = await _context.Users.FindAsync(userId);
-            if (user == null)
-            {
-                throw new KeyNotFoundException($"User with ID {userId} not found");
-            }
-
-
-            var payment = await _paymentService.ConfirmStripePayment(request.TransactionId);
-            if (!payment)
-            {
-                throw new Exception("Payment failed");
-            }
-
-            var order = await _context.Orders
-                                .Include(x => x.Payment)
-                                .Include(x => x.OrderItems)
-                                .ThenInclude(x => x.ProductSize)
-                                .ThenInclude(x => x.Product)
-                                .Include(x => x.User)
-                                .Include(x => x.ShippingDetails)
-                                .FirstOrDefaultAsync(x => x.Payment.TransactionId.Contains(request.TransactionId));
-            if (order == null)
-            {
-                throw new KeyNotFoundException($"Order with TransactionId {request.TransactionId} not found");
-            }
-                await AfterConfirmedOrder(order.Id);
-                return MapToResponse(order);
+            var baseOrderState = _baseOrderState.GetOrderState("Procesiranje");
+            var result = await baseOrderState.ConfirmOrder(request);
+            return result;
         }
     }
 }

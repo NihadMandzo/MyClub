@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace MyClub.Services.Database.Seeders;
@@ -21,6 +22,9 @@ public static class OrderSeeder
             ""
         };
         
+        // Define order states as strings
+        string[] orderStates = { "Procesiranje", "Potvrđeno", "Dostava", "Zavrseno", "Otkazano" };
+        
         for (int i = 1; i <= 50; i++)
         {
             int userId = random.Next(1, 4); // User IDs from your UserSeeder
@@ -30,17 +34,6 @@ public static class OrderSeeder
             
             var orderDate = DateTime.Now.AddDays(-random.Next(1, 365));
             
-            OrderStatus status;
-            if (paymentId == null)
-            {
-                status = OrderStatus.Pending;
-            }
-            else
-            {
-                int statusIndex = random.Next(0, 6);
-                status = (OrderStatus)statusIndex;
-            }
-            
             decimal totalAmount = Math.Round((decimal)(random.NextDouble() * 500 + 20), 2);
             
             // Some orders have shipping details
@@ -48,10 +41,15 @@ public static class OrderSeeder
             
             string paymentMethod = paymentMethods[random.Next(0, paymentMethods.Length)];
             
-            DateTime? shippedDate = status == OrderStatus.Shipped || status == OrderStatus.Delivered ? 
+            // Randomly select an order state
+            string orderState = orderStates[random.Next(0, orderStates.Length)];
+            
+            // Set shipped date only for orders in "Dostava" or "Zavrseno" state
+            DateTime? shippedDate = (orderState == "Dostava" || orderState == "Zavrseno") ? 
                 orderDate.AddDays(random.Next(1, 5)) : null;
                 
-            DateTime? deliveredDate = status == OrderStatus.Delivered ? 
+            // Set delivered date only for orders in "Zavrseno" state
+            DateTime? deliveredDate = orderState == "Zavrseno" ? 
                 shippedDate?.AddDays(random.Next(1, 7)) : null;
             
             string note = notes[random.Next(0, notes.Length)];
@@ -62,7 +60,7 @@ public static class OrderSeeder
                 UserId = userId,
                 PaymentId = paymentId,
                 OrderDate = orderDate,
-                Status = status,
+                OrderState = orderState,
                 TotalAmount = totalAmount,
                 ShippingDetailsId = shippingDetailsId,
                 PaymentMethod = paymentMethod,
