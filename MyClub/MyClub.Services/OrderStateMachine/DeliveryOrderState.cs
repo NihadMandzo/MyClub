@@ -30,7 +30,7 @@ namespace MyClub.Services.OrderStateMachine
                     throw new KeyNotFoundException($"Order with ID {orderId} not found");
                     
                 // Only allow transition to Finished
-                if (request.NewStatus != "Zavrseno")
+                if (request.NewStatus != "Završeno")
                     throw new UserException($"Cannot change order from 'Dostava' to '{request.NewStatus}'");
                 
                 order.OrderState = request.NewStatus;

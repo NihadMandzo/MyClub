@@ -21,7 +21,7 @@ namespace MyClub.Services.OrderStateMachine
         public override async Task<OrderResponse> ChangeOrderState(int orderId, OrderStateUpdateRequest request)
         {
             // Cannot change state from finished
-            throw new UserException("Cannot change state from 'Zavrseno'");
+            throw new UserException("Cannot change state from 'Završeno'");
         }
     }
 }

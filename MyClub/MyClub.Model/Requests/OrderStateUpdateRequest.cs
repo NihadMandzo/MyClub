@@ -7,7 +7,5 @@ namespace MyClub.Model.Requests
     {
         [Required]
         public string NewStatus { get; set; }
-        
-        public string Note { get; set; }
     }
 } 

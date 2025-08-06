@@ -197,7 +197,7 @@ namespace MyClub.Services.Services
 
         public async Task<PaymentResponse> PlaceOrder(OrderInsertRequest request)
         {
-            var baseOrderState = _baseOrderState.GetOrderState("Procesiranje");
+            var baseOrderState = _baseOrderState.GetOrderState("Iniciranje");
             var result = await baseOrderState.PlaceOrder(request);
             return result;
         }

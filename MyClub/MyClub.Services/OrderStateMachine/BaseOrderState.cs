@@ -39,6 +39,8 @@ namespace MyClub.Services.OrderStateMachine
         {
             switch (stateName)
             {
+                case "Iniciranje":
+                    return _serviceProvider.GetService<InitialOrderState>();
                 case "Procesiranje":
                     return _serviceProvider.GetService<ProcessingOrderState>();
                 case "Potvrđeno":
@@ -47,7 +49,7 @@ namespace MyClub.Services.OrderStateMachine
                     return _serviceProvider.GetService<CancelledOrderState>();
                 case "Dostava":
                     return _serviceProvider.GetService<DeliveryOrderState>();
-                case "Zavrseno":
+                case "Završeno":
                     return _serviceProvider.GetService<FinishedOrderState>();
                 default:
                     throw new UserException($"Unknown order state: {stateName}");

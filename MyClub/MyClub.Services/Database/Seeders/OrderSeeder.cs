@@ -23,7 +23,7 @@ public static class OrderSeeder
         };
         
         // Define order states as strings
-        string[] orderStates = { "Procesiranje", "Potvrđeno", "Dostava", "Zavrseno", "Otkazano" };
+        string[] orderStates = { "Iniciranje", "Procesiranje", "Potvrđeno", "Dostava", "Završeno", "Otkazano" };
         
         for (int i = 1; i <= 50; i++)
         {
@@ -44,12 +44,11 @@ public static class OrderSeeder
             // Randomly select an order state
             string orderState = orderStates[random.Next(0, orderStates.Length)];
             
-            // Set shipped date only for orders in "Dostava" or "Zavrseno" state
-            DateTime? shippedDate = (orderState == "Dostava" || orderState == "Zavrseno") ? 
+            // Set shipped date only for orders in "Dostava" or "Završeno" state
+            DateTime? shippedDate = (orderState == "Dostava" || orderState == "Završeno") ? 
                 orderDate.AddDays(random.Next(1, 5)) : null;
-                
-            // Set delivered date only for orders in "Zavrseno" state
-            DateTime? deliveredDate = orderState == "Zavrseno" ? 
+            // Set delivered date only for orders in "Završeno" state
+            DateTime? deliveredDate = orderState == "Završeno" ? 
                 shippedDate?.AddDays(random.Next(1, 7)) : null;
             
             string note = notes[random.Next(0, notes.Length)];
