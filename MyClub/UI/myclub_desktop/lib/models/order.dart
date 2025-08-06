@@ -1,8 +1,8 @@
 import 'package:myclub_desktop/models/order_item.dart';
+import 'package:myclub_desktop/models/city.dart';
 
 class Order {
   final int id;
-  final String? orderNumber;
   final int userId;
   final String userFullName;
   final int? paymentId;
@@ -13,9 +13,7 @@ class Order {
   final double discountAmount;
   final bool hasMembershipDiscount;
   final String? shippingAddress;
-  final String? shippingCity;
-  final String? shippingPostalCode;
-  final String? shippingCountry;
+  final City? shippingCity;
   final String paymentMethod;
   final DateTime? shippedDate;
   final DateTime? deliveredDate;
@@ -24,7 +22,6 @@ class Order {
 
   Order({
     required this.id,
-    this.orderNumber,
     required this.userId,
     required this.userFullName,
     this.paymentId,
@@ -36,8 +33,6 @@ class Order {
     required this.hasMembershipDiscount,
     this.shippingAddress,
     this.shippingCity,
-    this.shippingPostalCode,
-    this.shippingCountry,
     required this.paymentMethod,
     this.shippedDate,
     this.deliveredDate,
@@ -48,7 +43,6 @@ class Order {
   factory Order.fromJson(Map<String, dynamic> json) {
     return Order(
       id: json['id'] as int,
-      orderNumber: json['orderNumber'] as String?,
       userId: json['userId'] as int,
       userFullName: json['userFullName'] as String,
       paymentId: json['paymentId'] as int?,
@@ -59,9 +53,9 @@ class Order {
       discountAmount: (json['discountAmount'] as num).toDouble(),
       hasMembershipDiscount: json['hasMembershipDiscount'] as bool,
       shippingAddress: json['shippingAddress'] as String?,
-      shippingCity: json['shippingCity'] as String?,
-      shippingPostalCode: json['shippingPostalCode'] as String?,
-      shippingCountry: json['shippingCountry'] as String?,
+      shippingCity: json['shippingCity'] != null 
+          ? City.fromJson(json['shippingCity'] as Map<String, dynamic>) 
+          : null,
       paymentMethod: json['paymentMethod'] as String,
       shippedDate: json['shippedDate'] != null 
           ? DateTime.parse(json['shippedDate'] as String) 
@@ -79,7 +73,6 @@ class Order {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'orderNumber': orderNumber,
       'userId': userId,
       'userFullName': userFullName,
       'paymentId': paymentId,
@@ -90,9 +83,7 @@ class Order {
       'discountAmount': discountAmount,
       'hasMembershipDiscount': hasMembershipDiscount,
       'shippingAddress': shippingAddress,
-      'shippingCity': shippingCity,
-      'shippingPostalCode': shippingPostalCode,
-      'shippingCountry': shippingCountry,
+      'shippingCity': shippingCity?.toJson(),
       'paymentMethod': paymentMethod,
       'shippedDate': shippedDate?.toIso8601String(),
       'deliveredDate': deliveredDate?.toIso8601String(),

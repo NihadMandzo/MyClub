@@ -267,7 +267,7 @@ class _OrdersContentState extends State<_OrdersContent> {
                                               children: [
                                                 Flexible(
                                                   child: Text(
-                                                    'Narudžba #${order.orderNumber ?? order.id.toString()}',
+                                                    'Narudžba #${order.id}',
                                                     style: const TextStyle(
                                                       fontSize: 16,
                                                       fontWeight: FontWeight.bold,

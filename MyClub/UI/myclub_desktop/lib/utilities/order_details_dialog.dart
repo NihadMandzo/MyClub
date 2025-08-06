@@ -183,7 +183,7 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Order #${widget.order.orderNumber ?? widget.order.id.toString()}',
+                  'Order #${widget.order.id}',
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -287,17 +287,14 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
                                   if (widget.order.shippingAddress != null)
                                     buildInfoItem('Adresa dostave', widget.order.shippingAddress!),
                                   if (widget.order.shippingCity != null)
-                                    buildInfoItem('Grad', widget.order.shippingCity!),
-                                  if (widget.order.shippingPostalCode != null)
-                                    buildInfoItem('Poštanski broj', widget.order.shippingPostalCode!),
-                                  if (widget.order.shippingCountry != null)
-                                    buildInfoItem('Zemlja', widget.order.shippingCountry!),
+                                    buildInfoItem('Grad', widget.order.shippingCity!.name),
+                                  if (widget.order.shippingCity != null)
+                                    buildInfoItem('Poštanski broj', widget.order.shippingCity!.postalCode),
+                                  if (widget.order.shippingCity != null)
+                                    buildInfoItem('Zemlja', widget.order.shippingCity!.country.name),
                                   if (widget.order.notes != null && widget.order.notes!.isNotEmpty)
                                     buildInfoItem('Napomene', widget.order.notes!),
-                                  if (widget.order.shippingAddress == null && 
-                                      widget.order.shippingCity == null && 
-                                      widget.order.shippingPostalCode == null && 
-                                      widget.order.shippingCountry == null)
+                                  if (widget.order.shippingAddress == null && widget.order.shippingCity == null)
                                     const Text('Nema informacija o dostavi',
                                       style: TextStyle(
                                         fontStyle: FontStyle.italic,
