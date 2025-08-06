@@ -34,6 +34,9 @@ class _SettingsContentState extends State<_SettingsContent> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
   File? _selectedLogoFile;
+  
+  // Current selected menu item
+  String _selectedMenuItem = 'Informacije o klubu';
 
   @override
   void initState() {
@@ -135,6 +138,122 @@ class _SettingsContentState extends State<_SettingsContent> {
     }
   }
 
+  // List of menu items for the sidebar
+  final List<String> _menuItems = [
+    'Informacije o klubu',
+    'Informacije o državi',
+    'Informacije o gradu',
+    'Informacije o stadionu',
+    'Informacije o sektorima na stadionu',
+  ];
+
+  // Method to build the sidebar
+  Widget _buildSidebar() {
+    return Container(
+      width: 250,
+      color: Colors.grey[200],
+      padding: const EdgeInsets.symmetric(vertical: 20),
+      child: ListView.builder(
+        itemCount: _menuItems.length,
+        itemBuilder: (context, index) {
+          final item = _menuItems[index];
+          final isSelected = _selectedMenuItem == item;
+          
+          return ListTile(
+            title: Text(
+              item,
+              style: TextStyle(
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                color: isSelected ? Theme.of(context).primaryColor : Colors.black87,
+              ),
+            ),
+            leading: Icon(
+              _getIconForMenuItem(item),
+              color: isSelected ? Theme.of(context).primaryColor : Colors.black54,
+            ),
+            selected: isSelected,
+            selectedTileColor: Colors.blue.withOpacity(0.1),
+            onTap: () {
+              setState(() {
+                _selectedMenuItem = item;
+                // Reset editing mode when changing sections
+                _isEditing = false;
+              });
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  // Helper method to get appropriate icon for each menu item
+  IconData _getIconForMenuItem(String item) {
+    switch (item) {
+      case 'Informacije o klubu':
+        return Icons.sports_soccer;
+      case 'Informacije o državi':
+        return Icons.flag;
+      case 'Informacije o gradu':
+        return Icons.location_city;
+      case 'Informacije o stadionu':
+        return Icons.stadium;
+      case 'Informacije o sektorima na stadionu':
+        return Icons.event_seat;
+      default:
+        return Icons.settings;
+    }
+  }
+
+  // Method to display the content based on the selected menu item
+  Widget _buildContent() {
+    switch (_selectedMenuItem) {
+      case 'Informacije o klubu':
+        return _isEditing ? _buildEditForm() : _buildClubInfo();
+      case 'Informacije o državi':
+        return _buildPlaceholder('Informacije o državi');
+      case 'Informacije o gradu':
+        return _buildPlaceholder('Informacije o gradu');
+      case 'Informacije o stadionu':
+        return _buildPlaceholder('Informacije o stadionu');
+      case 'Informacije o sektorima na stadionu':
+        return _buildPlaceholder('Informacije o sektorima na stadionu');
+      default:
+        return _buildClubInfo();
+    }
+  }
+
+  // Placeholder widget for sections not yet implemented
+  Widget _buildPlaceholder(String title) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            _getIconForMenuItem(title),
+            size: 64,
+            color: Colors.grey,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            '$title Settings',
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'This section is under development',
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.grey[600],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -162,7 +281,15 @@ class _SettingsContentState extends State<_SettingsContent> {
       );
     }
 
-    return _isEditing ? _buildEditForm() : _buildClubInfo();
+    // Return a row with sidebar on the left and content on the right
+    return Row(
+      children: [
+        _buildSidebar(),
+        Expanded(
+          child: _buildContent(),
+        ),
+      ],
+    );
   }
 
   Widget _buildClubInfo() {
