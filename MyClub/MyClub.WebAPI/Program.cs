@@ -20,10 +20,13 @@ builder.Services.AddTransient<IUserService, UserService>();
 builder.Services.AddTransient<IColorService, ColorService>();
 builder.Services.AddTransient<ISizeService, SizeService>();
 builder.Services.AddTransient<ICategoryService, CategoryService>();
+builder.Services.AddTransient<ICountryService, CountryService>();
+builder.Services.AddTransient<ICityService, CityService>();
 builder.Services.AddTransient<IBlobStorageService, BlobStorageService>();
 builder.Services.AddTransient<INewsService, NewsService>();
 builder.Services.AddTransient<ICommentService, CommentService>();
 builder.Services.AddTransient<IStadiumSectorService, StadiumSectorService>();
+builder.Services.AddTransient<IStadiumSideService, StadiumSideService>();
 builder.Services.AddTransient<IClubService, ClubService>();
 builder.Services.AddTransient<IPlayerInterface, PlayerService>();
 builder.Services.AddTransient<ICartService, CartService>();
@@ -45,6 +48,7 @@ builder.Services.AddTransient<FinishedOrderState>();
 builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddMapster();
+
 
 // Add database services
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? "Server=localhost;Database=MyClubDb;Trusted_Connection=True;TrustServerCertificate=True";

@@ -3,15 +3,7 @@ using System.Collections.Generic;
 
 namespace MyClub.Model.Responses
 {
-    public enum OrderStatus
-    {
-        Pending,
-        Processing,
-        Shipped,
-        Delivered,
-        Cancelled,
-        Refunded
-    }
+
 
     public class OrderResponse
     {
@@ -26,9 +18,7 @@ namespace MyClub.Model.Responses
         public decimal DiscountAmount { get; set; }
         public bool HasMembershipDiscount { get; set; }
         public string ShippingAddress { get; set; }
-        public string ShippingCity { get; set; }
-        public string ShippingPostalCode { get; set; }
-        public string ShippingCountry { get; set; }
+        public CityResponse? ShippingCity { get; set; }
         public string PaymentMethod { get; set; }
         public DateTime? ShippedDate { get; set; }
         public DateTime? DeliveredDate { get; set; }

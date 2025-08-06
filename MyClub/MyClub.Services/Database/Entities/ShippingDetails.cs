@@ -12,15 +12,10 @@ namespace MyClub.Services.Database
         [MaxLength(100)]
         public string ShippingAddress { get; set; } = string.Empty;
         
-        [MaxLength(50)]
-        public string ShippingCity { get; set; } = string.Empty;
+        public int? CityId { get; set; }
         
-        [MaxLength(20)]
-        public string ShippingPostalCode { get; set; } = string.Empty;
-        
-        [MaxLength(50)]
-        public string ShippingCountry { get; set; } = string.Empty;
-        
+        [ForeignKey(nameof(CityId))]
+        public virtual City? City { get; set; }
         public virtual ICollection<Order> Orders { get; set; } = new List<Order>();
         public virtual ICollection<UserMembership> UserMemberships { get; set; } = new List<UserMembership>();
     }

@@ -1,6 +1,9 @@
 using System;
+using System.Linq;
+using System.Threading.Tasks;
 using MapsterMapper;
 using Microsoft.EntityFrameworkCore;
+using MyClub.Model.Requests;
 using MyClub.Model.Responses;
 using MyClub.Model.SearchObjects;
 using MyClub.Services.Database;
@@ -9,7 +12,7 @@ using MyClub.Model;
 
 namespace MyClub.Services.Services
 {
-    public class StadiumSectorService : BaseService<StadiumSectorResponse, BaseSearchObject, StadiumSector>, IStadiumSectorService
+    public class StadiumSectorService : BaseCRUDService<StadiumSectorResponse, BaseSearchObject, StadiumSectorUpsertRequest, StadiumSectorUpsertRequest, StadiumSector>, IStadiumSectorService
     {
         private readonly MyClubContext _context;
         private readonly IMapper _mapper;
@@ -23,9 +26,9 @@ namespace MyClub.Services.Services
         public override async Task<StadiumSectorResponse?> GetByIdAsync(int id)
         {
             var entity = await _context.StadiumSectors
-                .Include(s => s.StadiumSide) // Assuming StadiumSide is a navigation property in StadiumSector
+                .Include(s => s.StadiumSide)
                 .FirstOrDefaultAsync(s => s.Id == id);
-             if (entity == null) return null;
+            if (entity == null) return null;
 
             return MapToResponse(entity);
         }
@@ -62,8 +65,35 @@ namespace MyClub.Services.Services
         protected override StadiumSectorResponse MapToResponse(StadiumSector entity)
         {
             var result = _mapper.Map<StadiumSectorResponse>(entity);
-            result.SideName = entity.StadiumSide.Name; // Assuming StadiumSide is a navigation property in StadiumSector
+            if (entity.StadiumSide != null)
+            {
+                result.SideName = entity.StadiumSide.Name;
+            }
             return result;
+        }
+
+        protected override async Task BeforeInsert(StadiumSector entity, StadiumSectorUpsertRequest request)
+        {
+            // Validate that the StadiumSide exists
+            var stadiumSideExists = await _context.StadiumSides.AnyAsync(s => s.Id == request.StadiumSideId);
+            if (!stadiumSideExists)
+            {
+                throw new UserException($"Stadium side with ID {request.StadiumSideId} does not exist.");
+            }
+            
+            await Task.CompletedTask;
+        }
+
+        protected override async Task BeforeUpdate(StadiumSector entity, StadiumSectorUpsertRequest request)
+        {
+            // Validate that the StadiumSide exists
+            var stadiumSideExists = await _context.StadiumSides.AnyAsync(s => s.Id == request.StadiumSideId);
+            if (!stadiumSideExists)
+            {
+                throw new UserException($"Stadium side with ID {request.StadiumSideId} does not exist.");
+            }
+            
+            await Task.CompletedTask;
         }
     }
 }

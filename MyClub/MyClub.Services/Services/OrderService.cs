@@ -56,7 +56,9 @@ namespace MyClub.Services.Services
                 .ThenInclude(x => x.Size)
                 .Include(x => x.User)
                 .Include(x => x.Payment)
-                .Include(x => x.ShippingDetails);
+                .Include(x => x.ShippingDetails)
+                .ThenInclude(s => s.City)
+                .ThenInclude(c => c.Country);
                 
             // Apply filters
             query = ApplyFilter(query, search);
@@ -97,6 +99,8 @@ namespace MyClub.Services.Services
             .Include(x => x.User)
             .Include(x => x.Payment)
             .Include(x => x.ShippingDetails)
+            .ThenInclude(s => s.City)
+            .ThenInclude(c => c.Country)
             .FirstOrDefaultAsync(x => x.Id == id);
             if (order == null)
             {
@@ -110,10 +114,6 @@ namespace MyClub.Services.Services
             if (search?.UserId != null)
             {
                 query = query.Where(x => x.UserId == search.UserId);
-            }
-            if (search?.Status != null)
-            {
-                query = query.Where(x => x.OrderState == search.Status.Value.ToString());
             }
             return query;
         }
@@ -135,9 +135,29 @@ namespace MyClub.Services.Services
             if (entity.ShippingDetails != null)
             {
                 response.ShippingAddress = entity.ShippingDetails.ShippingAddress;
-                response.ShippingCity = entity.ShippingDetails.ShippingCity;
-                response.ShippingPostalCode = entity.ShippingDetails.ShippingPostalCode;
-                response.ShippingCountry = entity.ShippingDetails.ShippingCountry;
+                
+                // Map City and Country if available
+                if (entity.ShippingDetails.City != null)
+                {
+                    // Create and assign the ShippingCity object
+                    response.ShippingCity = new CityResponse
+                    {
+                        Id = entity.ShippingDetails.City.Id,
+                        Name = entity.ShippingDetails.City.Name,
+                        PostalCode = entity.ShippingDetails.City.PostalCode,
+                    };
+                    
+                    // Map Country from City if available
+                    if (entity.ShippingDetails.City.Country != null)
+                    {
+                        response.ShippingCity.Country = new CountryResponse
+                        {
+                            Id = entity.ShippingDetails.City.Country.Id,
+                            Name = entity.ShippingDetails.City.Country.Name,
+                            Code = entity.ShippingDetails.City.Country.Code
+                        };
+                    }
+                }
             }
 
             // Calculate if membership discount was applied (20% less than sum of order items)

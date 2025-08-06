@@ -61,6 +61,8 @@ namespace MyClub.Services.Database
         
         // Shipping
         public DbSet<ShippingDetails> ShippingDetails { get; set; }
+        public DbSet<City> Cities { get; set; }
+        public DbSet<Country> Countries { get; set; }
 
 
 
@@ -316,18 +318,21 @@ namespace MyClub.Services.Database
                 .WithMany(sd => sd.Orders)
                 .HasForeignKey(o => o.ShippingDetailsId)
                 .OnDelete(DeleteBehavior.NoAction);
-                
+
             modelBuilder.Entity<UserMembership>()
                 .HasOne(um => um.ShippingDetails)
                 .WithMany(sd => sd.UserMemberships)
                 .HasForeignKey(um => um.ShippingDetailsId)
                 .OnDelete(DeleteBehavior.NoAction);
 
-            modelBuilder.Entity<Asset>().SeedData(); 
+            // Basic seeders
+            modelBuilder.Entity<Asset>().SeedData();
             modelBuilder.Entity<Color>().SeedData();
             modelBuilder.Entity<Size>().SeedData();
             modelBuilder.Entity<Role>().SeedData();
             modelBuilder.Entity<Category>().SeedData();
+            modelBuilder.Entity<Country>().SeedData();
+            modelBuilder.Entity<City>().SeedData();
             modelBuilder.Entity<StadiumSide>().SeedData();
             modelBuilder.Entity<StadiumSector>().SeedData();
             modelBuilder.Entity<User>().SeedData();
@@ -339,7 +344,7 @@ namespace MyClub.Services.Database
             modelBuilder.Entity<ProductSize>().SeedData();
             modelBuilder.Entity<Club>().SeedData();
             modelBuilder.Entity<Player>().SeedData();
-            
+
             // Add new seeders
             modelBuilder.Entity<ShippingDetails>().SeedData();
             modelBuilder.Entity<Payment>().SeedData();

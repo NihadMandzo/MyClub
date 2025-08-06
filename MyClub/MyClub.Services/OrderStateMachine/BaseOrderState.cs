@@ -68,6 +68,8 @@ namespace MyClub.Services.OrderStateMachine
                     .Include(o => o.User)
                     .Include(o => o.Payment)
                     .Include(o => o.ShippingDetails)
+                    .ThenInclude(s => s.City)
+                    .ThenInclude(c => c.Country)
                     .Include(o => o.OrderItems)
                         .ThenInclude(i => i.ProductSize)
                             .ThenInclude(ps => ps.Product)
@@ -97,12 +99,32 @@ namespace MyClub.Services.OrderStateMachine
             if (entity.ShippingDetails != null)
             {
                 response.ShippingAddress = entity.ShippingDetails.ShippingAddress;
-                response.ShippingCity = entity.ShippingDetails.ShippingCity;
-                response.ShippingPostalCode = entity.ShippingDetails.ShippingPostalCode;
-                response.ShippingCountry = entity.ShippingDetails.ShippingCountry;
                 
-                // For debugging purposes
-                Console.WriteLine($"DEBUG: Mapped shipping details - Address: {response.ShippingAddress}, City: {response.ShippingCity}");
+                // Map City and Country if available
+                if (entity.ShippingDetails.City != null)
+                {
+                    // Create and assign the ShippingCity object
+                    response.ShippingCity = new Model.Responses.CityResponse
+                    {
+                        Id = entity.ShippingDetails.City.Id,
+                        Name = entity.ShippingDetails.City.Name,
+                        PostalCode = entity.ShippingDetails.City.PostalCode,
+                    };
+                    
+                    // Map Country from City if available
+                    if (entity.ShippingDetails.City.Country != null)
+                    {
+                        response.ShippingCity.Country = new Model.Responses.CountryResponse
+                        {
+                            Id = entity.ShippingDetails.City.Country.Id,
+                            Name = entity.ShippingDetails.City.Country.Name,
+                            Code = entity.ShippingDetails.City.Country.Code
+                        };
+                    }
+                    
+                    // For debugging purposes
+                    Console.WriteLine($"DEBUG: Mapped shipping details - Address: {response.ShippingAddress}, City: {response.ShippingCity.Name}");
+                }
             }
             else
             {

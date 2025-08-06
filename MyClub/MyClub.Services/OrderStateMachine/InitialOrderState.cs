@@ -90,12 +90,20 @@ namespace MyClub.Services.OrderStateMachine
                 }
 
                 // 2. Create shipping details first
+                // First find the City by name
+                var city = await _context.Cities
+                    .Include(c => c.Country)
+                    .FirstOrDefaultAsync(c => c.Name.ToLower() == request.ShippingCity.ToLower());
+                    
+                if (city == null)
+                {
+                    throw new UserException($"City '{request.ShippingCity}' not found.");
+                }
+
                 var shippingDetails = new ShippingDetails
                 {
                     ShippingAddress = request.ShippingAddress,
-                    ShippingCity = request.ShippingCity,
-                    ShippingPostalCode = request.ShippingPostalCode,
-                    ShippingCountry = request.ShippingCountry
+                    CityId = city.Id
                 };
 
                 _context.ShippingDetails.Add(shippingDetails);

@@ -17,31 +17,18 @@ public static class ShippingDetailsSeeder
             "357 Aspen Circle", "486 Sycamore Street", "219 Redwood Road", "852 Juniper Lane"
         };
         
-        string[] cities = {
-            "Sarajevo", "Banja Luka", "Tuzla", "Zenica", "Mostar", "Bijeljina", 
-            "Prijedor", "Brčko", "Doboj", "Bihać", "Foča", "Trebinje", "Goražde",
-            "Livno", "Cazin", "Visoko", "Gradačac", "Konjic", "Višegrad", "Gračanica"
-        };
-        
-        string[] postalCodes = {
-            "71000", "78000", "75000", "72000", "88000", "76300", 
-            "79101", "76100", "74000", "77000", "73300", "89101",
-            "73000", "80101", "77220", "71300", "76250", "88400", "73240", "75320"
-        };
+        // Cities will be from Bosnia and Herzegovina (CountryId = 1)
+        int maxCityId = 20; // We have 20 cities from Bosnia and Herzegovina
         
         for (int i = 1; i <= 20; i++)
         {
-            var city = cities[random.Next(0, cities.Length)];
-            var postalCodeIndex = Array.IndexOf(cities, city) % postalCodes.Length;
-            var postalCode = postalCodes[postalCodeIndex];
+            int cityId = random.Next(1, maxCityId + 1);
             
             shippingDetails.Add(new ShippingDetails
             {
                 Id = i,
                 ShippingAddress = streets[random.Next(0, streets.Length)],
-                ShippingCity = city,
-                ShippingPostalCode = postalCode,
-                ShippingCountry = "Bosnia and Herzegovina"
+                CityId = cityId
             });
         }
 

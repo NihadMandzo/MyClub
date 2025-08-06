@@ -389,9 +389,12 @@ namespace MyClub.Services.Services
                     : string.Empty,
                 RecipientEmail = entity.RecipientEmail,
                 ShippingAddress = entity.ShippingDetails?.ShippingAddress ?? string.Empty,
-                ShippingCity = entity.ShippingDetails?.ShippingCity ?? string.Empty,
-                ShippingPostalCode = entity.ShippingDetails?.ShippingPostalCode ?? string.Empty,
-                ShippingCountry = entity.ShippingDetails?.ShippingCountry ?? string.Empty,
+                ShippingCity = new CityResponse
+                {
+                    Id = entity.ShippingDetails?.City?.Id ?? 0,
+                    Name = entity.ShippingDetails?.City?.Name ?? string.Empty,
+                    PostalCode = entity.ShippingDetails?.City?.PostalCode ?? string.Empty
+                },
                 IsShipped = entity.IsShipped,
                 ShippedDate = entity.ShippedDate,
                 PaymentAmount = entity.Payment?.Amount ?? 0,

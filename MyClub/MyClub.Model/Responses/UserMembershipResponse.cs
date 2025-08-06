@@ -16,12 +16,11 @@ namespace MyClub.Model.Responses
         public bool PhysicalCardRequested { get; set; }
         public string RecipientFullName { get; set; }
         public string RecipientEmail { get; set; }
-        public string ShippingAddress { get; set; }
-        public string ShippingCity { get; set; }
-        public string ShippingPostalCode { get; set; }
-        public string ShippingCountry { get; set; }
-        public bool IsShipped { get; set; }
+         public string ShippingAddress { get; set; }
+        public CityResponse? ShippingCity { get; set; }
+        public string PaymentMethod { get; set; }
         public DateTime? ShippedDate { get; set; }
+        public bool IsShipped { get; set; }
         public decimal PaymentAmount { get; set; }
         public bool IsPaid { get; set; }
         public DateTime? PaymentDate { get; set; }
