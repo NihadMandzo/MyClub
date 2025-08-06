@@ -115,28 +115,23 @@ class _OrdersContentState extends State<_OrdersContent> {
     _initData();
   }
 
-  void _showOrderDetails(Order order) {
-    showDialog(
+  void _showOrderDetails(Order order) async {
+    final result = await showDialog<bool>(
       context: context,
-      builder: (context) => OrderDetailsDialog(order: order),
+      builder: (context) => ChangeNotifierProvider.value(
+        value: _orderProvider,
+        child: OrderDetailsDialog(order: order),
+      ),
     );
+    
+    // If the status was updated, refresh the orders list
+    if (result == true) {
+      _initData();
+    }
   }
 
-  String _getStatusText(OrderStatus status) {
-    switch (status) {
-      case OrderStatus.pending:
-        return 'Pending';
-      case OrderStatus.processing:
-        return 'Processing';
-      case OrderStatus.shipped:
-        return 'Shipped';
-      case OrderStatus.delivered:
-        return 'Delivered';
-      case OrderStatus.cancelled:
-        return 'Cancelled';
-      case OrderStatus.refunded:
-        return 'Refunded';
-    }
+  String _getStatusText(String orderState) {
+    return orderState; // Return the status directly as it's already a display name
   }
 
   @override
@@ -234,25 +229,22 @@ class _OrdersContentState extends State<_OrdersContent> {
                                   
                                   // Define status color
                                   Color statusColor;
-                                  switch (order.status) {
-                                    case OrderStatus.pending:
-                                      statusColor = Colors.orange;
-                                      break;
-                                    case OrderStatus.processing:
-                                      statusColor = Colors.blue;
-                                      break;
-                                    case OrderStatus.shipped:
-                                      statusColor = Colors.indigo;
-                                      break;
-                                    case OrderStatus.delivered:
-                                      statusColor = Colors.green;
-                                      break;
-                                    case OrderStatus.cancelled:
-                                      statusColor = Colors.red;
-                                      break;
-                                    case OrderStatus.refunded:
-                                      statusColor = Colors.purple;
-                                      break;
+                                  
+                                  // Assign color based on order state
+                                  if (order.orderState == 'Procesiranje') {
+                                    statusColor = Colors.blue;
+                                  } else if (order.orderState == 'Potvrđeno') {
+                                    statusColor = Colors.green;
+                                  } else if (order.orderState == 'Otkazano') {
+                                    statusColor = Colors.red;
+                                  }  else if (order.orderState == 'Iniciranje') {
+                                    statusColor = Colors.orange;
+                                  } else if (order.orderState == 'Dostava') {
+                                    statusColor = Colors.purple;
+                                  } else if (order.orderState == 'Završeno') {
+                                    statusColor = Colors.green;
+                                  } else {
+                                    statusColor = Colors.grey;
                                   }
                                   
                                   return Card(
@@ -290,7 +282,7 @@ class _OrdersContentState extends State<_OrdersContent> {
                                                     borderRadius: BorderRadius.circular(12),
                                                   ),
                                                   child: Text(
-                                                    _getStatusText(order.status),
+                                                                                                        _getStatusText(order.orderState),
                                                     style: const TextStyle(
                                                       color: Colors.white,
                                                       fontSize: 12,

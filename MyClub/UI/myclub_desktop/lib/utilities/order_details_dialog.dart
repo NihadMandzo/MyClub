@@ -1,19 +1,112 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:myclub_desktop/models/order.dart';
+import 'package:myclub_desktop/providers/order_provider.dart';
+import 'package:myclub_desktop/utilities/dialog_utility.dart';
+import 'package:myclub_desktop/utilities/notification_utility.dart';
+import 'package:provider/provider.dart';
 
-class OrderDetailsDialog extends StatelessWidget {
+class OrderDetailsDialog extends StatefulWidget {
   final Order order;
 
   const OrderDetailsDialog({
     Key? key,
     required this.order,
   }) : super(key: key);
+  
+  @override
+  State<OrderDetailsDialog> createState() => _OrderDetailsDialogState();
+}
+
+class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
+  late String _selectedStatus;
+  bool _isUpdating = false;
+  String? _errorMessage;
+  
+  @override
+  void initState() {
+    super.initState();
+        _selectedStatus = widget.order.orderState;
+  }
+
+  // Get available next statuses based on current status
+  List<String> _getAvailableNextStatuses() {
+    if (_selectedStatus == 'Procesiranje') {
+      return ['Procesiranje', 'Potvrđeno', 'Otkazano'];
+    } else if (_selectedStatus == 'Potvrđeno') {
+      return ['Potvrđeno', 'Dostava', 'Otkazano'];
+    } else if (_selectedStatus == 'Dostava') {
+      return ['Dostava', 'Završeno'];
+    } else if (_selectedStatus == 'Završeno') {
+      return ['Završeno'];
+    } else if (_selectedStatus == 'Otkazano') {
+      return ['Otkazano'];
+    } else {
+      return [_selectedStatus];
+    }
+  }
+
+  // Update order status
+  Future<void> _updateOrderStatus() async {
+    if (_selectedStatus == widget.order.orderState) {
+      return;
+    }
+
+    // Show confirmation dialog using DialogUtility
+    final shouldProceed = await DialogUtility.showConfirmation(
+      context,
+      title: 'Potvrda promjene statusa',
+      message: 'Jeste li sigurni da želite promijeniti status narudžbe iz "${widget.order.orderState}" u "${_selectedStatus}"?',
+      confirmLabel: 'Potvrdi',
+      cancelLabel: 'Odustani',
+      confirmColor: Colors.blue,
+    );
+
+    if (!shouldProceed) {
+      return;
+    }
+
+    setState(() {
+      _isUpdating = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final orderProvider = Provider.of<OrderProvider>(context, listen: false);
+      await orderProvider.updateOrderStatus(
+        orderId: widget.order.id,
+        newStatus: _selectedStatus,
+      );
+      
+      // Show success notification
+      NotificationUtility.showSuccess(
+        context, 
+        message: 'Status narudžbe je uspješno promijenjen u "${_selectedStatus}"'
+      );
+      
+      // Success - close dialog
+      if (mounted) {
+        Navigator.of(context).pop(true); // Return true to indicate update was successful
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString();
+        _isUpdating = false;
+      });
+      
+      // Show error notification
+      NotificationUtility.showError(
+        context, 
+        message: 'Greška prilikom promjene statusa: ${e.toString()}'
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final dialogWidth = screenWidth * 0.8;
+    final availableStatuses = _getAvailableNextStatuses();
 
     // Function to create info item
     Widget buildInfoItem(String label, String value) {
@@ -71,67 +164,6 @@ class OrderDetailsDialog extends StatelessWidget {
       );
     }
 
-    // Function to get status text
-    String getStatusText(OrderStatus status) {
-      switch (status) {
-        case OrderStatus.pending:
-          return 'Pending';
-        case OrderStatus.processing:
-          return 'Processing';
-        case OrderStatus.shipped:
-          return 'Shipped';
-        case OrderStatus.delivered:
-          return 'Delivered';
-        case OrderStatus.cancelled:
-          return 'Cancelled';
-        case OrderStatus.refunded:
-          return 'Refunded';
-      }
-    }
-
-    // Build status badge
-    Widget statusBadge = (() {
-      Color bgColor;
-      Color textColor = Colors.white;
-      String text = getStatusText(order.status);
-
-      switch (order.status) {
-        case OrderStatus.pending:
-          bgColor = Colors.orange;
-          break;
-        case OrderStatus.processing:
-          bgColor = Colors.blue;
-          break;
-        case OrderStatus.shipped:
-          bgColor = Colors.indigo;
-          break;
-        case OrderStatus.delivered:
-          bgColor = Colors.green;
-          break;
-        case OrderStatus.cancelled:
-          bgColor = Colors.red;
-          break;
-        case OrderStatus.refunded:
-          bgColor = Colors.purple;
-          break;
-      }
-
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Text(
-          text,
-          style: TextStyle(
-            color: textColor,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      );
-    })();
-
     return Dialog(
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
@@ -151,15 +183,65 @@ class OrderDetailsDialog extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Order #${order.orderNumber ?? order.id.toString()}',
+                  'Order #${widget.order.orderNumber ?? widget.order.id.toString()}',
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                statusBadge,
+                Row(
+                  children: [
+                    const Text('Status: ', style: TextStyle(fontWeight: FontWeight.w500)),
+                    const SizedBox(width: 8),
+                    DropdownButton<String>(
+                      value: _selectedStatus,
+                      items: availableStatuses.map((status) {
+                        return DropdownMenuItem<String>(
+                          value: status,
+                          child: Text(status),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        if (value != null) {
+                          setState(() {
+                            _selectedStatus = value;
+                          });
+                        }
+                      },
+                    ),
+                    if (_selectedStatus != widget.order.orderState)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 8.0),
+                        child: ElevatedButton(
+                          onPressed: _isUpdating ? null : _updateOrderStatus,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue,
+                            foregroundColor: Colors.white,
+                          ),
+                          child: _isUpdating
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Text('Ažuriraj'),
+                        ),
+                      ),
+                  ],
+                ),
               ],
             ),
+            if (_errorMessage != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8.0),
+                child: Text(
+                  _errorMessage!,
+                  style: const TextStyle(color: Colors.red),
+                ),
+              ),
             const SizedBox(height: 24),
             Expanded(
               child: SingleChildScrollView(
@@ -185,16 +267,16 @@ class OrderDetailsDialog extends StatelessWidget {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  buildInfoItem('Kupac', order.userFullName),
+                                  buildInfoItem('Kupac', widget.order.userFullName),
                                   buildInfoItem('Datum narudžbe',
-                                      DateFormat('MMM dd, yyyy').format(order.orderDate)),
-                                  if (order.shippedDate != null)
+                                      DateFormat('MMM dd, yyyy').format(widget.order.orderDate)),
+                                  if (widget.order.shippedDate != null)
                                     buildInfoItem('Datum slanja',
-                                        DateFormat('MMM dd, yyyy').format(order.shippedDate!)),
-                                  if (order.deliveredDate != null)
+                                        DateFormat('MMM dd, yyyy').format(widget.order.shippedDate!)),
+                                  if (widget.order.deliveredDate != null)
                                     buildInfoItem('Datum isporuke',
-                                        DateFormat('MMM dd, yyyy').format(order.deliveredDate!)),
-                                  buildInfoItem('Metoda Plačanja', order.paymentMethod),
+                                        DateFormat('MMM dd, yyyy').format(widget.order.deliveredDate!)),
+                                  buildInfoItem('Metoda Plačanja', widget.order.paymentMethod),
                                 ],
                               ),
                             ),
@@ -202,20 +284,20 @@ class OrderDetailsDialog extends StatelessWidget {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  if (order.shippingAddress != null)
-                                    buildInfoItem('Adresa dostave', order.shippingAddress!),
-                                  if (order.shippingCity != null)
-                                    buildInfoItem('Grad', order.shippingCity!),
-                                  if (order.shippingPostalCode != null)
-                                    buildInfoItem('Poštanski broj', order.shippingPostalCode!),
-                                  if (order.shippingCountry != null)
-                                    buildInfoItem('Zemlja', order.shippingCountry!),
-                                  if (order.notes != null && order.notes!.isNotEmpty)
-                                    buildInfoItem('Napomene', order.notes!),
-                                  if (order.shippingAddress == null && 
-                                      order.shippingCity == null && 
-                                      order.shippingPostalCode == null && 
-                                      order.shippingCountry == null)
+                                  if (widget.order.shippingAddress != null)
+                                    buildInfoItem('Adresa dostave', widget.order.shippingAddress!),
+                                  if (widget.order.shippingCity != null)
+                                    buildInfoItem('Grad', widget.order.shippingCity!),
+                                  if (widget.order.shippingPostalCode != null)
+                                    buildInfoItem('Poštanski broj', widget.order.shippingPostalCode!),
+                                  if (widget.order.shippingCountry != null)
+                                    buildInfoItem('Zemlja', widget.order.shippingCountry!),
+                                  if (widget.order.notes != null && widget.order.notes!.isNotEmpty)
+                                    buildInfoItem('Napomene', widget.order.notes!),
+                                  if (widget.order.shippingAddress == null && 
+                                      widget.order.shippingCity == null && 
+                                      widget.order.shippingPostalCode == null && 
+                                      widget.order.shippingCountry == null)
                                     const Text('Nema informacija o dostavi',
                                       style: TextStyle(
                                         fontStyle: FontStyle.italic,
@@ -252,9 +334,9 @@ class OrderDetailsDialog extends StatelessWidget {
                             crossAxisSpacing: 10,
                             mainAxisSpacing: 10,
                           ),
-                          itemCount: order.orderItems.length,
+                          itemCount: widget.order.orderItems.length,
                           itemBuilder: (context, index) {
-                            final item = order.orderItems[index];
+                            final item = widget.order.orderItems[index];
                             return Card(
                               elevation: 2,
                               shape: RoundedRectangleBorder(
@@ -352,11 +434,11 @@ class OrderDetailsDialog extends StatelessWidget {
                           child: Column(
                             children: [
                               buildSummaryRow('Prava cijena',
-                                  '\$${order.originalAmount.toStringAsFixed(2)}'),
-                              if (order.discountAmount > 0) ...[
+                                  '\$${widget.order.originalAmount.toStringAsFixed(2)}'),
+                              if (widget.order.discountAmount > 0) ...[
                                 buildSummaryRow('Popust',
-                                    '-\$${order.discountAmount.toStringAsFixed(2)}'),
-                                if (order.hasMembershipDiscount)
+                                    '-\$${widget.order.discountAmount.toStringAsFixed(2)}'),
+                                if (widget.order.hasMembershipDiscount)
                                   const Padding(
                                     padding: EdgeInsets.only(top: 4, bottom: 8),
                                     child: Text(
@@ -372,7 +454,7 @@ class OrderDetailsDialog extends StatelessWidget {
                               const Divider(),
                               buildSummaryRow(
                                 'Ukupno',
-                                '\$${order.totalAmount.toStringAsFixed(2)}',
+                                '\$${widget.order.totalAmount.toStringAsFixed(2)}',
                                 isBold: true,
                               ),
                             ],

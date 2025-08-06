@@ -1,14 +1,5 @@
 import 'package:myclub_desktop/models/order_item.dart';
 
-enum OrderStatus {
-  pending,
-  processing,
-  shipped,
-  delivered,
-  cancelled,
-  refunded
-}
-
 class Order {
   final int id;
   final String? orderNumber;
@@ -16,7 +7,7 @@ class Order {
   final String userFullName;
   final int? paymentId;
   final DateTime orderDate;
-  final OrderStatus status;
+  final String orderState;
   final double totalAmount;
   final double originalAmount;
   final double discountAmount;
@@ -38,7 +29,7 @@ class Order {
     required this.userFullName,
     this.paymentId,
     required this.orderDate,
-    required this.status,
+    required this.orderState,
     required this.totalAmount,
     required this.originalAmount,
     required this.discountAmount,
@@ -62,7 +53,7 @@ class Order {
       userFullName: json['userFullName'] as String,
       paymentId: json['paymentId'] as int?,
       orderDate: DateTime.parse(json['orderDate'] as String),
-      status: OrderStatus.values[json['status'] as int],
+      orderState: json['orderState'] as String,
       totalAmount: (json['totalAmount'] as num).toDouble(),
       originalAmount: (json['originalAmount'] as num).toDouble(),
       discountAmount: (json['discountAmount'] as num).toDouble(),
@@ -93,7 +84,7 @@ class Order {
       'userFullName': userFullName,
       'paymentId': paymentId,
       'orderDate': orderDate.toIso8601String(),
-      'status': status.index,
+      'orderState': orderState,
       'totalAmount': totalAmount,
       'originalAmount': originalAmount,
       'discountAmount': discountAmount,
