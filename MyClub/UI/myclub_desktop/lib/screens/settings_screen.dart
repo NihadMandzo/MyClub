@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:myclub_desktop/models/club.dart';
 import 'package:myclub_desktop/models/country.dart';
 import 'package:myclub_desktop/models/city.dart';
+import 'package:myclub_desktop/models/search_objects/base_search_object.dart';
 import 'package:myclub_desktop/models/stadium_side.dart';
 import 'package:myclub_desktop/models/stadium_sector.dart';
 import 'package:myclub_desktop/providers/club_provider.dart';
@@ -82,6 +83,10 @@ class _SettingsContentState extends State<_SettingsContent> {
   int? _editingStadiumSideId;
   int? _editingStadiumSectorId;
 
+  final BaseSearchObject _searchObject = BaseSearchObject(
+    retrieveAll: true,
+  );
+
   @override
   void initState() {
     super.initState();
@@ -115,7 +120,7 @@ class _SettingsContentState extends State<_SettingsContent> {
 
     try {
       _countryProvider.setContext(context);
-      final result = await _countryProvider.get();
+      final result = await _countryProvider.get(searchObject : _searchObject);
       setState(() {
         _countries = result.data;
       });
@@ -135,7 +140,7 @@ class _SettingsContentState extends State<_SettingsContent> {
 
     try {
       _cityProvider.setContext(context);
-      final result = await _cityProvider.get();
+      final result = await _cityProvider.get(searchObject: _searchObject);
       setState(() {
         _cities = result.data;
       });
@@ -155,7 +160,7 @@ class _SettingsContentState extends State<_SettingsContent> {
 
     try {
       _stadiumSideProvider.setContext(context);
-      final result = await _stadiumSideProvider.get();
+      final result = await _stadiumSideProvider.get(searchObject: _searchObject);
       setState(() {
         _stadiumSides = result.data;
       });
@@ -175,7 +180,7 @@ class _SettingsContentState extends State<_SettingsContent> {
 
     try {
       _stadiumSectorProvider.setContext(context);
-      final result = await _stadiumSectorProvider.get();
+      final result = await _stadiumSectorProvider.get(searchObject: _searchObject);
       setState(() {
         _stadiumSectors = result.data;
       });
