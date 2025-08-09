@@ -403,3 +403,6 @@ FodyWeavers.xsd
 *.vscode/
 .vscode/
 MyClub/MyClub.WebAPI/appsettings.json
+
+.env
+MyClub/MyClub.Subscriber/appsettings.json

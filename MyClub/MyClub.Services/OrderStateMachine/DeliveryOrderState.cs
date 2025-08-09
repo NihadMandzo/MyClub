@@ -24,6 +24,7 @@ namespace MyClub.Services.OrderStateMachine
             {
                 var order = await _context.Orders
                     .Include(o => o.ShippingDetails)
+                    .Include(o => o.User)
                     .FirstOrDefaultAsync(o => o.Id == orderId);
                     
                 if (order == null)
@@ -32,7 +33,7 @@ namespace MyClub.Services.OrderStateMachine
                 // Only allow transition to Finished
                 if (request.NewStatus != "Završeno")
                     throw new UserException($"Cannot change order from 'Dostava' to '{request.NewStatus}'");
-                
+                var oldState = order.OrderState;
                 order.OrderState = request.NewStatus;
                 order.DeliveredDate = DateTime.Now;
                 
@@ -40,7 +41,7 @@ namespace MyClub.Services.OrderStateMachine
                 
                 // Optional: Send email notification about completed delivery
                 // await SendDeliveryCompletedNotification(order);
-                
+                base.SendOrderStateChangeEmail(order, oldState);
                 return await MapOrderToResponse(order);
             }
             catch (Exception ex)

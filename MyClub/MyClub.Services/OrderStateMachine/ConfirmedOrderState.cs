@@ -40,7 +40,7 @@ namespace MyClub.Services.OrderStateMachine
         public override async Task<OrderResponse> ChangeOrderState(int orderId, OrderStateUpdateRequest request)
         {
             var entity = await _context.Orders
-                .Include(o => o.ShippingDetails)
+                .Include(o => o.ShippingDetails).Include(o => o.User)
                 .FirstOrDefaultAsync(o => o.Id == orderId);
                 
             if (entity == null)
@@ -58,9 +58,10 @@ namespace MyClub.Services.OrderStateMachine
                 entity.ShippedDate = DateTime.Now;
             }
 
-
+            var oldState = entity.OrderState;
             entity.OrderState = request.NewStatus;
             await _context.SaveChangesAsync();
+            base.SendOrderStateChangeEmail(entity, oldState);
             return await MapOrderToResponse(entity);
         }
 

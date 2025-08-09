@@ -42,6 +42,7 @@ namespace MyClub.Services.OrderStateMachine
             {
                 var order = await _context.Orders
                     .Include(o => o.ShippingDetails)
+                    .Include(o => o.User)
                     .FirstOrDefaultAsync(o => o.Id == orderId);
                     
                 if (order == null)
@@ -51,13 +52,14 @@ namespace MyClub.Services.OrderStateMachine
                 if (request.NewStatus != "Potvrđeno" && request.NewStatus != "Otkazano")
                     throw new UserException($"Cannot change order from 'Procesiranje' to '{request.NewStatus}'");
 
+                var oldState = order.OrderState;
                 order.OrderState = request.NewStatus;
 
                 await _context.SaveChangesAsync();
 
-                // Optional: Send email notification about status change
-                // await SendStatusChangeEmail(order);
-
+                // Send email notification about status change
+                SendOrderStateChangeEmail(order, oldState);
+                
                 return await MapOrderToResponse(order);
             }
             catch (Exception ex)

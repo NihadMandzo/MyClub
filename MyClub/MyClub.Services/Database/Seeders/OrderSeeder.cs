@@ -23,7 +23,7 @@ public static class OrderSeeder
         };
         
         // Define order states as strings
-        string[] orderStates = { "Iniciranje", "Procesiranje", "Potvrđeno", "Dostava", "Završeno", "Otkazano" };
+        string[] orderStates = { "Procesiranje", "Potvrđeno", "Dostava",};
         
         for (int i = 1; i <= 50; i++)
         {

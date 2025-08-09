@@ -46,7 +46,7 @@ public static class UserSeeder
                 Id = 3, 
                 FirstName = "Nihad", 
                 LastName = "Kurtic", 
-                Email = "nihad@myclub.com", 
+                Email = "nihad.mandzo@bosnjackagim.edu.ba", 
                 Username = "nihad123",
                 PasswordHash = user1Hash, 
                 PasswordSalt = user1Salt,

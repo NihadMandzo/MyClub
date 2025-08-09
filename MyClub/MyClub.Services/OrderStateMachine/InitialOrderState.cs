@@ -65,11 +65,11 @@ namespace MyClub.Services.OrderStateMachine
             {
                 throw new KeyNotFoundException($"Order with TransactionId {request.TransactionId} not found");
             }
-            if (order.OrderState != "Procesiranje")
-            {
-            }
-            order.OrderState = "Potvrđeno";
+            var oldState = order.OrderState;
+            order.OrderState = "Procesiranje";
             await _context.SaveChangesAsync();
+            // Send message to RabbitMQ
+            base.SendOrderStateChangeEmail(order, oldState);
             return await MapOrderToResponse(order);
         }
         public override async Task<PaymentResponse> PlaceOrder(OrderInsertRequest request)
