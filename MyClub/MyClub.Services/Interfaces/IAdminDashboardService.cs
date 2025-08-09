@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using MyClub.Model.Responses;
+using MyClub.Model.Requests;
 
 namespace MyClub.Services.Interfaces
 {
@@ -18,5 +19,7 @@ namespace MyClub.Services.Interfaces
         Task<DashboardMostSoldProductResponse> MostSoldProduct();
 
         Task<DashboardCountResponse> OrderCount();
+        Task<byte[]> GenerateDashboardReportAsync(DashboardReportRequest request);
+    
     }
 }

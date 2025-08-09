@@ -5,6 +5,7 @@ using MyClub.Services.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using MyClub.Model.Requests;
 
 namespace MyClub.WebAPI.Controllers
 {
@@ -149,6 +150,29 @@ namespace MyClub.WebAPI.Controllers
                 };
 
                 return Ok(new { success = true, data = overview });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+        }
+        [HttpPost("dashboard/pdf")]
+        public async Task<IActionResult> GenerateDashboardPdf([FromBody] DashboardReportRequest request)
+        {
+            try
+            {
+                var pdfBytes = await _adminDashboardService.GenerateDashboardReportAsync(request);
+
+                var fileName = request.Type switch
+                {
+                    DashboardReportType.Top10MostSoldProducts => "Top10_Najprodavaniji_Proizvodi.pdf",
+                    DashboardReportType.Top10LeastSoldProducts => "Top10_Najmanje_Prodavani_Proizvodi.pdf",
+                    DashboardReportType.MembershipsPerMonth => "Broj_Clanova_Po_Mjesecima.pdf",
+                    DashboardReportType.RevenuePerMonth => "Mjesecna_Zarada.pdf",
+                    _ => "Dashboard_Report.pdf"
+                };
+
+                return File(pdfBytes, "application/pdf", fileName);
             }
             catch (Exception ex)
             {
