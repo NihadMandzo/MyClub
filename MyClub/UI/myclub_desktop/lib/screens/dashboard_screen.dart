@@ -8,6 +8,9 @@ import 'package:myclub_desktop/models/dashboard/dashboard_sales_by_category_resp
 import 'package:myclub_desktop/providers/admin_dashboard_provider.dart';
 import 'package:myclub_desktop/utilities/notification_utility.dart';
 import 'package:provider/provider.dart';
+import 'package:myclub_desktop/models/dashboard/dashboard_report_request.dart';
+import 'dart:io';
+import 'package:file_selector/file_selector.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({Key? key}) : super(key: key);
@@ -35,6 +38,8 @@ class _DashboardContent extends StatefulWidget {
 class _DashboardContentState extends State<_DashboardContent> {
   late AdminDashboardProvider _dashboardProvider;
   bool _isLoading = true;
+  bool _isGeneratingPdf = false;
+  DashboardReportType _selectedReport = DashboardReportType.top10MostSoldProducts;
 
   // Dashboard data
   DashboardCountResponse? _ordersCount;
@@ -88,6 +93,37 @@ class _DashboardContentState extends State<_DashboardContent> {
     }
   }
 
+  Future<void> _onGeneratePdfPressed() async {
+    setState(() => _isGeneratingPdf = true);
+    try {
+      final result = await _dashboardProvider.generateDashboardPdf(_selectedReport);
+
+      final saveLocation = await getSaveLocation(
+        suggestedName: result.filename,
+        acceptedTypeGroups: [const XTypeGroup(label: 'PDF', extensions: ['pdf'])],
+      );
+      if (saveLocation == null) {
+        return; // user cancelled
+      }
+
+      final file = File(saveLocation.path);
+      await file.writeAsBytes(result.bytes);
+
+      NotificationUtility.showSuccess(
+        context,
+        message: 'PDF uspješno sačuvan: ${saveLocation.path}',
+      );
+    } catch (e) {
+      NotificationUtility.showError(
+        context,
+        message: 'Greška pri generisanju/snimanju PDF-a: $e',
+        duration: const Duration(seconds: 10),
+      );
+    } finally {
+      if (mounted) setState(() => _isGeneratingPdf = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -100,12 +136,50 @@ class _DashboardContentState extends State<_DashboardContent> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Analiza',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Analiza',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Row(
+                  children: [
+                    DropdownButton<DashboardReportType>(
+                      value: _selectedReport,
+                      onChanged: (val) {
+                        if (val == null) return;
+                        setState(() => _selectedReport = val);
+                      },
+                      items: DashboardReportType.values
+                          .map((t) => DropdownMenuItem(
+                                value: t,
+                                child: Text(t.label),
+                              ))
+                          .toList(),
+                    ),
+                    const SizedBox(width: 12),
+                    ElevatedButton.icon(
+                      onPressed: _isGeneratingPdf ? null : _onGeneratePdfPressed,
+                      icon: _isGeneratingPdf
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            )
+                          : const Icon(Icons.picture_as_pdf),
+                      label: Text(_isGeneratingPdf ? 'Generišem...' : 'Generiši PDF'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.redAccent,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
             const SizedBox(height: 24),
             Row(

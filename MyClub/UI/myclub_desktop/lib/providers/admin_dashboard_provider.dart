@@ -6,6 +6,8 @@ import 'package:myclub_desktop/models/dashboard/dashboard_most_sold_product_resp
 import 'package:myclub_desktop/models/dashboard/dashboard_revenue_per_month_response.dart';
 import 'package:myclub_desktop/models/dashboard/dashboard_sales_by_category_response.dart';
 import 'package:myclub_desktop/providers/base_provider.dart';
+import 'package:myclub_desktop/models/dashboard/dashboard_report_request.dart';
+import 'dart:typed_data';
 
 class AdminDashboardProvider extends BaseProvider {
   AdminDashboardProvider() : super('AdminDashboard');
@@ -164,6 +166,108 @@ class AdminDashboardProvider extends BaseProvider {
       print("Error in getOrderCount: $e");
       rethrow;
     }
+  }
+
+  // Generate dashboard PDF report
+  Future<({Uint8List bytes, String filename})> generateDashboardPdf(DashboardReportType type) async {
+    final url = "${BaseProvider.baseUrl}$endpoint/dashboard/pdf";
+    final uri = Uri.parse(url);
+
+    final headers = {
+      ...createHeaders(),
+      'Accept': 'application/pdf',
+      'Content-Type': 'application/json',
+    };
+
+    final body = jsonEncode(DashboardReportRequest(type).toJson());
+    final response = await http.post(uri, headers: headers, body: body);
+
+    if (response.statusCode == 200) {
+      final filename = _parseFilename(response.headers['content-disposition']) ?? _defaultFilename(type);
+      return (bytes: response.bodyBytes, filename: filename);
+    }
+
+    try {
+      final err = jsonDecode(response.body);
+      if (err is Map && err['message'] is String) {
+        throw Exception(err['message']);
+      }
+    } catch (_) {}
+    throw Exception('Neuspješno generisanje PDF-a (status ${response.statusCode}).');
+  }
+
+  String _defaultFilename(DashboardReportType type) {
+    switch (type) {
+      case DashboardReportType.top10MostSoldProducts:
+        return 'Top10_Najprodavaniji_Proizvodi.pdf';
+      case DashboardReportType.top10LeastSoldProducts:
+        return 'Top10_Najmanje_Prodavani_Proizvodi.pdf';
+      case DashboardReportType.membershipsPerMonth:
+        return 'Broj_Clanova_Po_Mjesecima.pdf';
+      case DashboardReportType.revenuePerMonth:
+        return 'Mjesecna_Zarada.pdf';
+    }
+  }
+
+  String? _parseFilename(String? contentDisposition) {
+    if (contentDisposition == null || contentDisposition.isEmpty) return null;
+
+    final parts = contentDisposition.split(';');
+
+    // 1) Prefer RFC 5987 filename*
+    for (final raw in parts) {
+      final part = raw.trim();
+      if (part.toLowerCase().startsWith('filename*=')) {
+        var value = part.substring(part.indexOf('=') + 1).trim();
+        if (value.startsWith('"') && value.endsWith('"') && value.length > 1) {
+          value = value.substring(1, value.length - 1);
+        }
+
+        // charset'lang'percent-encoded-filename (or UTF-8''name)
+        final first = value.indexOf("'");
+        final second = value.indexOf("'", first + 1);
+        if (first != -1 && second != -1 && second + 1 < value.length) {
+          final encoded = value.substring(second + 1);
+          final decoded = Uri.decodeComponent(encoded);
+          final sanitized = _ensurePdfExtension(_sanitizeFilename(decoded));
+          return sanitized;
+        }
+
+        const marker1 = "UTF-8''";
+        const marker2 = "utf-8''";
+        if (value.startsWith(marker1) || value.startsWith(marker2)) {
+          final decoded = Uri.decodeComponent(value.substring(marker1.length));
+          final sanitized = _ensurePdfExtension(_sanitizeFilename(decoded));
+          return sanitized;
+        }
+      }
+    }
+
+    // 2) Fallback to simple filename=
+    for (final raw in parts) {
+      final part = raw.trim();
+      if (part.toLowerCase().startsWith('filename=')) {
+        var value = part.substring(part.indexOf('=') + 1).trim();
+        if (value.startsWith('"') && value.endsWith('"') && value.length > 1) {
+          value = value.substring(1, value.length - 1);
+        }
+        final sanitized = _ensurePdfExtension(_sanitizeFilename(value));
+        return sanitized;
+      }
+    }
+
+    return null;
+  }
+
+  String _sanitizeFilename(String name) {
+    name = name.replaceAll('\\', '/').split('/').last;
+    name = name.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_').trim();
+    if (name.isEmpty) return 'report.pdf';
+    return name;
+  }
+
+  String _ensurePdfExtension(String name) {
+    return name.toLowerCase().endsWith('.pdf') ? name : '$name.pdf';
   }
 
   @override
