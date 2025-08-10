@@ -9,6 +9,7 @@ import '../models/responses/paged_result.dart';
 import '../models/search_objects/base_search_object.dart';
 import '../utility/responsive_helper.dart';
 import '../widgets/pagination_widget.dart';
+import '../screens/news_detail_screen.dart';
 
 /// Home screen with responsive layout and example content
 class HomeScreen extends StatefulWidget {
@@ -35,8 +36,8 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _loadMembershipData();
-    _loadNews();
     _startAutoRefresh();
+    _loadNews();
   }
 
   @override
@@ -665,10 +666,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _onNewsCardTapped(NewsResponse news) {
-    // TODO: Navigate to news detail screen
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Otvaranje vijesti: ${news.title}'),
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => NewsDetailScreen(news: news),
       ),
     );
   }
