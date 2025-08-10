@@ -150,7 +150,6 @@ class _HomeScreenState extends State<HomeScreen> {
           _buildMembershipCard(context),
           const SizedBox(height: 32),
           _buildNewsSection(context),
-          const SizedBox(height: 20),
         ],
       ),
     );

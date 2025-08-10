@@ -4,6 +4,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'providers/auth_provider.dart';
 import 'providers/membership_provider.dart';
 import 'providers/news_provider.dart';
+import 'providers/user_provider.dart';
+import 'providers/base_provider.dart';
 import 'screens/login_screen.dart';
 import 'screens/app_layout.dart';
 
@@ -22,15 +24,23 @@ class MyClubApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => MembershipProvider()),
         ChangeNotifierProvider(create: (_) => NewsProvider()),
+        ChangeNotifierProvider(create: (_) => UserProvider()),
       ],
-      child: MaterialApp(
-        title: 'MyClub Mobile',
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF131A9E)),
-        useMaterial3: true,
-        ),
-        home: const AuthWrapper(),
-        debugShowCheckedModeBanner: false,
+      child: Consumer<AuthProvider>(
+        builder: (context, authProvider, child) {
+          // Set global auth provider for all BaseProvider instances
+          BaseProvider.setGlobalAuthProvider(authProvider);
+          
+          return MaterialApp(
+            title: 'MyClub Mobile',
+            theme: ThemeData(
+              colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF131A9E)),
+              useMaterial3: true,
+            ),
+            home: const AuthWrapper(),
+            debugShowCheckedModeBanner: false,
+          );
+        },
       ),
     );
   }

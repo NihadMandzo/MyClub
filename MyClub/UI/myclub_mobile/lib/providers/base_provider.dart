@@ -9,6 +9,7 @@ import '../utility/api_config.dart';
 
 abstract class BaseProvider<T> with ChangeNotifier {
   static String? baseUrl;
+  static AuthProvider? _globalAuthProvider;
   String endpoint = "";
   late BuildContext context;
   AuthProvider? authProvider;
@@ -18,11 +19,22 @@ abstract class BaseProvider<T> with ChangeNotifier {
     // Use ApiConfig to get platform-appropriate base URL
     baseUrl = ApiConfig.baseUrl;
   }
+
+  /// Set global auth provider for use across all providers
+  static void setGlobalAuthProvider(AuthProvider authProvider) {
+    _globalAuthProvider = authProvider;
+  }
+
+  /// Get global auth provider
+  static AuthProvider? getGlobalAuthProvider() {
+    return _globalAuthProvider;
+  }
   
   void setContext(BuildContext context) {
     this.context = context;
     authProvider = Provider.of<AuthProvider>(this.context, listen: false);
   }
+
 
   
   Future<PagedResult<T>> get({dynamic searchObject}) async {
@@ -168,8 +180,14 @@ abstract class BaseProvider<T> with ChangeNotifier {
       "Content-Type": "application/json",
     };
     
-    if (authProvider?.token != null) {
-      headers["Authorization"] = "Bearer ${authProvider!.token}";
+    // Try to get token from local authProvider first, then global
+    AuthProvider? auth = authProvider ?? _globalAuthProvider;
+    
+    if (auth?.token != null) {
+      headers["Authorization"] = "Bearer ${auth!.token}";
+      print("Including Authorization header with token: ${auth.token?.substring(0, 20)}...");
+    } else {
+      print("Warning: No authorization token available for API request");
     }
 
     return headers;

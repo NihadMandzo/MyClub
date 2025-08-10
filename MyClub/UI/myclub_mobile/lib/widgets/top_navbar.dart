@@ -4,6 +4,7 @@ import '../providers/auth_provider.dart';
 import '../utility/responsive_helper.dart';
 import '../utility/notification_helper.dart';
 import '../utility/auth_helper.dart';
+import '../screens/profile_screen.dart';
 
 /// Top navigation bar widget with club logo, cart icon (conditional), and profile icon
 class TopNavBar extends StatelessWidget implements PreferredSizeWidget {
@@ -123,7 +124,7 @@ class TopNavBar extends StatelessWidget implements PreferredSizeWidget {
   /// Build the profile icon
   Widget _buildProfileIcon(BuildContext context) {
     return IconButton(
-      onPressed: onProfileTap ?? () => _onProfilePressed(context),
+      onPressed: onProfileTap ?? () => showProfileOptions(context),
       icon: Icon(
         Icons.account_circle,
         size: ResponsiveHelper.iconSize(context),
@@ -138,8 +139,8 @@ class TopNavBar extends StatelessWidget implements PreferredSizeWidget {
     // TODO: Navigate to cart screen or show cart bottom sheet
   }
 
-  /// Handle profile icon press
-  void _onProfilePressed(BuildContext context) {
+  /// Alternative method to show profile bottom sheet (if needed)
+  void showProfileOptions(BuildContext context) {
     _showProfileBottomSheet(context);
   }
 
@@ -173,34 +174,9 @@ class TopNavBar extends StatelessWidget implements PreferredSizeWidget {
               trailing: const Icon(Icons.chevron_right),
               onTap: () {
                 Navigator.pop(context);
-                NotificationHelper.showInfo(context, 'Otvaranje profila...');
-                // TODO: Navigate to profile screen
-              },
-            ),
-            
-            const Divider(),
-            
-            // Settings
-            ListTile(
-              leading: const Icon(Icons.settings),
-              title: const Text('Postavke'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () {
-                Navigator.pop(context);
-                NotificationHelper.showInfo(context, 'Otvaranje postavki...');
-                // TODO: Navigate to settings screen
-              },
-            ),
-            
-            // Help
-            ListTile(
-              leading: const Icon(Icons.help_outline),
-              title: const Text('Pomoć'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () {
-                Navigator.pop(context);
-                NotificationHelper.showInfo(context, 'Otvaranje pomoći...');
-                // TODO: Navigate to help screen
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (context) => const ProfileScreen()),
+                );
               },
             ),
             

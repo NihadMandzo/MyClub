@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../utility/responsive_helper.dart';
 import '../utility/notification_helper.dart';
+import 'profile_screen.dart';
 
 /// Info screen with various options and club information
 class InfoScreen extends StatelessWidget {
@@ -14,14 +15,6 @@ class InfoScreen extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildClubInfoCard(context),
-          const SizedBox(height: 20),
-          _buildMenuSection(context, 'Upravljanje', _getManagementItems()),
-          const SizedBox(height: 20),
-          _buildMenuSection(context, 'Izvještaji', _getReportsItems()),
-          const SizedBox(height: 20),
-          _buildMenuSection(context, 'Općenito', _getGeneralItems()),
-          const SizedBox(height: 20),
-          _buildMenuSection(context, 'Podrška', _getSupportItems()),
         ],
       ),
     );
@@ -171,108 +164,6 @@ class InfoScreen extends StatelessWidget {
   /// Handle menu item tap
   void _handleMenuItemTap(BuildContext context, Map<String, dynamic> item) {
     NotificationHelper.showInfo(context, 'Otvaranje: ${item['title']}');
-    // TODO: Navigate to respective screens
   }
 
-  /// Get management menu items
-  List<Map<String, dynamic>> _getManagementItems() {
-    return [
-      {
-        'title': 'Upravljanje članovima',
-        'subtitle': 'Dodaj, uredi ili ukloni članove',
-        'icon': Icons.people,
-        'color': Colors.blue,
-      },
-      {
-        'title': 'Upravljanje utakmicama',
-        'subtitle': 'Zakaži ili uredi utakmice',
-        'icon': Icons.sports_soccer,
-        'color': Colors.green,
-      },
-      {
-        'title': 'Upravljanje prodavnicom',
-        'subtitle': 'Dodaj ili uredi proizvode',
-        'icon': Icons.storefront,
-        'color': Colors.orange,
-      },
-      {
-        'title': 'Korisničke uloge',
-        'subtitle': 'Upravljaj dozvolama',
-        'icon': Icons.admin_panel_settings,
-        'color': Colors.purple,
-      },
-    ];
-  }
-
-  /// Get reports menu items
-  List<Map<String, dynamic>> _getReportsItems() {
-    return [
-      {
-        'title': 'Finansijski izvještaji',
-        'subtitle': 'Pregled prihoda i rashoda',
-        'icon': Icons.analytics,
-        'color': Colors.teal,
-      },
-      {
-        'title': 'Izvještaj članstva',
-        'subtitle': 'Statistike članova',
-        'icon': Icons.assessment,
-        'color': Colors.indigo,
-      },
-      {
-        'title': 'Prodajni izvještaji',
-        'subtitle': 'Analiza prodaje',
-        'icon': Icons.trending_up,
-        'color': Colors.green,
-      },
-    ];
-  }
-
-  /// Get general menu items
-  List<Map<String, dynamic>> _getGeneralItems() {
-    return [
-      {
-        'title': 'Obavještenja',
-        'subtitle': 'Postavke obavještenja',
-        'icon': Icons.notifications,
-        'color': Colors.amber,
-      },
-      {
-        'title': 'Sigurnost',
-        'subtitle': 'Lozinka i sigurnost',
-        'icon': Icons.security,
-        'color': Colors.red,
-      },
-      {
-        'title': 'O aplikaciji',
-        'subtitle': 'Verzija 1.0.0',
-        'icon': Icons.info,
-        'color': Colors.grey,
-      },
-    ];
-  }
-
-  /// Get support menu items
-  List<Map<String, dynamic>> _getSupportItems() {
-    return [
-      {
-        'title': 'Pomoć i podrška',
-        'subtitle': 'Često postavljena pitanja',
-        'icon': Icons.help,
-        'color': Colors.cyan,
-      },
-      {
-        'title': 'Kontakt',
-        'subtitle': 'Kontaktirajte nas',
-        'icon': Icons.contact_support,
-        'color': Colors.pink,
-      },
-      {
-        'title': 'Povratne informacije',
-        'subtitle': 'Pošaljite nam feedback',
-        'icon': Icons.feedback,
-        'color': Colors.lime,
-      },
-    ];
-  }
 }
