@@ -11,7 +11,6 @@ namespace MyClub.Subscriber
         {
             if (mailObj == null) return false;
 
-            // Underscore-prefixed env vars (compatible with requested sample), fallback to existing ones
             string fromAddress = Environment.GetEnvironmentVariable("_fromAddress")
                                     ?? Environment.GetEnvironmentVariable("SMTP_USERNAME")
                                     ?? "";

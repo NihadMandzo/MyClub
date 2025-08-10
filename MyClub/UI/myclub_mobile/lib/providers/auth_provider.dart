@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:myclub_mobile/models/auth_response.dart';
-import 'package:myclub_mobile/models/user_upsert_request.dart';
+import 'package:myclub_mobile/models/responses/auth_response.dart';
+import 'package:myclub_mobile/models/requests/user_upsert_request.dart';
 import '../utility/auth_helper.dart';
 import '../utility/api_config.dart';
 
@@ -110,7 +110,7 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      var url = ApiConfig.usersUrl; // This will be the base users endpoint
+      var url = '${ApiConfig.usersUrl}register'; // This will be the base users endpoint
       var uri = Uri.parse(url);
 
       // Print configuration for debugging

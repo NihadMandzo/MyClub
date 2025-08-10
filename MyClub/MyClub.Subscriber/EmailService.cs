@@ -4,7 +4,6 @@ namespace MyClub.Subscriber
 {
     public class EmailService
     {
-        // Thin wrapper to align with eRestorante-style service while reusing MailKit-based sender
         public async Task<bool> SendEmail(EmailMessage email)
         {
             if (email == null)

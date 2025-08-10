@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:myclub_mobile/models/paged_result.dart';
+import 'package:myclub_mobile/models/responses/paged_result.dart';
 import 'package:myclub_mobile/providers/auth_provider.dart';
 import 'package:provider/provider.dart';
 import '../utility/api_config.dart';

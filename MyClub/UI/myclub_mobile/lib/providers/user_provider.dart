@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:myclub_mobile/models/user.dart';
+import 'package:myclub_mobile/models/responses/user.dart';
 import 'package:myclub_mobile/providers/base_provider.dart';
 
 class UserProvider extends BaseProvider<User> {

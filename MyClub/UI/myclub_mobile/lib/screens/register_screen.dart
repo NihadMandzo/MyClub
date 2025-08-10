@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
-import '../models/user_upsert_request.dart';
+import '../models/requests/user_upsert_request.dart';
 import '../utility/responsive_helper.dart';
 import '../utility/notification_helper.dart';
 

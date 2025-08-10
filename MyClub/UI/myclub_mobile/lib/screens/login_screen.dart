@@ -189,7 +189,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   )
                 : Text(
-                    'Prijaviť se',
+                    'Login',
                     style: TextStyle(
                       fontSize: ResponsiveHelper.font(context, base: 16),
                       fontWeight: FontWeight.w600,

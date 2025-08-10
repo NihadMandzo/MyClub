@@ -66,7 +66,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         style: TextStyle(
                           fontSize: 28,
                           fontWeight: FontWeight.bold,
-                          color: Color.fromARGB(255, 19, 26, 158),
+                          color: Color(0xFF131A9E),
                         ),
                       ),
                       const SizedBox(height: 8),

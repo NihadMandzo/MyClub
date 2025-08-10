@@ -31,7 +31,6 @@ try
         return int.TryParse(s, out var i) ? i : defaultValue;
     }
 
-    // Prefer underscore-prefixed env vars for compatibility with the requested style; fallback to existing ones
     var hostname = GetEnv("localhost", "_rabbitMqHost", "RABBITMQ_HOST");
     var username = GetEnv("guest", "_rabbitMqUser", "RABBITMQ_USERNAME");
     var password = GetEnv("guest", "_rabbitMqPassword", "RABBITMQ_PASSWORD");

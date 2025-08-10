@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'providers/auth_provider.dart';
+import 'providers/membership_provider.dart';
+import 'providers/news_provider.dart';
 import 'screens/login_screen.dart';
 import 'screens/app_layout.dart';
 
@@ -18,11 +20,14 @@ class MyClubApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) => MembershipProvider()),
+        ChangeNotifierProvider(create: (_) => NewsProvider()),
       ],
       child: MaterialApp(
         title: 'MyClub Mobile',
         theme: ThemeData(
-          
+          colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF131A9E)),
+        useMaterial3: true,
         ),
         home: const AuthWrapper(),
         debugShowCheckedModeBanner: false,

@@ -141,7 +141,7 @@ namespace MyClub.Services
 
             // Set default values
             entity.CreatedAt = DateTime.UtcNow;
-            entity.RoleId = request.RoleId ?? 1; // Default to regular user role if not specified
+            entity.RoleId = request.RoleId ?? 2; // Default to regular user role if not specified
 
             // Hash password if provided
             if (!string.IsNullOrEmpty(request.Password))
