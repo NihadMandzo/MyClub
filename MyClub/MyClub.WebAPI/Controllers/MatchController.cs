@@ -24,21 +24,9 @@ namespace MyClub.WebAPI
         }
 
         [HttpGet("upcoming")]
-        public async Task<IActionResult> GetUpcomingMatches([FromQuery] int? clubId = null, [FromQuery] int? count = null)
+        public async Task<IActionResult> GetUpcomingMatches([FromQuery] BaseSearchObject search)
         {
-            return Ok(await _matchService.GetUpcomingMatchesAsync(clubId, count));
-        }
-
-
-        [HttpGet("available")]
-        public async Task<IActionResult> GetAvailableMatches([FromQuery] BaseSearchObject search)
-        {
-            if (search == null)
-                search = new BaseSearchObject();
-
-            // Use the dedicated service method instead of filtering in memory
-            var result = await _matchService.GetAvailableMatchesAsync(search);
-            return Ok(result);
+            return Ok(await _matchService.GetUpcomingMatchesAsync(search));
         }
 
         [HttpPost("tickets/{ticketId}/purchase")]
@@ -124,9 +112,15 @@ namespace MyClub.WebAPI
                 return BadRequest("Invalid match ID");
             }
 
-                var result = await _matchService.CreateOrUpdateMatchTicketAsync(matchId, request);
-                return Ok(result);
+            var result = await _matchService.CreateOrUpdateMatchTicketAsync(matchId, request);
+            return Ok(result);
 
+        }
+
+        [HttpGet("past")]
+        public async Task<IActionResult> GetPastMatches([FromQuery] BaseSearchObject search)
+        {
+            return Ok(await _matchService.GetPastMatchesAsync(search));
         }
     }
 

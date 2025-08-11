@@ -31,20 +31,6 @@ public static class MatchSeeder
             var opponentName = opponents[random.Next(0, opponents.Length)];
             var location = locations[random.Next(0, locations.Length)];
             
-            // Past matches have Completed or Cancelled status, future matches are Scheduled
-            string status;
-            if (matchDate < DateTime.Now)
-            {
-                status = random.Next(0, 10) < 8 ? "Završena" : "Otkazana";
-            }
-            else if (matchDate.Date == DateTime.Now.Date)
-            {
-                status = random.Next(0, 10) < 5 ? "Uživo" : "Zakazana";
-            }
-            else
-            {
-                status = random.Next(0, 10) < 8 ? "Zakazana" : "Odgođena";
-            }
             
             matches.Add(new Match
             {
@@ -52,7 +38,6 @@ public static class MatchSeeder
                 MatchDate = matchDate,
                 OpponentName = opponentName,
                 Location = location,
-                Status = status,
                 Description = $"Utakmica protiv {opponentName} na {location}",
                 ClubId = 1 // Assuming FK Foča with ID 1 from your ClubSeeder
             });

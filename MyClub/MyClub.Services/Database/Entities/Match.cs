@@ -21,8 +21,6 @@ namespace MyClub.Services.Database
         [MaxLength(100)]
         public string Location { get; set; }
         
-        [MaxLength(50)]
-        public string Status { get; set; } = "Scheduled";
         
         [MaxLength(500)]
         public string Description { get; set; }

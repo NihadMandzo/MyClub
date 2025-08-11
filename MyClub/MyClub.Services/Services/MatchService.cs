@@ -89,40 +89,6 @@ namespace MyClub.Services
             return MapToResponse(entity);
         }
 
-        public async Task<List<MatchResponse>> GetUpcomingMatchesAsync(int? clubId = null, int? count = null)
-        {
-            // Create a simple IQueryable first
-            var query = _context.Matches
-                .AsNoTracking()
-                .Include(m => m.Club)
-                .Include(m => m.Tickets)
-                .ThenInclude(t => t.StadiumSector)
-                .ThenInclude(s => s.StadiumSide)
-                .Where(m => m.MatchDate > DateTime.UtcNow).AsQueryable();
-
-            // Apply club filter if needed
-            if (clubId.HasValue)
-            {
-                query = query.Where(m => m.ClubId == clubId.Value);
-            }
-
-            // Order the query
-            var orderedQuery = query.OrderBy(m => m.MatchDate);
-
-            // Apply limit if needed
-            if (count.HasValue)
-            {
-                query = orderedQuery.Take(count.Value);
-            }
-            else
-            {
-                query = orderedQuery;
-            }
-
-            var matches = await query.ToListAsync();
-            return matches.Select(m => MapToResponse(m)).ToList();
-        }
-
         public override async Task<MatchResponse> CreateAsync(MatchUpsertRequest request)
         {
             using var transaction = await _context.Database.BeginTransactionAsync();
@@ -368,7 +334,7 @@ namespace MyClub.Services
             }
         }
 
-        public async Task<PagedResult<MatchResponse>> GetAvailableMatchesAsync(BaseSearchObject search)
+        public async Task<PagedResult<MatchResponse>> GetUpcomingMatchesAsync(BaseSearchObject search)
         {
             // Create query for matches with available tickets
             var now = DateTime.UtcNow;
@@ -389,7 +355,6 @@ namespace MyClub.Services
                 string searchTerm = search.FTS.Trim().ToLower();
                 query = query.Where(m =>
                     m.OpponentName.ToLower().Contains(searchTerm) ||
-                    m.Status.ToLower().Contains(searchTerm) ||
                     m.Location.ToLower().Contains(searchTerm) ||
                     m.Club.Name.ToLower().Contains(searchTerm)
                 );
@@ -466,7 +431,6 @@ namespace MyClub.Services
             entity.MatchDate = request.MatchDate;
             entity.OpponentName = request.OpponentName;
             entity.Location = request.Location;
-            entity.Status = request.Status;
             entity.Description = request.Description;
             entity.ClubId = request.ClubId;
             entity.Tickets = new List<MatchTicket>();
@@ -479,7 +443,6 @@ namespace MyClub.Services
             entity.MatchDate = request.MatchDate;
             entity.OpponentName = request.OpponentName;
             entity.Location = request.Location;
-            entity.Status = request.Status;
             entity.Description = request.Description;
             entity.ClubId = request.ClubId;
 
@@ -489,7 +452,7 @@ namespace MyClub.Services
         private MatchResponse MapToResponse(Database.Match entity)
         {
             var response = _mapper.Map<MatchResponse>(entity);
-
+            response.Status = entity.MatchDate > DateTime.UtcNow ? "Zakazana" : "Završena";
             // Add club name
             response.ClubName = entity.Club?.Name;
 
@@ -554,7 +517,6 @@ namespace MyClub.Services
                 string searchTerm = search.FTS.Trim().ToLower();
                 query = query.Where(m =>
                     m.OpponentName.ToLower().Contains(searchTerm) ||
-                    m.Status.ToLower().Contains(searchTerm) ||
                     m.Location.ToLower().Contains(searchTerm) ||
                     m.Club.Name.ToLower().Contains(searchTerm)
                 );
@@ -634,7 +596,7 @@ namespace MyClub.Services
                         .FirstOrDefaultAsync(mt => mt.MatchId == matchId && mt.StadiumSectorId == ticketRequest.StadiumSectorId);
 
 
-                    if(ticketRequest.ReleasedQuantity < 0 || ticketRequest.ReleasedQuantity > 100 || ticketRequest.Price < 0)
+                    if (ticketRequest.ReleasedQuantity < 0 || ticketRequest.ReleasedQuantity > 100 || ticketRequest.Price < 0)
                     {
                         throw new UserException("Released quantity cannot be negative and price cannot be negative");
                     }
@@ -661,7 +623,7 @@ namespace MyClub.Services
                     {
                         // Update existing ticket
 
-                        if(matchTicket.ReleasedQuantity + ticketRequest.ReleasedQuantity > 100)
+                        if (matchTicket.ReleasedQuantity + ticketRequest.ReleasedQuantity > 100)
                         {
                             throw new UserException("Total released quantity cannot exceed 100", 400);
                         }
@@ -684,6 +646,61 @@ namespace MyClub.Services
                 await transaction.RollbackAsync();
                 throw;
             }
+        }
+
+        public async Task<PagedResult<MatchResponse>> GetPastMatchesAsync(BaseSearchObject search)
+        {
+            // Create query for matches with available tickets
+            var now = DateTime.UtcNow;
+
+            // Start with getting all matches and include necessary related entities
+            var query = _context.Matches
+                .AsNoTracking()
+                .Include(m => m.Club)
+                .Include(m => m.Tickets)
+                    .ThenInclude(t => t.StadiumSector)
+                    .ThenInclude(s => s.StadiumSide)
+                .Where(m => m.MatchDate <= now) // Only past matches
+                .AsQueryable();
+
+            // Apply any text search
+            if (!string.IsNullOrWhiteSpace(search.FTS))
+            {
+                string searchTerm = search.FTS.Trim().ToLower();
+                query = query.Where(m =>
+                    m.OpponentName.ToLower().Contains(searchTerm) ||
+                    m.Location.ToLower().Contains(searchTerm) ||
+                    m.Club.Name.ToLower().Contains(searchTerm)
+                );
+            }
+
+            // Order by match date
+            query = query.OrderBy(m => m.MatchDate);
+
+            // Get total count
+            int totalCount = await query.CountAsync();
+
+            // Apply pagination
+            int pageSize = search.PageSize ?? 10;
+            int currentPage = search.Page ?? 0;
+
+            if (!search.RetrieveAll)
+            {
+                query = query.Skip(currentPage * pageSize).Take(pageSize);
+            }
+
+            var list = await query.ToListAsync();
+
+            Console.WriteLine($"Available matches query returned {list.Count} matches");
+
+            // Map to response
+            return new PagedResult<MatchResponse>
+            {
+                Data = list.Select(MapToResponse).ToList(),
+                TotalCount = totalCount,
+                CurrentPage = currentPage,
+                PageSize = pageSize
+            };
         }
     }
 }

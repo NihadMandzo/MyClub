@@ -375,7 +375,7 @@ namespace MyClub.Services.Services
             
             if (currentCampaign == null)
             {
-                return null;
+                throw new UserException("No active membership card campaigns found for the current year or any active campaigns.");
             }
             
             var response = MapToResponse(currentCampaign);

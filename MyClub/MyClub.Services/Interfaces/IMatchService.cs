@@ -8,15 +8,13 @@ namespace MyClub.Services
 {
     public interface IMatchService : ICRUDService<MatchResponse, BaseSearchObject, MatchUpsertRequest, MatchUpsertRequest>
     {
-        Task<List<MatchResponse>> GetUpcomingMatchesAsync(int? clubId = null, int? count = null);
-
         Task<UserTicketResponse> PurchaseTicketAsync(TicketPurchaseRequest request);
         Task<UserTicketResponse> ConfirmPurchaseTicketAsync(string transactionId);
         Task<PagedResult<UserTicketResponse>> GetUserTicketsAsync(int userId, bool upcomingOnly = false);
         Task<QRValidationResponse> ValidateQRCodeAsync(QRValidationRequest request);
-        Task<PagedResult<MatchResponse>> GetAvailableMatchesAsync(BaseSearchObject search);
+        Task<PagedResult<MatchResponse>> GetUpcomingMatchesAsync(BaseSearchObject search);
         Task<MatchResponse> UpdateMatchResultAsync(int matchId, MatchResultRequest request);
-
         Task<MatchResponse> CreateOrUpdateMatchTicketAsync(int matchId, List<MatchTicketUpsertRequest> request);
+        Task<PagedResult<MatchResponse>> GetPastMatchesAsync(BaseSearchObject search);
     }
 } 
