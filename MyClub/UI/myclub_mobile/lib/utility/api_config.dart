@@ -12,8 +12,10 @@ class ApiConfig {
 
     // Default API configuration based on platform
     if (Platform.isAndroid) {
+      // Try real device IP first, fallback to emulator IP
+      // For real Android devices, use your computer's IP address
       // For Android emulator: 10.0.2.2 maps to host machine's localhost
-      return "http://10.0.2.2:5206/api/";
+      return "http://192.168.0.27:5206/api/";
     } else if (Platform.isIOS) {
       // For iOS simulator: localhost works directly
       return "http://localhost:5206/api/";
@@ -21,6 +23,16 @@ class ApiConfig {
       // For other platforms (desktop, web), use localhost
       return "http://localhost:5206/api/";
     }
+  }
+
+  /// Alternative method to detect if running on emulator vs real device
+  static String getDeviceSpecificUrl() {
+    if (Platform.isAndroid) {
+      // You can add device-specific logic here if needed
+      // For now, assume real device and use the computer's IP
+      return "http://192.168.0.27:5206/api/";
+    }
+    return baseUrl;
   }
 
   /// Get the login endpoint URL

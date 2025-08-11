@@ -5,6 +5,7 @@ import 'providers/auth_provider.dart';
 import 'providers/membership_provider.dart';
 import 'providers/news_provider.dart';
 import 'providers/user_provider.dart';
+import 'providers/match_provider.dart';
 import 'providers/base_provider.dart';
 import 'screens/login_screen.dart';
 import 'screens/app_layout.dart';
@@ -25,6 +26,7 @@ class MyClubApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => MembershipProvider()),
         ChangeNotifierProvider(create: (_) => NewsProvider()),
         ChangeNotifierProvider(create: (_) => UserProvider()),
+        ChangeNotifierProvider(create: (_) => MatchProvider()),
       ],
       child: Consumer<AuthProvider>(
         builder: (context, authProvider, child) {
