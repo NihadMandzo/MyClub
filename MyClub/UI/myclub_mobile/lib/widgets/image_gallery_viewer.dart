@@ -226,26 +226,6 @@ class _ImageGalleryViewerState extends State<ImageGalleryViewer> {
           color: Colors.black.withOpacity(0.6),
           borderRadius: BorderRadius.circular(20),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.touch_app,
-              color: Colors.white.withOpacity(0.8),
-              size: 16,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              'Dvaput dodirnite za zumiranje • Štipanje za zumiranje',
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.8),
-                fontSize: ResponsiveHelper.font(context, base: 12),
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
       ),
     );
   }

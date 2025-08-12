@@ -31,7 +31,7 @@ class TopNavBar extends StatelessWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context) {
     return AppBar(
-      backgroundColor: Theme.of(context).primaryColor,
+      backgroundColor: Theme.of(context).colorScheme.primary,
       foregroundColor: Colors.white,
       elevation: ResponsiveHelper.cardElevation(context),
       automaticallyImplyLeading: false,

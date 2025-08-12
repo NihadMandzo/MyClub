@@ -407,9 +407,11 @@ class _HomeScreenState extends State<HomeScreen> {
           PaginationWidget(
             currentPage: _currentPage,
             totalPages: totalPages,
+            currentPageSize: 10, // Default value, not shown since showPageSizeSelector is false
             onPageChanged: _onPageChanged,
             isLoading: _isLoadingNews,
             showPageNumbers: false,
+            showPageSizeSelector: false, // Hide page size selector in home screen
           ),
       ],
     );

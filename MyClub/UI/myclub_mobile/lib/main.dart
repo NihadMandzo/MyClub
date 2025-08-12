@@ -7,6 +7,10 @@ import 'providers/news_provider.dart';
 import 'providers/user_provider.dart';
 import 'providers/match_provider.dart';
 import 'providers/base_provider.dart';
+import 'providers/product_provider.dart';
+import 'providers/category_provider.dart';
+import 'providers/color_provider.dart';
+import 'providers/size_provider.dart';
 import 'screens/login_screen.dart';
 import 'screens/app_layout.dart';
 
@@ -27,6 +31,10 @@ class MyClubApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => NewsProvider()),
         ChangeNotifierProvider(create: (_) => UserProvider()),
         ChangeNotifierProvider(create: (_) => MatchProvider()),
+        ChangeNotifierProvider(create: (_) => ProductProvider()),
+        ChangeNotifierProvider(create: (_) => CategoryProvider()),
+        ChangeNotifierProvider(create: (_) => ColorProvider()),
+        ChangeNotifierProvider(create: (_) => SizeProvider()),
       ],
       child: Consumer<AuthProvider>(
         builder: (context, authProvider, child) {
@@ -36,8 +44,7 @@ class MyClubApp extends StatelessWidget {
           return MaterialApp(
             title: 'MyClub Mobile',
             theme: ThemeData(
-              colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF131A9E)),
-              useMaterial3: true,
+              colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue.shade700, primary: Colors.blue.shade700),
             ),
             home: const AuthWrapper(),
             debugShowCheckedModeBanner: false,

@@ -11,13 +11,15 @@ class BottomNavBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return NavigationBar(
+      backgroundColor: Theme.of(context).colorScheme.primary,
       selectedIndex: currentIndex,
       onDestinationSelected: onTap,
+      labelTextStyle: WidgetStateProperty.all(TextStyle(color: Color(0xFFFFFFFF))),
       destinations: const [
-        NavigationDestination(icon: Icon(Icons.home_outlined), label: 'Home'),
-        NavigationDestination(icon: Icon(Icons.sports_soccer_outlined), label: 'Match'),
-        NavigationDestination(icon: Icon(Icons.storefront_outlined), label: 'Shop'),
-        NavigationDestination(icon: Icon(Icons.menu), label: 'Info'),
+        NavigationDestination(icon: Icon(Icons.home_outlined, color: Color(0xFFFFFFFF)), label: 'Home'),
+        NavigationDestination(icon: Icon(Icons.sports_soccer_outlined, color: Color(0xFFFFFFFF)), label: 'Match'),
+        NavigationDestination(icon: Icon(Icons.storefront_outlined, color: Color(0xFFFFFFFF)), label: 'Shop'),
+        NavigationDestination(icon: Icon(Icons.menu, color: Color(0xFFFFFFFF)), label: 'Info'),
       ],
     );
   }
