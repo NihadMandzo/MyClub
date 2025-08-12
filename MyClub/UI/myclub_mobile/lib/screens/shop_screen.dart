@@ -10,6 +10,7 @@ import '../providers/category_provider.dart';
 import '../providers/color_provider.dart';
 import '../providers/size_provider.dart';
 import '../widgets/pagination_widget.dart';
+import '../utility/responsive_helper.dart';
 import 'product_detail_screen.dart';
 
 class ShopScreen extends StatefulWidget {
@@ -32,12 +33,12 @@ class _ShopScreenState extends State<ShopScreen> {
 
   bool _isLoading = false;
   bool _isSearchBarOpen = false;
-  
+
   // Pagination variables
   int _currentPage = 0;
-  int _pageSize = 6;
+  int _pageSize = 10; // Changed from 6 to 10
   int _totalPages = 0;
-  
+
   // Filter values
   List<int> _selectedCategoryIds = [];
   List<int> _selectedColorIds = [];
@@ -56,7 +57,7 @@ class _ShopScreenState extends State<ShopScreen> {
     _categoryProvider = context.read<CategoryProvider>();
     _colorProvider = context.read<ColorProvider>();
     _sizeProvider = context.read<SizeProvider>();
-    
+
     _loadInitialData();
   }
 
@@ -67,11 +68,7 @@ class _ShopScreenState extends State<ShopScreen> {
 
     try {
       // Load filter options
-      await Future.wait([
-        _loadCategories(),
-        _loadColors(),
-        _loadSizes(),
-      ]);
+      await Future.wait([_loadCategories(), _loadColors(), _loadSizes()]);
 
       // Load products
       await _loadProducts();
@@ -121,7 +118,7 @@ class _ShopScreenState extends State<ShopScreen> {
     setState(() {
       _isLoading = true;
     });
-    
+
     try {
       final searchObject = ProductSearchObject(
         fTS: _searchQuery.isEmpty ? null : _searchQuery,
@@ -152,10 +149,7 @@ class _ShopScreenState extends State<ShopScreen> {
 
   void _showErrorSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-      ),
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
     );
   }
 
@@ -171,14 +165,6 @@ class _ShopScreenState extends State<ShopScreen> {
       _currentPage = page;
     });
     _loadProducts(page: page);
-  }
-
-  void _onPageSizeChanged(int newPageSize) {
-    setState(() {
-      _pageSize = newPageSize;
-      _currentPage = 0; // Reset to first page when changing page size
-    });
-    _loadProducts();
   }
 
   void _clearFilters() {
@@ -224,222 +210,292 @@ class _ShopScreenState extends State<ShopScreen> {
         initialChildSize: 0.9,
         maxChildSize: 0.95,
         minChildSize: 0.5,
-        builder: (context, scrollController) => Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Column(
-            children: [
-              // Handle bar
-              Container(
-                margin: const EdgeInsets.only(top: 8),
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
+        builder: (context, scrollController) => StatefulBuilder(
+          builder: (context, setModalState) => Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            child: Column(
+              children: [
+                // Handle bar
+                Container(
+                  margin: const EdgeInsets.only(top: 8),
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
-              ),
-              
-              // Header
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Filteri',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.close),
-                    ),
-                  ],
-                ),
-              ),
-              
-              // Filter content
-              Expanded(
-                child: SingleChildScrollView(
-                  controller: scrollController,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+
+                // Header
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // Price range slider
                       const Text(
-                        'Cena',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                      ),
-                      const SizedBox(height: 8),
-                      RangeSlider(
-                        values: _priceRange,
-                        min: _minPrice,
-                        max: _maxPrice,
-                        divisions: 100,
-                        labels: RangeLabels(
-                          '${_priceRange.start.round()} KM',
-                          '${_priceRange.end.round()} KM',
+                        'Filteri',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
                         ),
-                        onChanged: (RangeValues values) {
-                          setState(() {
-                            _priceRange = values;
-                          });
-                        },
                       ),
-                      
-                      const SizedBox(height: 16),
-                      
-                      // Categories
-                      const Text(
-                        'Kategorije',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.close),
                       ),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        children: _categories.map((category) {
-                          final isSelected = _selectedCategoryIds.contains(category.id);
-                          return FilterChip(
-                            label: Text(category.name),
-                            selected: isSelected,
-                            onSelected: (selected) {
-                              setState(() {
-                                if (selected) {
-                                  _selectedCategoryIds.add(category.id);
-                                } else {
-                                  _selectedCategoryIds.remove(category.id);
-                                }
-                              });
-                            },
-                          );
-                        }).toList(),
-                      ),
-                      
-                      const SizedBox(height: 16),
-                      
-                      // Colors
-                      const Text(
-                        'Boje',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                      ),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        children: _colors.map((color) {
-                          final isSelected = _selectedColorIds.contains(color.id);
-                          return FilterChip(
-                            label: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Container(
-                                  width: 16,
-                                  height: 16,
-                                  decoration: BoxDecoration(
-                                    color: _parseColor(color.hexCode),
-                                    shape: BoxShape.circle,
-                                    border: Border.all(color: Colors.grey),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Text(color.name),
-                              ],
-                            ),
-                            selected: isSelected,
-                            onSelected: (selected) {
-                              setState(() {
-                                if (selected) {
-                                  _selectedColorIds.add(color.id);
-                                } else {
-                                  _selectedColorIds.remove(color.id);
-                                }
-                              });
-                            },
-                          );
-                        }).toList(),
-                      ),
-                      
-                      const SizedBox(height: 16),
-                      
-                      // Sizes
-                      const Text(
-                        'Veličine',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                      ),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        children: _sizes.map((size) {
-                          final isSelected = _selectedSizeIds.contains(size.id);
-                          return FilterChip(
-                            label: Text(size.name),
-                            selected: isSelected,
-                            onSelected: (selected) {
-                              setState(() {
-                                if (selected) {
-                                  _selectedSizeIds.add(size.id);
-                                } else {
-                                  _selectedSizeIds.remove(size.id);
-                                }
-                              });
-                            },
-                          );
-                        }).toList(),
-                      ),
-                      
-                      const SizedBox(height: 32),
                     ],
                   ),
                 ),
-              ),
-              
-              // Bottom action buttons
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 4,
-                      offset: const Offset(0, -2),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () {
-                          _clearFilters();
-                          Navigator.pop(context);
-                        },
-                        child: const Text('Otkazi'),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () {
-                          _applyFilters();
-                          Navigator.pop(context);
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue.shade700,
-                          foregroundColor: Colors.white,
+
+                // Filter content
+                Expanded(
+                  child: SingleChildScrollView(
+                    controller: scrollController,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Price range slider
+                        const Text(
+                          'Cena',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
                         ),
-                        child: const Text('Primeni'),
-                      ),
+                        const SizedBox(height: 8),
+                        RangeSlider(
+                          values: _priceRange,
+                          min: _minPrice,
+                          max: _maxPrice,
+                          divisions: 100,
+                          labels: RangeLabels(
+                            '${_priceRange.start.round()} KM',
+                            '${_priceRange.end.round()} KM',
+                          ),
+                          onChanged: (RangeValues values) {
+                            setModalState(() {
+                              _priceRange = values;
+                            });
+                          },
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // Categories
+                        const Text(
+                          'Kategorije',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          children: _categories.map((category) {
+                            final isSelected = _selectedCategoryIds.contains(
+                              category.id,
+                            );
+                            return FilterChip(
+                              label: Text(
+                                category.name,
+                                style: TextStyle(
+                                  color: isSelected
+                                      ? Colors.white
+                                      : Colors.black87,
+                                  fontWeight: isSelected
+                                      ? FontWeight.w600
+                                      : FontWeight.normal,
+                                ),
+                              ),
+                              selected: isSelected,
+                              selectedColor: Colors.blue.shade700,
+                              backgroundColor: Colors.grey.shade100,
+                              checkmarkColor: Colors.white,
+                              elevation: isSelected ? 3 : 1,
+                              pressElevation: 4,
+                              onSelected: (selected) {
+                                setModalState(() {
+                                  if (selected) {
+                                    _selectedCategoryIds.add(category.id);
+                                  } else {
+                                    _selectedCategoryIds.remove(category.id);
+                                  }
+                                });
+                              },
+                            );
+                          }).toList(),
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // Colors
+                        const Text(
+                          'Boje',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          children: _colors.map((color) {
+                            final isSelected = _selectedColorIds.contains(
+                              color.id,
+                            );
+                            return FilterChip(
+                              label: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    width: 16,
+                                    height: 16,
+                                    decoration: BoxDecoration(
+                                      color: _parseColor(color.hexCode),
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: isSelected
+                                            ? Colors.white
+                                            : Colors.grey,
+                                        width: isSelected ? 2 : 1,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    color.name,
+                                    style: TextStyle(
+                                      color: isSelected
+                                          ? Colors.white
+                                          : Colors.black87,
+                                      fontWeight: isSelected
+                                          ? FontWeight.w600
+                                          : FontWeight.normal,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              selected: isSelected,
+                              selectedColor: Colors.blue.shade700,
+                              backgroundColor: Colors.grey.shade100,
+                              checkmarkColor: Colors.white,
+                              elevation: isSelected ? 3 : 1,
+                              pressElevation: 4,
+                              onSelected: (selected) {
+                                setModalState(() {
+                                  if (selected) {
+                                    _selectedColorIds.add(color.id);
+                                  } else {
+                                    _selectedColorIds.remove(color.id);
+                                  }
+                                });
+                              },
+                            );
+                          }).toList(),
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // Sizes
+                        const Text(
+                          'Veličine',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          children: _sizes.map((size) {
+                            final isSelected = _selectedSizeIds.contains(
+                              size.id,
+                            );
+                            return FilterChip(
+                              label: Text(
+                                size.name,
+                                style: TextStyle(
+                                  color: isSelected
+                                      ? Colors.white
+                                      : Colors.black87,
+                                  fontWeight: isSelected
+                                      ? FontWeight.w600
+                                      : FontWeight.normal,
+                                ),
+                              ),
+                              selected: isSelected,
+                              selectedColor: Colors.blue.shade700,
+                              backgroundColor: Colors.grey.shade100,
+                              checkmarkColor: Colors.white,
+                              elevation: isSelected ? 3 : 1,
+                              pressElevation: 4,
+                              onSelected: (selected) {
+                                setModalState(() {
+                                  if (selected) {
+                                    _selectedSizeIds.add(size.id);
+                                  } else {
+                                    _selectedSizeIds.remove(size.id);
+                                  }
+                                });
+                              },
+                            );
+                          }).toList(),
+                        ),
+
+                        const SizedBox(height: 32),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            ],
+
+                // Bottom action buttons
+                Container(
+                  padding: const EdgeInsets.all(5),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 4,
+                        offset: const Offset(0, -2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () {
+                            _clearFilters();
+                            Navigator.pop(context);
+                          },
+                          child: const Text('Otkazi'),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            _applyFilters();
+                            Navigator.pop(context);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue.shade700,
+                            foregroundColor: Colors.white,
+                          ),
+                          child: const Text('Primeni'),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              ],
+            ),
           ),
         ),
       ),
@@ -450,9 +506,15 @@ class _ShopScreenState extends State<ShopScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_isSearchBarOpen && _searchQuery.isNotEmpty 
-            ? 'Rezultati pretrage' 
-            : 'Prodavnica'),
+        title: Text(
+          _isSearchBarOpen && _searchQuery.isNotEmpty
+              ? 'Rezultati pretrage'
+              : 'Prodavnica',
+          style: TextStyle(
+            fontSize: ResponsiveHelper.titleSize(context),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         backgroundColor: const Color.fromARGB(255, 47, 136, 225),
         foregroundColor: Colors.white,
         shadowColor: Colors.transparent,
@@ -518,62 +580,73 @@ class _ShopScreenState extends State<ShopScreen> {
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _products.isEmpty
-                    ? const Center(
-                        child: Text(
-                          'Nema proizvoda za prikaz',
-                          style: TextStyle(fontSize: 16, color: Colors.grey),
-                        ),
-                      )
-                    : SingleChildScrollView(
-                        child: Column(
-                          children: [
-                            // Products grid
-                            GridView.builder(
-                              padding: const EdgeInsets.all(16),
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
-                                childAspectRatio: 0.75,
-                                crossAxisSpacing: 16,
-                                mainAxisSpacing: 16,
-                              ),
-                              itemCount: _products.length,
-                              itemBuilder: (context, index) {
-                                final product = _products[index];
-                                return _buildProductCard(product);
-                              },
-                            ),
-                            
-                            // Pagination at the end of the list
-                            if (_totalPages > 1)
-                              Container(
-                                margin: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(8),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.1),
-                                      blurRadius: 4,
-                                      offset: const Offset(0, 2),
+                ? const Center(
+                    child: Text(
+                      'Nema proizvoda za prikaz',
+                      style: TextStyle(fontSize: 16, color: Colors.grey),
+                    ),
+                  )
+                : SingleChildScrollView(
+                    child: Column(
+                      children: [
+                        // Products grid
+                        GridView.builder(
+                          padding: ResponsiveHelper.pagePadding(context),
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          gridDelegate:
+                              SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount:
+                                    ResponsiveHelper.gridCrossAxisCount(
+                                      context,
                                     ),
-                                  ],
+                                childAspectRatio:
+                                    ResponsiveHelper.gridChildAspectRatio(
+                                      context,
+                                    ),
+                                crossAxisSpacing: ResponsiveHelper.gridSpacing(
+                                  context,
                                 ),
-                                child: PaginationWidget(
-                                  currentPage: _currentPage,
-                                  totalPages: _totalPages,
-                                  currentPageSize: _pageSize,
-                                  onPageChanged: _onPageChanged,
-                                  onPageSizeChanged: _onPageSizeChanged,
-                                  isLoading: _isLoading,
-                                  showPageNumbers: true,
-                                  showPageSizeSelector: true,
+                                mainAxisSpacing: ResponsiveHelper.gridSpacing(
+                                  context,
                                 ),
                               ),
-                          ],
+                          itemCount: _products.length,
+                          itemBuilder: (context, index) {
+                            final product = _products[index];
+                            return _buildProductCard(product);
+                          },
                         ),
-                      ),
+
+                        // Pagination at the end of the list
+                        if (_totalPages > 1)
+                          Container(
+                            margin: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(8),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.1),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: PaginationWidget(
+                              currentPage: _currentPage,
+                              totalPages: _totalPages,
+                              currentPageSize: _pageSize,
+                              onPageChanged: _onPageChanged,
+                              isLoading: _isLoading,
+                              showPageNumbers: true,
+                              showPageSizeSelector:
+                                  false, // Disabled page size selector
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
           ),
         ],
       ),
@@ -583,9 +656,7 @@ class _ShopScreenState extends State<ShopScreen> {
   Widget _buildProductCard(ProductResponse product) {
     return Card(
       elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
         onTap: () {
           Navigator.push(
@@ -605,11 +676,15 @@ class _ShopScreenState extends State<ShopScreen> {
               child: Container(
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(12),
+                  ),
                   color: Colors.white,
                 ),
                 child: ClipRRect(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(12),
+                  ),
                   child: Container(
                     color: Colors.white,
                     child: product.primaryImageUrl.imageUrl.isNotEmpty
@@ -639,65 +714,102 @@ class _ShopScreenState extends State<ShopScreen> {
                 ),
               ),
             ),
-            
+
             // Product details
             Expanded(
               flex: 2,
               child: Padding(
-                padding: const EdgeInsets.all(8),
+                padding: EdgeInsets.all(
+                  ResponsiveHelper.deviceSize(context) == DeviceSize.small
+                      ? 6
+                      : 8,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          product.name,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
+                    // Product name and category (takes needed space)
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            product.name,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: ResponsiveHelper.productTitleSize(
+                                context,
+                              ),
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          product.category.name,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey.shade600,
+                          SizedBox(
+                            height:
+                                ResponsiveHelper.deviceSize(context) ==
+                                    DeviceSize.small
+                                ? 2
+                                : 4,
                           ),
-                        ),
-                      ],
+                          Text(
+                            product.category.name,
+                            style: TextStyle(
+                              fontSize: ResponsiveHelper.productSubtitleSize(
+                                context,
+                              ),
+                              color: Colors.grey.shade600,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
                     ),
-                    
+
+                    // Rating and Price (fixed at bottom, minimal space)
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         // Rating
                         if (product.rating != null)
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.star,
-                                size: 16,
-                                color: Colors.amber,
-                              ),
-                              const SizedBox(width: 2),
-                              Text(
-                                product.rating!.toStringAsFixed(1),
-                                style: const TextStyle(fontSize: 12),
-                              ),
-                            ],
+                          Padding(
+                            padding: EdgeInsets.only(
+                              bottom:
+                                  ResponsiveHelper.deviceSize(context) ==
+                                      DeviceSize.small
+                                  ? 2
+                                  : 4,
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.star,
+                                  size:
+                                      ResponsiveHelper.iconSize(context) * 0.6,
+                                  color: Colors.amber,
+                                ),
+                                const SizedBox(width: 2),
+                                Text(
+                                  product.rating!.toStringAsFixed(1),
+                                  style: TextStyle(
+                                    fontSize:
+                                        ResponsiveHelper.productSubtitleSize(
+                                          context,
+                                        ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        
+
                         // Price
                         Text(
                           '${product.price.toStringAsFixed(2)} KM',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            fontSize: 16,
+                            fontSize: ResponsiveHelper.productPriceSize(
+                              context,
+                            ),
                             color: Colors.blue,
                           ),
                         ),

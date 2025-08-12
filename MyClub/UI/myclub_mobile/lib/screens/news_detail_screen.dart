@@ -46,7 +46,6 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
             _buildNewsContent(),
             const SizedBox(height: 24),
             _buildCommentsButton(),
-            const SizedBox(height: 20),
           ],
         ),
       ),

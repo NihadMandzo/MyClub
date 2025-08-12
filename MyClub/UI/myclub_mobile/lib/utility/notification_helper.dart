@@ -67,6 +67,7 @@ class NotificationHelper {
     required BuildContext context,
     required String title,
     required String message,
+    Color confirmButtonColor = Colors.blue,
     String confirmText = 'Potvrdi',
     String cancelText = 'Otkaži',
   }) {
@@ -83,6 +84,9 @@ class NotificationHelper {
             ),
             ElevatedButton(
               onPressed: () => Navigator.of(context).pop(true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: confirmButtonColor,
+              ),
               child: Text(confirmText),
             ),
           ],

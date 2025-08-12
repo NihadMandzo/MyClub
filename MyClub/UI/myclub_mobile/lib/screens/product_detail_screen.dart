@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../models/responses/product_response.dart';
 import '../providers/product_provider.dart';
 import '../widgets/image_gallery_viewer.dart';
+import '../utility/responsive_helper.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   final int productId;
@@ -111,10 +112,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _product == null
-              ? const Center(
+              ? Center(
                   child: Text(
                     'Proizvod nije pronađen',
-                    style: TextStyle(fontSize: 16, color: Colors.grey),
+                    style: TextStyle(fontSize: ResponsiveHelper.font(context, base: 16), color: Colors.grey),
                   ),
                 )
               : SingleChildScrollView(
@@ -126,7 +127,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       
                       // Product details
                       Padding(
-                        padding: const EdgeInsets.all(16),
+                        padding: ResponsiveHelper.pagePadding(context),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -158,7 +159,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                             // Description
                             _buildDescriptionSection(),
                             
-                            const SizedBox(height: 24),
+                            const SizedBox(height: 20),
                             
                             // Add to cart button
                             _buildAddToCartButton(),
@@ -304,8 +305,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       children: [
         Text(
           _product!.name,
-          style: const TextStyle(
-            fontSize: 24,
+          style: TextStyle(
+            fontSize: ResponsiveHelper.font(context, base: 24),
             fontWeight: FontWeight.bold,
           ),
         ),

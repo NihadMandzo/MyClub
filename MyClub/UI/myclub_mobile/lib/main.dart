@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+// Providers
 import 'providers/auth_provider.dart';
 import 'providers/membership_provider.dart';
 import 'providers/news_provider.dart';
@@ -12,14 +15,17 @@ import 'providers/category_provider.dart';
 import 'providers/color_provider.dart';
 import 'providers/size_provider.dart';
 import 'providers/player_provider.dart';
+
+// Screens
 import 'screens/login_screen.dart';
 import 'screens/app_layout.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  // Set system UI colors before the app runs
   runApp(const MyClubApp());
 }
 
-/// Main application widget that sets up the MaterialApp and providers
 class MyClubApp extends StatelessWidget {
   const MyClubApp({super.key});
 
@@ -40,16 +46,48 @@ class MyClubApp extends StatelessWidget {
       ],
       child: Consumer<AuthProvider>(
         builder: (context, authProvider, child) {
-          // Set global auth provider for all BaseProvider instances
+          // Set global auth provider
           BaseProvider.setGlobalAuthProvider(authProvider);
-          
+
+          // Unauthorized handler
+          BaseProvider.setGlobalUnauthorizedHandler(() async {
+            print("Global unauthorized handler triggered - logging out user");
+            await authProvider.logout();
+          });
+
           return MaterialApp(
             title: 'MyClub Mobile',
             theme: ThemeData(
-              colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue.shade700, primary: Colors.blue.shade700),
+              colorScheme: ColorScheme.fromSeed(
+                seedColor: Colors.blue.shade700,
+                primary: Colors.blue.shade700,
+              ),
+              scaffoldBackgroundColor: Colors.white,
             ),
-            home: const AuthWrapper(),
             debugShowCheckedModeBanner: false,
+            home: const AuthWrapper(),
+            builder: (context, child) {
+              // Apply SafeArea to every screen
+              final safeChild = SafeArea(
+                top: false,
+                child: child ?? const SizedBox.shrink(),
+              );
+
+              // Apply system UI colors after first frame
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                SystemChrome.setSystemUIOverlayStyle(
+                  SystemUiOverlayStyle(
+                    systemNavigationBarColor: const Color(0xFF1976D2),
+                    systemNavigationBarIconBrightness:
+                        Brightness.light, // white nav icons
+                    systemNavigationBarDividerColor:
+                        const Color(0xFF1976D2), // removes fade effect
+                  ),
+                );
+              });
+
+              return safeChild;
+            },
           );
         },
       ),
@@ -57,7 +95,6 @@ class MyClubApp extends StatelessWidget {
   }
 }
 
-/// Wrapper widget that handles authentication state and navigation
 class AuthWrapper extends StatefulWidget {
   const AuthWrapper({super.key});
 
@@ -74,7 +111,6 @@ class _AuthWrapperState extends State<AuthWrapper> {
     _checkAuthStatus();
   }
 
-  /// Check if user has a stored token and validate authentication
   Future<void> _checkAuthStatus() async {
     final prefs = await SharedPreferences.getInstance();
     final storedToken = prefs.getString('auth_token');
@@ -85,8 +121,6 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
     if (mounted) {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      
-      // If we have stored auth data, restore it
       if (storedToken != null && storedUserId != null && storedRoleId != null) {
         authProvider.token = storedToken;
         authProvider.userId = storedUserId;
@@ -94,31 +128,21 @@ class _AuthWrapperState extends State<AuthWrapper> {
         authProvider.roleName = storedRoleName;
         authProvider.username = storedUsername;
       }
-
-      setState(() {
-        _isChecking = false;
-      });
+      setState(() => _isChecking = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     if (_isChecking) {
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return Consumer<AuthProvider>(
       builder: (context, authProvider, child) {
-        // If user is authenticated and authorized (admin), show main app
-        if (authProvider.isAuthorized) {
-          return const AppLayout();
-        }
-        // Otherwise, show login screen
-        return const LoginScreen();
+        return authProvider.isAuthorized
+            ? const AppLayout()
+            : const LoginScreen();
       },
     );
   }

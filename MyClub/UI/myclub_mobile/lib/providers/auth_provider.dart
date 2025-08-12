@@ -58,13 +58,22 @@ class AuthProvider with ChangeNotifier {
           return false;
         }
         
-        // Only set authentication data if it's an admin user
+        // Only set authentication data if it's a user
         token = authResponse!.token;
         userId = authResponse!.userId;
         roleId = authResponse!.roleId;
         roleName = authResponse!.roleName;
         
-        print("Login successful: Token received for admin user");
+        // Save auth data to SharedPreferences
+        await AuthHelper.saveAuthData(
+          token: token!,
+          userId: userId!,
+          roleId: roleId!,
+          roleName: roleName!,
+          username: username,
+        );
+        
+        print("Login successful: Token received and saved for user");
         isLoading = false;
         notifyListeners();
         return true;

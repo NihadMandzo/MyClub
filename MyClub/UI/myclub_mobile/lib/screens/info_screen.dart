@@ -3,7 +3,9 @@ import 'package:provider/provider.dart';
 import '../utility/responsive_helper.dart';
 import '../utility/notification_helper.dart';
 import '../providers/player_provider.dart';
+import '../providers/membership_provider.dart';
 import '../models/responses/player_response.dart';
+import '../models/responses/membership_card.dart';
 
 /// Info screen with various options and club information
 class InfoScreen extends StatefulWidget {
@@ -15,10 +17,13 @@ class InfoScreen extends StatefulWidget {
 
 class _InfoScreenState extends State<InfoScreen> with TickerProviderStateMixin {
   bool _isPlayersExpanded = false;
+  bool _isMembershipExpanded = false;
   late TabController _tabController;
   List<PlayerResponse> _players = [];
   List<PlayerResponse> _coachingStaff = [];
+  MembershipCard? _currentMembership;
   bool _isLoading = false;
+  bool _isMembershipLoading = false;
 
   @override
   void initState() {
@@ -61,6 +66,33 @@ class _InfoScreenState extends State<InfoScreen> with TickerProviderStateMixin {
     }
   }
 
+  Future<void> _loadCurrentMembership() async {
+    if (!mounted) return;
+    
+    setState(() {
+      _isMembershipLoading = true;
+    });
+
+    try {
+      final membershipProvider = Provider.of<MembershipProvider>(context, listen: false);
+      final membership = await membershipProvider.getCurrentMembership();
+      
+      if (mounted) {
+        setState(() {
+          _currentMembership = membership;
+          _isMembershipLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isMembershipLoading = false;
+        });
+        NotificationHelper.showError(context, 'Greška pri učitavanju članstva: $e');
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
@@ -69,6 +101,23 @@ class _InfoScreenState extends State<InfoScreen> with TickerProviderStateMixin {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildClubInfoCard(context),
+          const SizedBox(height: 20),
+          _buildExpandableCard(
+            context,
+            title: 'Članstvo',
+            icon: Icons.card_membership,
+            color: Colors.green,
+            isExpanded: _isMembershipExpanded,
+            onTap: () {
+              setState(() {
+                _isMembershipExpanded = !_isMembershipExpanded;
+              });
+              if (_isMembershipExpanded && _currentMembership == null && !_isMembershipLoading) {
+                _loadCurrentMembership();
+              }
+            },
+            content: _buildMembershipContent(),
+          ),
           const SizedBox(height: 20),
           _buildExpandableCard(
             context,
@@ -124,6 +173,282 @@ class _InfoScreenState extends State<InfoScreen> with TickerProviderStateMixin {
             const Divider(height: 1),
             content,
           ],
+        ],
+      ),
+    );
+  }
+
+  /// Build membership content
+  Widget _buildMembershipContent() {
+    if (_isMembershipLoading) {
+      return const Padding(
+        padding: EdgeInsets.all(20),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_currentMembership == null) {
+      return const Padding(
+        padding: EdgeInsets.all(20),
+        child: Center(
+          child: Text(
+            'Trenutno nema aktivnih kampanja za članstvo',
+            style: TextStyle(fontSize: 16),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
+    }
+
+    return _buildMembershipCard(_currentMembership!);
+  }
+
+  /// Build membership card widget
+  Widget _buildMembershipCard(MembershipCard membership) {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Membership card image and header
+          Container(
+            width: double.infinity,
+            height: 200,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              gradient: LinearGradient(
+                colors: [
+                  Theme.of(context).primaryColor,
+                  Theme.of(context).primaryColor.withOpacity(0.7),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            child: Stack(
+              children: [
+                // Background image
+                if (membership.imageUrl != null && membership.imageUrl!.isNotEmpty)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.network(
+                      membership.imageUrl!,
+                      width: double.infinity,
+                      height: 200,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container();
+                      },
+                    ),
+                  ),
+                // Overlay with gradient
+                Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.black.withOpacity(0.3),
+                        Colors.transparent,
+                        Colors.black.withOpacity(0.5),
+                      ],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                    ),
+                  ),
+                ),
+                // Content overlay
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Top section
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.9),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              '${membership.year}',
+                              style: TextStyle(
+                                color: Theme.of(context).primaryColor,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: membership.isActive ? Colors.green : Colors.grey,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              membership.isActive ? 'Aktivno' : 'Neaktivno',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      // Bottom section
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            membership.name,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            '${membership.price.toStringAsFixed(2)} KM',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          
+          // Membership details
+          if (membership.description != null && membership.description!.isNotEmpty) ...[
+            Text(
+              'Opis',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).primaryColor,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              membership.description!,
+              style: const TextStyle(fontSize: 16),
+            ),
+            const SizedBox(height: 16),
+          ],
+
+          // Benefits
+          if (membership.benefits != null && membership.benefits!.isNotEmpty) ...[
+            Text(
+              'Benefiti',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).primaryColor,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              membership.benefits!,
+              style: const TextStyle(fontSize: 16),
+            ),
+            const SizedBox(height: 16),
+          ],
+
+          // Progress bar
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Napredak',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Theme.of(context).primaryColor,
+                          ),
+                        ),
+                        Text(
+                          membership.progressText,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    LinearProgressIndicator(
+                      value: membership.membershipProgress,
+                      backgroundColor: Colors.grey[300],
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        Theme.of(context).primaryColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+
+          // Become member button
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () => _becomeMember(membership),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).primaryColor,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Text(
+                'Postani član',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+
+  /// Handle become member action
+  void _becomeMember(MembershipCard membership) {
+    // TODO: Implement membership registration logic
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Članstvo'),
+        content: Text('Funkcionalnost za registraciju članstva "${membership.name}" će biti implementirana uskoro.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('U redu'),
+          ),
         ],
       ),
     );

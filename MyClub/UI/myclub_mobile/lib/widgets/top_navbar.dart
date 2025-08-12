@@ -202,6 +202,7 @@ class TopNavBar extends StatelessWidget implements PreferredSizeWidget {
     
     final confirmed = await NotificationHelper.showConfirmDialog(
       context: context,
+      confirmButtonColor: Colors.red,
       title: 'Odjava',
       message: 'Jeste li sigurni da se želite odjaviti?',
       confirmText: 'Odjavi se',

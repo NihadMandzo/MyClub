@@ -91,7 +91,7 @@ class _MatchScreenState extends State<MatchScreen> with TickerProviderStateMixin
         // Separator line
         Container(
           height: 1,
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          margin: ResponsiveHelper.pagePadding(context),
           color: Colors.grey[300],
         ),
         
@@ -128,7 +128,7 @@ class _MatchScreenState extends State<MatchScreen> with TickerProviderStateMixin
             Text(
               'Nema završenih utakmica',
               style: TextStyle(
-                fontSize: 18,
+                fontSize: ResponsiveHelper.font(context, base: 18),
                 color: Colors.grey[600],
               ),
             ),
@@ -165,7 +165,7 @@ class _MatchScreenState extends State<MatchScreen> with TickerProviderStateMixin
             Text(
               'Nema zakazanih utakmica',
               style: TextStyle(
-                fontSize: 18,
+                fontSize: ResponsiveHelper.font(context, base: 18),
                 color: Colors.grey[600],
               ),
             ),
@@ -197,13 +197,13 @@ class _MatchScreenState extends State<MatchScreen> with TickerProviderStateMixin
   /// Build result card for past matches (with scores)
   Widget _buildResultCard(MatchResponse match) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: EdgeInsets.only(bottom: ResponsiveHelper.gridSpacing(context)),
       child: Card(
         elevation: ResponsiveHelper.cardElevation(context),
         child: InkWell(
           borderRadius: BorderRadius.circular(8),
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: ResponsiveHelper.pagePadding(context),
             child: Column(
               children: [
                 // Date and time

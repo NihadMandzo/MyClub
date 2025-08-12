@@ -10,6 +10,7 @@ import '../utility/api_config.dart';
 abstract class BaseProvider<T> with ChangeNotifier {
   static String? baseUrl;
   static AuthProvider? _globalAuthProvider;
+  static Function()? _globalUnauthorizedHandler;
   String endpoint = "";
   late BuildContext context;
   AuthProvider? authProvider;
@@ -28,6 +29,18 @@ abstract class BaseProvider<T> with ChangeNotifier {
   /// Get global auth provider
   static AuthProvider? getGlobalAuthProvider() {
     return _globalAuthProvider;
+  }
+  
+  /// Set global unauthorized handler
+  static void setGlobalUnauthorizedHandler(Function() handler) {
+    _globalUnauthorizedHandler = handler;
+  }
+  
+  /// Handle unauthorized access globally
+  static void _handleUnauthorized() {
+    if (_globalUnauthorizedHandler != null) {
+      _globalUnauthorizedHandler!();
+    }
   }
   
   void setContext(BuildContext context) {
@@ -124,7 +137,10 @@ abstract class BaseProvider<T> with ChangeNotifier {
     
     if (response.statusCode < 299) {
       return true;
-    } else if (response.statusCode == 401) {
+    } else if (response.statusCode == 401 || response.statusCode == 403) {
+      // Handle unauthorized/forbidden access
+      print("Unauthorized access detected (${response.statusCode}). Triggering logout...");
+      _handleUnauthorized();
       throw Exception("Unauthorized - Please log in again");
     } else {
       print("Processing error response with status ${response.statusCode}");
