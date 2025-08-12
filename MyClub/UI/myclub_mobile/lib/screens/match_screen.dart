@@ -5,6 +5,7 @@ import '../utility/responsive_helper.dart';
 import '../utility/notification_helper.dart';
 import '../providers/match_provider.dart';
 import '../models/responses/match_response.dart';
+import '../widgets/match_dialog.dart';
 
 /// Match screen displaying results and schedule
 class MatchScreen extends StatefulWidget {
@@ -200,10 +201,6 @@ class _MatchScreenState extends State<MatchScreen> with TickerProviderStateMixin
       child: Card(
         elevation: ResponsiveHelper.cardElevation(context),
         child: InkWell(
-          onTap: () {
-            NotificationHelper.showInfo(context, 'Otvaranje detalja utakmice...');
-            // TODO: Navigate to match details
-          },
           borderRadius: BorderRadius.circular(8),
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -343,8 +340,7 @@ class _MatchScreenState extends State<MatchScreen> with TickerProviderStateMixin
         elevation: ResponsiveHelper.cardElevation(context),
         child: InkWell(
           onTap: () {
-            NotificationHelper.showInfo(context, 'Otvaranje detalja utakmice...');
-            // TODO: Navigate to match details
+            MatchDialog.show(context, match);
           },
           borderRadius: BorderRadius.circular(8),
           child: Padding(

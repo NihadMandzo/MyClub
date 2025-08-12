@@ -3,7 +3,6 @@ import 'package:http/http.dart' as http;
 import 'package:myclub_mobile/models/search_objects/base_search_object.dart';
 import '../models/responses/match_response.dart';
 import '../models/responses/paged_result.dart';
-import '../models/search_objects/match_search_object.dart';
 import 'base_provider.dart';
 
 class MatchProvider extends BaseProvider<MatchResponse> {

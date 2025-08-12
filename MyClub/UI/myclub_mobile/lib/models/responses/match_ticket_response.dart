@@ -1,3 +1,5 @@
+import 'package:myclub_mobile/models/responses/stadium_sector_response.dart';
+
 class MatchTicketResponse {
   int id;
   int matchId;
@@ -44,34 +46,3 @@ class MatchTicketResponse {
   }
 }
 
-class StadiumSectorResponse {
-  int id;
-  String name;
-  String description;
-  int capacity;
-
-  StadiumSectorResponse({
-    required this.id,
-    required this.name,
-    required this.description,
-    required this.capacity,
-  });
-
-  factory StadiumSectorResponse.fromJson(Map<String, dynamic> json) {
-    return StadiumSectorResponse(
-      id: json['id'] ?? 0,
-      name: json['name'] ?? '',
-      description: json['description'] ?? '',
-      capacity: json['capacity'] ?? 0,
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'name': name,
-      'description': description,
-      'capacity': capacity,
-    };
-  }
-}
