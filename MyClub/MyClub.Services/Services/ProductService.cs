@@ -558,7 +558,8 @@ namespace MyClub.Services
                 response.Color = new ColorResponse
                 {
                     Id = entity.Color.Id,
-                    Name = entity.Color.Name
+                    Name = entity.Color.Name,
+                    HexCode = entity.Color.HexCode
                 };
             }
             

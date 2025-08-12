@@ -7,7 +7,6 @@ namespace MyClub.Model.SearchObjects
     public class ProductSearchObject : BaseSearchObject
     {
         public string? BarCode { get; set; }
-        public string? FTS { get; set; }
         public List<int>? CategoryIds { get; set; }
         public List<int>? ColorIds { get; set; }
         public List<int>? SizeIds { get; set; }
