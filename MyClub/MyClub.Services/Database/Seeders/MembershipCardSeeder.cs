@@ -21,7 +21,7 @@ public static class MembershipCardSeeder
 
         for (int i = 1; i <= 4; i++)
         {
-            int year = 2020 + i; // Years from 2021 to 2025
+            int year = 2021 + i; // Years from 2021 to 2025
             int targetMembers = random.Next(500, 5001);
             int totalMembers = random.Next(0, targetMembers + 1);
 

@@ -490,12 +490,6 @@ class MatchDialog extends StatelessWidget {
                     Expanded(
                       child: Row(
                         children: [
-                          Icon(
-                            Icons.euro,
-                            size: ResponsiveHelper.iconSize(context) - 4,
-                            color: Theme.of(context).primaryColor,
-                          ),
-                          const SizedBox(width: 4),
                           Text(
                             '${ticket.price.toStringAsFixed(2)} BAM',
                             style: TextStyle(

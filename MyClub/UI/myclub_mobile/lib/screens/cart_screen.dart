@@ -529,7 +529,7 @@ class _CartScreenState extends State<CartScreen> {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        'Članovski popust (20%):',
+                        'Popust za članove (20%):',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w500,
