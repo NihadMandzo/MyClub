@@ -15,6 +15,7 @@ import 'providers/category_provider.dart';
 import 'providers/color_provider.dart';
 import 'providers/size_provider.dart';
 import 'providers/player_provider.dart';
+import 'providers/cart_provider.dart';
 
 // Screens
 import 'screens/login_screen.dart';
@@ -43,6 +44,7 @@ class MyClubApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ColorProvider()),
         ChangeNotifierProvider(create: (_) => SizeProvider()),
         ChangeNotifierProvider(create: (_) => PlayerProvider()),
+        ChangeNotifierProvider(create: (_) => CartProvider()),
       ],
       child: Consumer<AuthProvider>(
         builder: (context, authProvider, child) {

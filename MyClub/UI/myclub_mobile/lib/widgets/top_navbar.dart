@@ -5,11 +5,15 @@ import '../utility/responsive_helper.dart';
 import '../utility/notification_helper.dart';
 import '../utility/auth_helper.dart';
 import '../screens/profile_screen.dart';
+import '../screens/cart_screen.dart';
 
 /// Top navigation bar widget with club logo, cart icon (conditional), and profile icon
 class TopNavBar extends StatelessWidget implements PreferredSizeWidget {
   /// Whether to show the cart icon (only shown on Shop screen)
   final bool showCart;
+  
+  /// Whether to show the back button
+  final bool showBackButton;
   
   /// Optional cart items count for badge
   final int cartItemsCount;
@@ -20,12 +24,21 @@ class TopNavBar extends StatelessWidget implements PreferredSizeWidget {
   /// Callback for profile icon press
   final VoidCallback? onProfileTap;
 
+  /// Callback for back button press
+  final VoidCallback? onBackTap;
+
+  /// Callback to refresh cart count
+  final VoidCallback? onRefreshCart;
+
   const TopNavBar({
     super.key,
     this.showCart = false,
+    this.showBackButton = false,
     this.cartItemsCount = 0,
     this.onCartTap,
     this.onProfileTap,
+    this.onBackTap,
+    this.onRefreshCart,
   });
 
   @override
@@ -37,6 +50,9 @@ class TopNavBar extends StatelessWidget implements PreferredSizeWidget {
       automaticallyImplyLeading: false,
       title: Row(
         children: [
+          // Back Button (conditional)
+          if (showBackButton) _buildBackButton(context),
+          
           // Club Logo
           _buildClubLogo(context),
           
@@ -48,6 +64,24 @@ class TopNavBar extends StatelessWidget implements PreferredSizeWidget {
           // Profile Icon
           _buildProfileIcon(context),
         ],
+      ),
+    );
+  }
+
+  /// Build the back button widget
+  Widget _buildBackButton(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        right: ResponsiveHelper.deviceSize(context) == DeviceSize.small ? 8 : 12,
+      ),
+      child: IconButton(
+        onPressed: onBackTap ?? () => Navigator.of(context).pop(),
+        icon: Icon(
+          Icons.arrow_back,
+          size: ResponsiveHelper.iconSize(context),
+          color: Colors.white,
+        ),
+        tooltip: 'Nazad',
       ),
     );
   }
@@ -135,8 +169,9 @@ class TopNavBar extends StatelessWidget implements PreferredSizeWidget {
 
   /// Handle cart icon press
   void _onCartPressed(BuildContext context) {
-    NotificationHelper.showInfo(context, 'Otvaranje korpe...');
-    // TODO: Navigate to cart screen or show cart bottom sheet
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (context) => const CartScreen()),
+    );
   }
 
   /// Alternative method to show profile bottom sheet (if needed)

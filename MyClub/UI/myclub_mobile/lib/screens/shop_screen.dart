@@ -14,7 +14,9 @@ import '../utility/responsive_helper.dart';
 import 'product_detail_screen.dart';
 
 class ShopScreen extends StatefulWidget {
-  const ShopScreen({Key? key}) : super(key: key);
+  final VoidCallback? onCartUpdated;
+  
+  const ShopScreen({Key? key, this.onCartUpdated}) : super(key: key);
 
   @override
   State<ShopScreen> createState() => _ShopScreenState();
@@ -662,7 +664,10 @@ class _ShopScreenState extends State<ShopScreen> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => ProductDetailScreen(productId: product.id),
+              builder: (context) => ProductDetailScreen(
+                productId: product.id,
+                onCartUpdated: widget.onCartUpdated,
+              ),
             ),
           );
         },

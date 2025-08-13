@@ -1,16 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/responses/product_response.dart';
+import '../models/requests/cart_item_upsert_request.dart';
 import '../providers/product_provider.dart';
+import '../providers/cart_provider.dart';
 import '../widgets/image_gallery_viewer.dart';
+import '../widgets/top_navbar.dart';
 import '../utility/responsive_helper.dart';
+import '../utility/notification_helper.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   final int productId;
+  final VoidCallback? onCartUpdated;
 
   const ProductDetailScreen({
     Key? key,
     required this.productId,
+    this.onCartUpdated,
   }) : super(key: key);
 
   @override
@@ -19,16 +25,21 @@ class ProductDetailScreen extends StatefulWidget {
 
 class _ProductDetailScreenState extends State<ProductDetailScreen> {
   late ProductProvider _productProvider;
+  late CartProvider _cartProvider;
   ProductResponse? _product;
   bool _isLoading = false;
+  bool _isAddingToCart = false;
   int _selectedImageIndex = 0;
   String? _selectedSize;
+  int _selectedProductSizeId = 0;
   int _selectedQuantity = 1;
 
   @override
   void initState() {
     super.initState();
     _productProvider = context.read<ProductProvider>();
+    _cartProvider = context.read<CartProvider>();
+    _cartProvider.setContext(context);
     _loadProduct();
   }
 
@@ -43,7 +54,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         _product = product;
       });
     } catch (e) {
-      _showErrorSnackBar('Greška pri učitavanju proizvoda: $e');
+      if (mounted) {
+        NotificationHelper.showError(context, 'Greška pri učitavanju proizvoda: $e');
+      }
     } finally {
       setState(() {
         _isLoading = false;
@@ -51,25 +64,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     }
   }
 
-  void _showErrorSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-      ),
-    );
-  }
-
-  void _showSuccessSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.green,
-      ),
-    );
-  }
-
-    Color _parseColor(String hexCode) {
+  Color _parseColor(String hexCode) {
     try {
       return Color(int.parse(hexCode.replaceFirst('#', '0xFF')));
     } catch (e) {
@@ -77,14 +72,51 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     }
   }
 
-  void _addToCart() {
+  Future<void> _addToCart() async {
     if (_selectedSize == null && _product!.sizes.isNotEmpty) {
-      _showErrorSnackBar('Molimo odaberite veličinu');
+      NotificationHelper.showError(context, 'Molimo odaberite veličinu');
       return;
     }
 
-    // TODO: Implement add to cart functionality
-    _showSuccessSnackBar('$_selectedQuantity proizvod(a) je dodato u korpu!');
+    // Use the tracked product size ID
+    int productSizeId = _selectedProductSizeId;
+    if (productSizeId == 0 && _product!.sizes.isNotEmpty) {
+      NotificationHelper.showError(context, 'Greška pri određivanju veličine proizvoda');
+      return;
+    }
+
+    setState(() {
+      _isAddingToCart = true;
+    });
+
+    try {
+      final request = CartItemUpsertRequest(
+        productSizeId: productSizeId,
+        quantity: _selectedQuantity,
+      );
+
+      await _cartProvider.addToCart(request);
+      
+      // Call the callback to refresh cart count in parent
+      if (widget.onCartUpdated != null) {
+        widget.onCartUpdated!();
+      }
+      
+      if (mounted) {
+        NotificationHelper.showSuccess(
+          context, 
+          '$_selectedQuantity ${_selectedQuantity == 1 ? 'proizvod je dodat' : 'proizvoda je dodato'} u korpu!'
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        NotificationHelper.showError(context, 'Greška pri dodavanju u korpu: $e');
+      }
+    } finally {
+      setState(() {
+        _isAddingToCart = false;
+      });
+    }
   }
 
   void _openImageGallery(int initialIndex) {
@@ -103,11 +135,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_product?.name ?? 'Detalji proizvoda'),
-        backgroundColor: Colors.blue.shade700,
-        foregroundColor: Colors.white,
-        elevation: 0,
+      appBar: TopNavBar(
+        showBackButton: true,
+        showCart: false,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -432,6 +462,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   ? () {
                       setState(() {
                         _selectedSize = productSize.size.name;
+                        _selectedProductSizeId = productSize.productSizeId;
                       });
                     }
                   : null,
@@ -565,7 +596,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       width: double.infinity,
       height: 56,
       child: ElevatedButton(
-        onPressed: _addToCart,
+        onPressed: _isAddingToCart ? null : _addToCart,
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.blue.shade700,
           foregroundColor: Colors.white,
@@ -574,22 +605,31 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           ),
           elevation: 2,
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.shopping_cart_outlined, size: 24),
-            const SizedBox(width: 8),
-            Text(
-              _selectedQuantity == 1 
-                  ? 'Dodaj u korpu' 
-                  : 'Dodaj $_selectedQuantity u korpu',
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+        child: _isAddingToCart
+            ? const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.shopping_cart_outlined, size: 24),
+                  const SizedBox(width: 8),
+                  Text(
+                    _selectedQuantity == 1 
+                        ? 'Dodaj u korpu' 
+                        : 'Dodaj $_selectedQuantity u korpu',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
-        ),
       ),
     );
   }
