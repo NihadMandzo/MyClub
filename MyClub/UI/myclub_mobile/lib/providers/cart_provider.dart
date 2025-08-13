@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import '../models/requests/cart_item_upsert_request.dart';
 import '../models/responses/cart_response.dart';
 import '../models/responses/cart_item_response.dart';
+import '../providers/user_provider.dart';
 import 'base_provider.dart';
 
 /// Provider for cart-related API operations
@@ -14,7 +15,7 @@ class CartProvider extends BaseProvider<CartResponse> {
     return CartResponse.fromJson(data);
   }
 
-  /// Get current user's cart
+  /// Get current user's cart with membership discount calculation
   Future<CartResponse?> getCurrentUserCart() async {
     var url = "${BaseProvider.baseUrl}$endpoint";
     var uri = Uri.parse(url);
@@ -28,6 +29,21 @@ class CartProvider extends BaseProvider<CartResponse> {
       if (data is Map && data.containsKey('message') && data['message'] == 'Cart is empty') {
         return null;
       }
+      
+      // Check for active membership to apply discount
+      bool hasActiveMembership = false;
+      try {
+        final userProvider = UserProvider();
+        userProvider.setContext(context);
+        hasActiveMembership = await userProvider.hasActiveUserMembership();
+      } catch (e) {
+        print('Error checking membership status: $e');
+        hasActiveMembership = false; // Default to no discount on error
+      }
+      
+      // Add membership information to the data before creating CartResponse
+      data['hasActiveMembership'] = hasActiveMembership;
+      
       return CartResponse.fromJson(data);
     } else {
       throw Exception("Greška tokom dohvatanja korpe");

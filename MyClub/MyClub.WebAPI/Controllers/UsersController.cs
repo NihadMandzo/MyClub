@@ -39,7 +39,7 @@ namespace MyClub.WebAPI.Controllers
         {
             var result = await _userService.GetByIdAsync(id);
             return result;
-        }   
+        }
 
         [HttpPut("{id}")]
         public override async Task<IActionResult> Update(int id, [FromBody] UserUpsertRequest request)
@@ -75,6 +75,12 @@ namespace MyClub.WebAPI.Controllers
         public override async Task<IActionResult> Create([FromBody] UserUpsertRequest request)
         {
             var result = await _userService.CreateAsync(request);
+            return Ok(result);
+        }
+        [HttpGet("has-active-membership")]
+        public async Task<IActionResult> HasActiveUserMembership()
+        {
+            var result = await _userService.HasActiveUserMembership();
             return Ok(result);
         }
 

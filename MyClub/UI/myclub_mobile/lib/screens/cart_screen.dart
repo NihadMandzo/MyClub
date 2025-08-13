@@ -239,27 +239,63 @@ class _CartScreenState extends State<CartScreen> {
               bottom: BorderSide(color: Colors.grey.shade200),
             ),
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          child: Column(
             children: [
-              Text(
-                'Korpa (${_cart!.totalItemsCount} stavke)',
-                style: TextStyle(
-                  fontSize: ResponsiveHelper.font(context, base: 18),
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              if (_cart!.isNotEmpty)
-                TextButton(
-                  onPressed: _isUpdating ? null : _clearCart,
-                  child: Text(
-                    'Obriši sve',
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Korpa (${_cart!.totalItemsCount} stavke)',
                     style: TextStyle(
-                      color: _isUpdating ? Colors.grey : Colors.red,
-                      fontWeight: FontWeight.w600,
+                      fontSize: ResponsiveHelper.font(context, base: 18),
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
+                  if (_cart!.isNotEmpty)
+                    TextButton(
+                      onPressed: _isUpdating ? null : _clearCart,
+                      child: Text(
+                        'Obriši sve',
+                        style: TextStyle(
+                          color: _isUpdating ? Colors.grey : Colors.red,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              
+              // Membership status
+              if (_cart!.hasActiveMembership == true) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.green.shade200),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.card_membership,
+                        color: Colors.green.shade600,
+                        size: 16,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Aktivno članstvo - 20% popust',
+                        style: TextStyle(
+                          color: Colors.green.shade700,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
+              ],
             ],
           ),
         ),
@@ -457,6 +493,67 @@ class _CartScreenState extends State<CartScreen> {
       child: SafeArea(
         child: Column(
           children: [
+            // Subtotal
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Subtotal:',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                Text(
+                  '${_cart!.totalAmount.toStringAsFixed(2)} KM',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+
+            // Membership discount (if applicable)
+            if (_cart!.hasActiveMembership == true) ...[
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.card_membership,
+                        color: Colors.green.shade600,
+                        size: 16,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Članovski popust (20%):',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.green.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Text(
+                    '-${_cart!.membershipDiscount.toStringAsFixed(2)} KM',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.green.shade600,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+
+            const SizedBox(height: 12),
+            const Divider(),
+            const SizedBox(height: 8),
+
             // Total
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -469,7 +566,7 @@ class _CartScreenState extends State<CartScreen> {
                   ),
                 ),
                 Text(
-                  '${_cart!.totalAmount.toStringAsFixed(2)} KM',
+                  '${_cart!.finalAmount.toStringAsFixed(2)} KM',
                   style: const TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
@@ -504,10 +601,10 @@ class _CartScreenState extends State<CartScreen> {
                           valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                         ),
                       )
-                    : const Text(
-                        'Nastavi na plaćanje',
-                        style: TextStyle(
-                          fontSize: 18,
+                    : Text(
+                        'Nastavi na plaćanje - ${_cart!.finalAmount.toStringAsFixed(2)} KM',
+                        style: const TextStyle(
+                          fontSize: 16,
                           fontWeight: FontWeight.bold,
                         ),
                       ),

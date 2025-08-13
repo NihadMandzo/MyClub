@@ -64,4 +64,29 @@ class UserProvider extends BaseProvider<User> {
     }
     return null;
   }
+
+  /// Check if current user has active membership
+  Future<bool> hasActiveUserMembership() async {
+    try {
+      var url = "${BaseProvider.baseUrl}${endpoint}/has-active-membership";
+      var uri = Uri.parse(url);
+      
+      // Get headers with auth token
+      var headers = createHeaders();
+      
+      print("API GET Has Active Membership Request Headers: $headers");
+      print("API GET Has Active Membership Request URL: $url");
+      
+      var response = await http.get(uri, headers: headers);
+
+      if (isValidResponse(response)) {
+        var data = jsonDecode(response.body);
+        // The response should be a simple boolean value
+        return data == true || data == 'true';
+      }
+    } catch (e) {
+      print('Error checking active membership: $e');
+    }
+    return false; // Default to no discount if there's an error
+  }
 }
