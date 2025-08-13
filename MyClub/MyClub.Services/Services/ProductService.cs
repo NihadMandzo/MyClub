@@ -589,6 +589,7 @@ namespace MyClub.Services
                 .Where(ps => ps.Size != null)
                 .Select(ps => new ProductSizeResponse
                 {
+                    ProductSizeId = ps.Id,
                     Size = new SizeResponse
                     {
                         Id = ps.Size.Id,
