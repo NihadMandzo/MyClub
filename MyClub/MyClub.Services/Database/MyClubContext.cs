@@ -50,6 +50,7 @@ namespace MyClub.Services.Database
 
         // Players and Matches
         public DbSet<Player> Players { get; set; }
+        public DbSet<Position> Positions { get; set; }
         public DbSet<Match> Matches { get; set; }
 
 
@@ -327,6 +328,7 @@ namespace MyClub.Services.Database
 
             // Basic seeders
             modelBuilder.Entity<Asset>().SeedData();
+            modelBuilder.Entity<Position>().SeedData();
             modelBuilder.Entity<Color>().SeedData();
             modelBuilder.Entity<Size>().SeedData();
             modelBuilder.Entity<Role>().SeedData();

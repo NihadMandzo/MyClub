@@ -22,13 +22,15 @@ namespace MyClub.Services.Database
         [Required]
         public int Number { get; set; }
         
-        [MaxLength(50)]
-        public string Position { get; set; }
-        
+        public int PositionId { get; set; }
+        [ForeignKey("PositionId")]
+        public Position Position { get; set; }
         public DateTime? DateOfBirth { get; set; }
         
         [MaxLength(100)]
-        public string Nationality { get; set; }
+        public int CountryId { get; set; }
+        [ForeignKey("CountryId")]
+        public virtual Country Country { get; set; }
         
         public int? Height { get; set; }
         

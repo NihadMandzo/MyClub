@@ -37,6 +37,7 @@ builder.Services.AddTransient<IPaymentService, PaymentService>();
 builder.Services.AddTransient<IOrderService, OrderService>();
 builder.Services.AddTransient<IAdminDashboardService, AdminDashboardService>();
 builder.Services.AddTransient<IRabbitMQService, RabbitMQService>();
+builder.Services.AddTransient<IPositionService, PositionService>();
 
 builder.Services.AddTransient<BaseOrderState>();
 builder.Services.AddTransient<ProcessingOrderState>();

@@ -9,12 +9,9 @@ namespace MyClub.Model.Requests
         public string ShippingAddress { get; set; }
         
         [MaxLength(50)]
-        public string ShippingCity { get; set; }
+        public int CityId { get; set; }
         
         [MaxLength(20)]
         public string ShippingPostalCode { get; set; }
-        
-        [MaxLength(50)]
-        public string ShippingCountry { get; set; }
-    }
+        }
 }

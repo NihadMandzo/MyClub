@@ -29,6 +29,8 @@ namespace MyClub.Services.Services
                 .AsNoTracking()
                 .Include(x => x.Club)
                 .Include(x => x.Image)
+                .Include(x => x.Country)
+                .Include(x => x.Position)
                 .AsQueryable();
 
             // Apply filters
@@ -170,6 +172,19 @@ namespace MyClub.Services.Services
 
                 response.Age = age;
             }
+            response.FullName = $"{entity.FirstName} {entity.LastName}";
+            response.Position = new PositionResponse
+            {
+                Id = entity.Position.Id,
+                Name = entity.Position.Name,
+                IsPlayer = entity.Position.IsPlayer
+            };
+            response.Nationality = new CountryResponse
+            {
+                Id = entity.Country.Id,
+                Name = entity.Country.Name,
+                Code = entity.Country.Code
+            };
 
             // Set image URL if available
             if (entity.Image != null)
@@ -187,8 +202,8 @@ namespace MyClub.Services.Services
             player.Height = request.Height;
             player.Weight = request.Weight;
             player.Biography = request.Biography;
-            player.Nationality = request.Nationality;
-            player.Position = request.Position;
+            player.CountryId = request.CountryId;
+            player.PositionId = request.PositionId;
             player.Number = request.Number;
             player.FirstName = request.FirstName;
             player.LastName = request.LastName;
@@ -204,8 +219,8 @@ namespace MyClub.Services.Services
             player.Height = request.Height;
             player.Weight = request.Weight;
             player.Biography = request.Biography;
-            player.Nationality = request.Nationality;
-            player.Position = request.Position;
+            player.CountryId = request.CountryId;
+            player.PositionId = request.PositionId;
             player.Number = request.Number;
             player.FirstName = request.FirstName;
             player.LastName = request.LastName;

@@ -93,17 +93,17 @@ namespace MyClub.Services.OrderStateMachine
                 // First find the City by name
                 var city = await _context.Cities
                     .Include(c => c.Country)
-                    .FirstOrDefaultAsync(c => c.Name.ToLower() == request.ShippingCity.ToLower());
+                    .FirstOrDefaultAsync(c => c.Id==request.Shipping.CityId);
                     
                 if (city == null)
                 {
-                    throw new UserException($"City '{request.ShippingCity}' not found.");
+                    throw new UserException($"City '{request.Shipping.CityId}' not found.");
                 }
 
                 var shippingDetails = new ShippingDetails
                 {
-                    ShippingAddress = request.ShippingAddress,
-                    CityId = city.Id
+                    ShippingAddress = request.Shipping.ShippingAddress,
+                    CityId=request.Shipping.CityId
                 };
 
                 _context.ShippingDetails.Add(shippingDetails);

@@ -12,16 +12,7 @@ namespace MyClub.Model.Requests
         public int UserId { get; set; }
 
         [Required]
-        public string ShippingAddress { get; set; }
-        
-        [Required]
-        public string ShippingCity { get; set; }
-        
-        [Required]
-        public string ShippingPostalCode { get; set; }
-        
-        [Required]
-        public string ShippingCountry { get; set; }
+        public ShippingRequest Shipping { get; set; }
 
         public string Notes { get; set; }
         

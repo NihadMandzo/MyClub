@@ -94,6 +94,7 @@ namespace MyClub.Services.Services
             var country = await _context.Countries
                 .Include(c => c.Cities)
                 .ThenInclude(c => c.ShippingDetails)
+                .Include(c => c.Players)
                 .FirstOrDefaultAsync(c => c.Id == id);
 
             if (country == null)
@@ -116,6 +117,13 @@ namespace MyClub.Services.Services
             {
                 throw new UserException("Cannot delete the country because some of its cities are referenced in orders");
             }
+
+            bool hasPlayers = await _context.Players.AnyAsync(p => p.CountryId == id);
+            if (hasPlayers)
+            {
+                throw new UserException("Cannot delete the country because it has players associated with it");
+            }
+
 
             // Remove cities that aren't referenced in orders
             foreach (var city in country.Cities.ToList())

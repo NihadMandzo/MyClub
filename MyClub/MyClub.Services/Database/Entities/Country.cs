@@ -8,14 +8,15 @@ namespace MyClub.Services.Database
     {
         [Key]
         public int Id { get; set; }
-        
+
         [MaxLength(100)]
         public string Name { get; set; } = string.Empty;
-        
+
         [MaxLength(5)]
         public string Code { get; set; } = string.Empty;
-        
+
         public virtual ICollection<City> Cities { get; set; } = new List<City>();
         public virtual ICollection<ShippingDetails> ShippingDetails { get; set; } = new List<ShippingDetails>();
+        public virtual ICollection<Player> Players { get; set; } = new List<Player>();
     }
 }
