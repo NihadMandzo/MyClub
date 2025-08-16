@@ -1,9 +1,12 @@
+import 'package:myclub_desktop/models/position.dart';
+import 'package:myclub_desktop/models/country.dart';
+
 class Player {
   int? id;
   String? fullName;
-  String? position;
+  Position? position;
   int? age;
-  String? nationality;
+  Country? nationality;
   String? imageUrl;
   int? height;
   int? weight;
@@ -29,9 +32,9 @@ class Player {
     return Player(
       id: json['id'],
       fullName: json['fullName'],
-      position: json['position'],
+      position: json['position'] != null ? Position.fromJson(json['position']) : null,
       age: json['age'],
-      nationality: json['nationality'],
+      nationality: json['nationality'] != null ? Country.fromJson(json['nationality']) : null,
       imageUrl: json['imageUrl'],
       height: json['height'],
       weight: json['weight'],
@@ -45,9 +48,9 @@ class Player {
     return {
       'id': id,
       'fullName': fullName,
-      'position': position,
+      'position': position?.toJson(),
       'age': age,
-      'nationality': nationality,
+      'nationality': nationality?.toJson(),
       'imageUrl': imageUrl,
       'height': height,
       'weight': weight,

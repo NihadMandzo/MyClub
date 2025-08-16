@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:myclub_mobile/models/responses/club_response.dart';
+import 'package:myclub_mobile/providers/club_provider.dart';
 import 'package:provider/provider.dart';
 import '../utility/responsive_helper.dart';
 import '../utility/notification_helper.dart';
@@ -22,6 +24,7 @@ class _InfoScreenState extends State<InfoScreen> with TickerProviderStateMixin {
   List<PlayerResponse> _players = [];
   List<PlayerResponse> _coachingStaff = [];
   MembershipCard? _currentMembership;
+  ClubResponse? _clubInfo;
   bool _isLoading = false;
   bool _isMembershipLoading = false;
 
@@ -30,6 +33,15 @@ class _InfoScreenState extends State<InfoScreen> with TickerProviderStateMixin {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _loadPlayers();
+    _loadClubInfo();
+  }
+
+  void _loadClubInfo() {
+    ClubProvider().getById(1).then((clubInfo) {
+      setState(() {
+        _clubInfo = clubInfo;
+      });
+    });
   }
 
   @override
@@ -40,19 +52,26 @@ class _InfoScreenState extends State<InfoScreen> with TickerProviderStateMixin {
 
   Future<void> _loadPlayers() async {
     if (!mounted) return;
-    
+
     setState(() {
       _isLoading = true;
     });
 
     try {
-      final playerProvider = Provider.of<PlayerProvider>(context, listen: false);
+      final playerProvider = Provider.of<PlayerProvider>(
+        context,
+        listen: false,
+      );
       final allPlayers = await playerProvider.getPlayers();
-      
+
       if (mounted) {
         setState(() {
-          _players = allPlayers.where((player) => player.position.isPlayer).toList();
-          _coachingStaff = allPlayers.where((player) => player.position.isPlayer==false).toList();
+          _players = allPlayers
+              .where((player) => player.position.isPlayer)
+              .toList();
+          _coachingStaff = allPlayers
+              .where((player) => player.position.isPlayer == false)
+              .toList();
           _isLoading = false;
         });
       }
@@ -61,22 +80,28 @@ class _InfoScreenState extends State<InfoScreen> with TickerProviderStateMixin {
         setState(() {
           _isLoading = false;
         });
-        NotificationHelper.showError(context, 'Greška pri učitavanju igrača: $e');
+        NotificationHelper.showError(
+          context,
+          'Greška pri učitavanju igrača: $e',
+        );
       }
     }
   }
 
   Future<void> _loadCurrentMembership() async {
     if (!mounted) return;
-    
+
     setState(() {
       _isMembershipLoading = true;
     });
 
     try {
-      final membershipProvider = Provider.of<MembershipProvider>(context, listen: false);
+      final membershipProvider = Provider.of<MembershipProvider>(
+        context,
+        listen: false,
+      );
       final membership = await membershipProvider.getCurrentMembership();
-      
+
       if (mounted) {
         setState(() {
           _currentMembership = membership;
@@ -88,7 +113,10 @@ class _InfoScreenState extends State<InfoScreen> with TickerProviderStateMixin {
         setState(() {
           _isMembershipLoading = false;
         });
-        NotificationHelper.showError(context, 'Greška pri učitavanju članstva: $e');
+        NotificationHelper.showError(
+          context,
+          'Greška pri učitavanju članstva: $e',
+        );
       }
     }
   }
@@ -112,7 +140,9 @@ class _InfoScreenState extends State<InfoScreen> with TickerProviderStateMixin {
               setState(() {
                 _isMembershipExpanded = !_isMembershipExpanded;
               });
-              if (_isMembershipExpanded && _currentMembership == null && !_isMembershipLoading) {
+              if (_isMembershipExpanded &&
+                  _currentMembership == null &&
+                  !_isMembershipLoading) {
                 _loadCurrentMembership();
               }
             },
@@ -129,7 +159,9 @@ class _InfoScreenState extends State<InfoScreen> with TickerProviderStateMixin {
               setState(() {
                 _isPlayersExpanded = !_isPlayersExpanded;
               });
-              if (_isPlayersExpanded && _players.isEmpty && _coachingStaff.isEmpty) {
+              if (_isPlayersExpanded &&
+                  _players.isEmpty &&
+                  _coachingStaff.isEmpty) {
                 _loadPlayers();
               }
             },
@@ -169,10 +201,7 @@ class _InfoScreenState extends State<InfoScreen> with TickerProviderStateMixin {
             ),
             onTap: onTap,
           ),
-          if (isExpanded) ...[
-            const Divider(height: 1),
-            content,
-          ],
+          if (isExpanded) ...[const Divider(height: 1), content],
         ],
       ),
     );
@@ -228,7 +257,8 @@ class _InfoScreenState extends State<InfoScreen> with TickerProviderStateMixin {
             child: Stack(
               children: [
                 // Background image
-                if (membership.imageUrl != null && membership.imageUrl!.isNotEmpty)
+                if (membership.imageUrl != null &&
+                    membership.imageUrl!.isNotEmpty)
                   ClipRRect(
                     borderRadius: BorderRadius.circular(12),
                     child: Image.network(
@@ -268,7 +298,10 @@ class _InfoScreenState extends State<InfoScreen> with TickerProviderStateMixin {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.white.withOpacity(0.9),
                               borderRadius: BorderRadius.circular(20),
@@ -283,9 +316,14 @@ class _InfoScreenState extends State<InfoScreen> with TickerProviderStateMixin {
                             ),
                           ),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
                             decoration: BoxDecoration(
-                              color: membership.isActive ? Colors.green : Colors.grey,
+                              color: membership.isActive
+                                  ? Colors.green
+                                  : Colors.grey,
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Text(
@@ -329,9 +367,10 @@ class _InfoScreenState extends State<InfoScreen> with TickerProviderStateMixin {
             ),
           ),
           const SizedBox(height: 16),
-          
+
           // Membership details
-          if (membership.description != null && membership.description!.isNotEmpty) ...[
+          if (membership.description != null &&
+              membership.description!.isNotEmpty) ...[
             Text(
               'Opis',
               style: TextStyle(
@@ -341,15 +380,13 @@ class _InfoScreenState extends State<InfoScreen> with TickerProviderStateMixin {
               ),
             ),
             const SizedBox(height: 8),
-            Text(
-              membership.description!,
-              style: const TextStyle(fontSize: 16),
-            ),
+            Text(membership.description!, style: const TextStyle(fontSize: 16)),
             const SizedBox(height: 16),
           ],
 
           // Benefits
-          if (membership.benefits != null && membership.benefits!.isNotEmpty) ...[
+          if (membership.benefits != null &&
+              membership.benefits!.isNotEmpty) ...[
             Text(
               'Benefiti',
               style: TextStyle(
@@ -359,10 +396,7 @@ class _InfoScreenState extends State<InfoScreen> with TickerProviderStateMixin {
               ),
             ),
             const SizedBox(height: 8),
-            Text(
-              membership.benefits!,
-              style: const TextStyle(fontSize: 16),
-            ),
+            Text(membership.benefits!, style: const TextStyle(fontSize: 16)),
             const SizedBox(height: 16),
           ],
 
@@ -423,10 +457,7 @@ class _InfoScreenState extends State<InfoScreen> with TickerProviderStateMixin {
               ),
               child: const Text(
                 'Postani član',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ),
           ),
@@ -443,7 +474,9 @@ class _InfoScreenState extends State<InfoScreen> with TickerProviderStateMixin {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Članstvo'),
-        content: Text('Funkcionalnost za registraciju članstva "${membership.name}" će biti implementirana uskoro.'),
+        content: Text(
+          'Funkcionalnost za registraciju članstva "${membership.name}" će biti implementirana uskoro.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
@@ -585,7 +618,8 @@ class _InfoScreenState extends State<InfoScreen> with TickerProviderStateMixin {
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(player.position.name,
+            Text(
+              player.position.name,
               style: TextStyle(
                 fontSize: 14,
                 color: Theme.of(context).primaryColor,
@@ -593,10 +627,7 @@ class _InfoScreenState extends State<InfoScreen> with TickerProviderStateMixin {
             ),
             Text(
               '${player.age} godina • ${player.nationality.name}',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[600],
-              ),
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
             ),
           ],
         ),
@@ -664,8 +695,10 @@ class _InfoScreenState extends State<InfoScreen> with TickerProviderStateMixin {
               _buildDetailRow('Visina', '${player.height}cm'),
               _buildDetailRow('Težina', '${player.weight}kg'),
               if (player.dateOfBirth != null) ...[
-                _buildDetailRow('Datum rođenja', 
-                  '${player.dateOfBirth!.day}.${player.dateOfBirth!.month}.${player.dateOfBirth!.year}'),
+                _buildDetailRow(
+                  'Datum rođenja',
+                  '${player.dateOfBirth!.day}.${player.dateOfBirth!.month}.${player.dateOfBirth!.year}',
+                ),
               ],
               if (player.biography != null && player.biography!.isNotEmpty) ...[
                 const SizedBox(height: 12),
@@ -678,10 +711,7 @@ class _InfoScreenState extends State<InfoScreen> with TickerProviderStateMixin {
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  player.biography!,
-                  style: const TextStyle(fontSize: 14),
-                ),
+                Text(player.biography!, style: const TextStyle(fontSize: 14)),
               ],
             ],
           ),
@@ -707,18 +737,10 @@ class _InfoScreenState extends State<InfoScreen> with TickerProviderStateMixin {
             width: 100,
             child: Text(
               '$label:',
-              style: const TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
-              ),
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
             ),
           ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(fontSize: 14),
-            ),
-          ),
+          Expanded(child: Text(value, style: const TextStyle(fontSize: 14))),
         ],
       ),
     );
@@ -751,7 +773,7 @@ class _InfoScreenState extends State<InfoScreen> with TickerProviderStateMixin {
             ),
             const SizedBox(height: 16),
             Text(
-              'MyClub',
+              _clubInfo!.name ?? 'N/A',
               style: TextStyle(
                 fontSize: ResponsiveHelper.font(context, base: 28),
                 fontWeight: FontWeight.bold,
@@ -760,7 +782,7 @@ class _InfoScreenState extends State<InfoScreen> with TickerProviderStateMixin {
             ),
             const SizedBox(height: 8),
             Text(
-              'Osnovan 1945.',
+              'Osnovan ${_clubInfo!.establishedDate?.year ?? 'N/A'}.',
               style: TextStyle(
                 fontSize: ResponsiveHelper.font(context, base: 16),
                 color: Colors.white70,
@@ -770,9 +792,8 @@ class _InfoScreenState extends State<InfoScreen> with TickerProviderStateMixin {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                _buildStatItem(context, '80', 'Godine'),
-                _buildStatItem(context, '127', 'Članovi'),
-                _buildStatItem(context, '15', 'Trofeji'),
+                _buildStatItem(context, '${DateTime.now().year - _clubInfo!.establishedDate!.year}', 'Godine'),
+                _buildStatItem(context, '${_clubInfo!.numberOfTitles ?? 0}', 'Trofeji'),
               ],
             ),
           ],

@@ -14,15 +14,23 @@ class MatchTicket {
 
   factory MatchTicket.fromJson(Map<String, dynamic> json) {
     return MatchTicket(
-      id: json['id'],
-      matchId: json['matchId'],
+      id: json['id'] is int ? json['id'] : int.tryParse(json['id']?.toString() ?? '0'),
+      matchId: json['matchId'] is int ? json['matchId'] : int.tryParse(json['matchId']?.toString() ?? '0'),
       stadiumSector: json['stadiumSector'] != null
           ? StadiumSector.fromJson(json['stadiumSector'])
           : null,
-      releasedQuantity: json['releasedQuantity'],
-      availableQuantity: json['availableQuantity'],
-      price: json['price'],
-      usedQuantity: json['usedQuantity'] ?? 0,
+      releasedQuantity: json['releasedQuantity'] is int 
+          ? json['releasedQuantity'] 
+          : int.tryParse(json['releasedQuantity']?.toString() ?? '0'),
+      availableQuantity: json['availableQuantity'] is int 
+          ? json['availableQuantity'] 
+          : int.tryParse(json['availableQuantity']?.toString() ?? '0'),
+      price: json['price'] is double 
+          ? json['price'] 
+          : double.tryParse(json['price']?.toString() ?? '0.0'),
+      usedQuantity: json['usedQuantity'] is int 
+          ? json['usedQuantity'] 
+          : int.tryParse(json['usedQuantity']?.toString() ?? '0') ?? 0,
     );
   }
 

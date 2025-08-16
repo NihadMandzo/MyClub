@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:myclub_desktop/models/club.dart';
 import 'package:myclub_desktop/models/country.dart';
 import 'package:myclub_desktop/models/city.dart';
@@ -42,6 +43,10 @@ class _SettingsContentState extends State<_SettingsContent> {
   
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
+  final TextEditingController _stadiumNameController = TextEditingController();
+  final TextEditingController _stadiumLocationController = TextEditingController();
+  final TextEditingController _numberOfTitlesController = TextEditingController();
+  DateTime? _selectedEstablishedDate;
   File? _selectedLogoFile;
   
   // Current selected menu item
@@ -104,6 +109,9 @@ class _SettingsContentState extends State<_SettingsContent> {
   void dispose() {
     _nameController.dispose();
     _descriptionController.dispose();
+    _stadiumNameController.dispose();
+    _stadiumLocationController.dispose();
+    _numberOfTitlesController.dispose();
     _countryNameController.dispose();
     _cityNameController.dispose();
     _cityPostalCodeController.dispose();
@@ -662,46 +670,6 @@ class _SettingsContentState extends State<_SettingsContent> {
   
 
   
-  // Get filtered sectors for the selected stadium side
-  List<StadiumSector> get _filteredStadiumSectors {
-    if (_selectedStadiumSide == null) return [];
-    return _stadiumSectors.where((sector) => 
-        sector.sideName == _selectedStadiumSide!.name).toList();
-  }
-  
-  // Stadium side selector when no side is selected
-  Widget _buildStadiumSideSelector() {
-    return _stadiumSides.isEmpty
-        ? _buildEmptyState(
-            'Prvo dodajte strane stadiona',
-            'Idi na strane stadiona',
-            () {
-              setState(() {
-                _selectedMenuItem = 'Strane stadiona';
-              });
-            })
-        : ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: _stadiumSides.length,
-            itemBuilder: (context, index) {
-              final side = _stadiumSides[index];
-              return Card(
-                margin: const EdgeInsets.only(bottom: 8),
-                child: ListTile(
-                  leading: const Icon(Icons.stadium),
-                  title: Text(side.name),
-                  onTap: () {
-                    setState(() {
-                      _selectedStadiumSide = side;
-                    });
-                  },
-                ),
-              );
-            },
-          );
-  }
-  
   Widget _buildStadiumSectorForm() {
     return Card(
       elevation: 4,
@@ -774,44 +742,6 @@ class _SettingsContentState extends State<_SettingsContent> {
           ),
         ),
       ),
-    );
-  }
-  
-  Widget _buildStadiumSectorsList() {
-    return ListView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: _filteredStadiumSectors.length,
-      itemBuilder: (context, index) {
-        final sector = _filteredStadiumSectors[index];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 8),
-          child: ListTile(
-            title: Text('Sektor ${sector.code}'),
-            subtitle: Text('Kapacitet: ${sector.capacity}'),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.edit, color: Colors.blue),
-                  onPressed: () {
-                    setState(() {
-                      _isEditingStadiumSector = true;
-                      _editingStadiumSectorId = sector.id;
-                      _stadiumSectorCodeController.text = sector.code;
-                      _stadiumSectorCapacityController.text = sector.capacity.toString();
-                    });
-                  },
-                ),
-                IconButton(
-                  icon: const Icon(Icons.delete, color: Colors.red),
-                  onPressed: () => _deleteStadiumSector(sector.id),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
     );
   }
   
@@ -916,6 +846,10 @@ class _SettingsContentState extends State<_SettingsContent> {
           _club = club;
           _nameController.text = club.name;
           _descriptionController.text = club.description;
+          _stadiumNameController.text = club.stadiumName ?? '';
+          _stadiumLocationController.text = club.stadiumLocation ?? '';
+          _numberOfTitlesController.text = club.numberOfTitles?.toString() ?? '';
+          _selectedEstablishedDate = club.establishedDate;
         });
       } catch (e) {
         // If that fails, try to get all clubs and use the first one
@@ -925,6 +859,10 @@ class _SettingsContentState extends State<_SettingsContent> {
             _club = result.data.first;
             _nameController.text = _club!.name;
             _descriptionController.text = _club!.description;
+            _stadiumNameController.text = _club!.stadiumName ?? '';
+            _stadiumLocationController.text = _club!.stadiumLocation ?? '';
+            _numberOfTitlesController.text = _club!.numberOfTitles?.toString() ?? '';
+            _selectedEstablishedDate = _club!.establishedDate;
           });
         }
       }
@@ -962,11 +900,21 @@ class _SettingsContentState extends State<_SettingsContent> {
     try {
       final provider = Provider.of<ClubProvider>(context, listen: false);
       
+      // Parse numberOfTitles
+      int? numberOfTitles;
+      if (_numberOfTitlesController.text.isNotEmpty) {
+        numberOfTitles = int.tryParse(_numberOfTitlesController.text);
+      }
+      
       final updatedClub = await provider.updateClub(
         _club!.id,
         _nameController.text,
         _descriptionController.text,
         _selectedLogoFile,
+        establishedDate: _selectedEstablishedDate,
+        stadiumName: _stadiumNameController.text.isEmpty ? null : _stadiumNameController.text,
+        stadiumLocation: _stadiumLocationController.text.isEmpty ? null : _stadiumLocationController.text,
+        numberOfTitles: numberOfTitles,
       );
       
       if (updatedClub != null) {
@@ -1441,6 +1389,37 @@ class _SettingsContentState extends State<_SettingsContent> {
       ],
     );
   }
+
+  // Helper for building info rows in club info
+  Widget _buildInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 140,
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: Colors.grey.shade700,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontSize: 16,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
   
   // Empty detail panel
   Widget _buildEmptyDetailPanel(String message) {
@@ -1838,35 +1817,6 @@ class _SettingsContentState extends State<_SettingsContent> {
   }
 
   // Placeholder widget for sections not yet implemented
-  // Common empty state widget
-  Widget _buildEmptyState(String message, String buttonText, VoidCallback? onPressed) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            _getIconForMenuItem(_selectedMenuItem),
-            size: 64,
-            color: Colors.grey,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            message,
-            style: const TextStyle(fontSize: 18),
-            textAlign: TextAlign.center,
-          ),
-          if (onPressed != null) ...[
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: onPressed,
-              child: Text(buttonText),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -1906,140 +1856,207 @@ class _SettingsContentState extends State<_SettingsContent> {
   }
 
   Widget _buildClubInfo() {
-    return Stack(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return Padding(
+      padding: const EdgeInsets.all(24.0),
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Fixed edit button at the top right
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Logo on the left
-                    if (_club!.imageUrl != null && _club!.imageUrl!.isNotEmpty)
-                      Container(
-                        width: 180,
-                        height: 180,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.2),
-                              spreadRadius: 1,
-                              blurRadius: 3,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(16),
-                          child: Image.network(
-                            _club!.imageUrl!,
-                            width: 180,
-                            height: 180,
-                            fit: BoxFit.cover,
-                            loadingBuilder: (context, child, loadingProgress) {
-                              if (loadingProgress == null) return child;
-                              return Container(
-                                width: 180,
-                                height: 180,
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[200],
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                child: Center(
-                                  child: CircularProgressIndicator(
-                                    value: loadingProgress.expectedTotalBytes != null
-                                        ? loadingProgress.cumulativeBytesLoaded / 
-                                            loadingProgress.expectedTotalBytes!
-                                        : null,
-                                  ),
-                                ),
-                              );
-                            },
-                            errorBuilder: (context, error, stackTrace) {
-                              print('Error rendering image: $error');
-                              return Container(
-                                width: 180,
-                                height: 180,
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[200],
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                child: const Icon(
-                                  Icons.broken_image,
-                                  size: 80,
-                                  color: Colors.grey,
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      )
-                    else
-                      Container(
-                        width: 180,
-                        height: 180,
-                        decoration: BoxDecoration(
-                          color: Colors.grey[300],
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: const Icon(
-                          Icons.image,
-                          size: 80,
-                          color: Colors.grey,
-                        ),
-                      ),
-                    
-                    const SizedBox(width: 24),
-                    
-                    // Club name and description on the right
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            _club!.name,
-                            style: const TextStyle(
-                              fontSize: 32,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            _club!.description,
-                            style: const TextStyle(
-                              fontSize: 18,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                ElevatedButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _isEditing = true;
+                    });
+                  },
+                  icon: const Icon(Icons.edit),
+                  label: const Text('Uredi informacije'),
                 ),
-                
-                // Additional content can go here
-                const SizedBox(height: 32),
               ],
             ),
-          ),
+            const SizedBox(height: 15),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Logo and additional details on the left - wider section
+                Expanded(
+                  flex: 1,
+                  child: Column(
+                    children: [
+                      if (_club!.imageUrl != null && _club!.imageUrl!.isNotEmpty)
+                        Container(
+                          width: 220,
+                          height: 220,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.2),
+                                spreadRadius: 1,
+                                blurRadius: 3,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: Image.network(
+                              _club!.imageUrl!,
+                              width: 220,
+                              height: 220,
+                              fit: BoxFit.cover,
+                              loadingBuilder: (context, child, loadingProgress) {
+                                if (loadingProgress == null) return child;
+                                return Container(
+                                  width: 220,
+                                  height: 220,
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[200],
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  child: Center(
+                                    child: CircularProgressIndicator(
+                                      value: loadingProgress.expectedTotalBytes != null
+                                          ? loadingProgress.cumulativeBytesLoaded / 
+                                              loadingProgress.expectedTotalBytes!
+                                          : null,
+                                    ),
+                                  ),
+                                );
+                              },
+                              errorBuilder: (context, error, stackTrace) {
+                                print('Error rendering image: $error');
+                                return Container(
+                                  width: 220,
+                                  height: 220,
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[200],
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  child: const Icon(
+                                    Icons.broken_image,
+                                    size: 80,
+                                    color: Colors.grey,
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        )
+                      else
+                        Container(
+                          width: 220,
+                          height: 220,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[300],
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: const Icon(
+                            Icons.image,
+                            size: 80,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      
+                      // Additional club information under the logo
+                      const SizedBox(height: 24),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[50],
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey[300]!),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Detalji kluba',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            if (_club!.establishedDate != null)
+                              _buildInfoRow('Osnovano:', DateFormat('dd.MM.yyyy.').format(_club!.establishedDate!)),
+                            if (_club!.stadiumName != null && _club!.stadiumName!.isNotEmpty)
+                              _buildInfoRow('Stadion:', _club!.stadiumName!),
+                            if (_club!.stadiumLocation != null && _club!.stadiumLocation!.isNotEmpty)
+                              _buildInfoRow('Lokacija stadiona:', _club!.stadiumLocation!),
+                            if (_club!.numberOfTitles != null)
+                              _buildInfoRow('Broj titula:', _club!.numberOfTitles!.toString()),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                const SizedBox(width: 15),
+                
+                // Club name and description on the right - smaller container
+                Expanded(
+                  flex: 2,
+                  child: Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey[300]!),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          spreadRadius: 1,
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _club!.name,
+                          style: const TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1a1a1a),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Opis',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF666666),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          _club!.description,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            height: 1.5,
+                            color: Color(0xFF333333),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            // Additional content can go here
+            const SizedBox(height: 32),
+          ],
         ),
-        Positioned(
-          top: 16,
-          right: 16,
-          child: IconButton(
-            icon: const Icon(Icons.edit),
-            onPressed: () {
-              setState(() {
-                _isEditing = true;
-              });
-            },
-            tooltip: 'Uredi informacije o klubu',
-          ),
-        ),
-      ],
+      ),
     );
   }
 
@@ -2064,8 +2081,8 @@ class _SettingsContentState extends State<_SettingsContent> {
                 alignment: Alignment.center,
                 children: [
                   Container(
-                    width: 200,
-                    height: 200,
+                    width: 300,
+                    height: 300,
                     decoration: BoxDecoration(
                       color: Colors.grey[200],
                       borderRadius: BorderRadius.circular(16),
@@ -2175,6 +2192,70 @@ class _SettingsContentState extends State<_SettingsContent> {
                   return null;
                 },
               ),
+              const SizedBox(height: 16),
+              // Established Date field
+              InkWell(
+                onTap: () async {
+                  final DateTime? picked = await showDatePicker(
+                    context: context,
+                    initialDate: _selectedEstablishedDate ?? DateTime.now(),
+                    firstDate: DateTime(1800),
+                    lastDate: DateTime.now(),
+                  );
+                  if (picked != null && picked != _selectedEstablishedDate) {
+                    setState(() {
+                      _selectedEstablishedDate = picked;
+                    });
+                  }
+                },
+                child: InputDecorator(
+                  decoration: const InputDecoration(
+                    labelText: 'Datum osnivanja',
+                    border: OutlineInputBorder(),
+                  ),
+                  child: Text(
+                    _selectedEstablishedDate != null
+                        ? DateFormat('dd.MM.yyyy.').format(_selectedEstablishedDate!)
+                        : 'Odaberite datum osnivanja',
+                    style: TextStyle(
+                      color: _selectedEstablishedDate != null ? Colors.black : Colors.grey,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _stadiumNameController,
+                decoration: const InputDecoration(
+                  labelText: 'Naziv stadiona',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _stadiumLocationController,
+                decoration: const InputDecoration(
+                  labelText: 'Lokacija stadiona',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _numberOfTitlesController,
+                decoration: const InputDecoration(
+                  labelText: 'Broj titula',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.number,
+                validator: (value) {
+                  if (value != null && value.isNotEmpty) {
+                    if (int.tryParse(value) == null || int.parse(value) < 0) {
+                      return 'Broj titula mora biti pozitivan broj ili nula';
+                    }
+                  }
+                  return null;
+                },
+              ),
               const SizedBox(height: 32),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -2187,6 +2268,10 @@ class _SettingsContentState extends State<_SettingsContent> {
                         if (_club != null) {
                           _nameController.text = _club!.name;
                           _descriptionController.text = _club!.description;
+                          _stadiumNameController.text = _club!.stadiumName ?? '';
+                          _stadiumLocationController.text = _club!.stadiumLocation ?? '';
+                          _numberOfTitlesController.text = _club!.numberOfTitles?.toString() ?? '';
+                          _selectedEstablishedDate = _club!.establishedDate;
                         }
                       });
                     },

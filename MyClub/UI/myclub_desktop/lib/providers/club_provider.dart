@@ -13,7 +13,12 @@ class ClubProvider extends BaseProvider<Club> {
   }
 
 
-  Future<Club?> updateClub(int id, String name, String description, File? logoImage) async {
+  Future<Club?> updateClub(int id, String name, String description, File? logoImage, {
+    DateTime? establishedDate,
+    String? stadiumName,
+    String? stadiumLocation,
+    int? numberOfTitles,
+  }) async {
     var url = "${BaseProvider.baseUrl}$endpoint/$id";
     var uri = Uri.parse(url);
     
@@ -27,6 +32,23 @@ class ClubProvider extends BaseProvider<Club> {
     request.fields['id'] = id.toString();
     request.fields['name'] = name;
     request.fields['description'] = description;
+    
+    // Add optional fields
+    if (establishedDate != null) {
+      request.fields['establishedDate'] = establishedDate.toIso8601String();
+    }
+    
+    if (stadiumName != null) {
+      request.fields['stadiumName'] = stadiumName;
+    }
+    
+    if (stadiumLocation != null) {
+      request.fields['stadiumLocation'] = stadiumLocation;
+    }
+    
+    if (numberOfTitles != null) {
+      request.fields['numberOfTitles'] = numberOfTitles.toString();
+    }
     
     // Add file if provided
     if (logoImage != null) {

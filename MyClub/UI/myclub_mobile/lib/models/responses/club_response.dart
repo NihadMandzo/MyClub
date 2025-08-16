@@ -1,4 +1,4 @@
-class Club {
+class ClubResponse {
   final int id;
   final String name;
   final String description;
@@ -8,7 +8,8 @@ class Club {
   final String? stadiumLocation;
   final int? numberOfTitles;
 
-  Club({
+
+  ClubResponse({
     required this.id,
     required this.name,
     required this.description,
@@ -19,14 +20,14 @@ class Club {
     this.numberOfTitles,
   });
 
-  factory Club.fromJson(Map<String, dynamic> json) {
-    return Club(
+  factory ClubResponse.fromJson(Map<String, dynamic> json) {
+    return ClubResponse(
       id: json['id'],
       name: json['name'],
       description: json['description'],
       imageUrl: json['imageUrl'],
-      establishedDate: json['establishedDate'] != null 
-          ? DateTime.parse(json['establishedDate']) 
+      establishedDate: json['establishedDate'] != null
+          ? DateTime.parse(json['establishedDate'])
           : null,
       stadiumName: json['stadiumName'],
       stadiumLocation: json['stadiumLocation'],
@@ -47,7 +48,7 @@ class Club {
     };
   }
 
-  Club copyWith({
+  ClubResponse copyWith({
     int? id,
     String? name,
     String? description,
@@ -57,7 +58,7 @@ class Club {
     String? stadiumLocation,
     int? numberOfTitles,
   }) {
-    return Club(
+    return ClubResponse(
       id: id ?? this.id,
       name: name ?? this.name,
       description: description ?? this.description,

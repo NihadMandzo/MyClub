@@ -13,10 +13,10 @@ class StadiumSector {
 
   factory StadiumSector.fromJson(Map<String, dynamic> json) {
     return StadiumSector(
-      id: json['id'],
-      capacity: json['capacity'],
-      code: json['code'],
-      sideName: json['sideName'],
+      id: json['id'] is int ? json['id'] : int.tryParse(json['id']?.toString() ?? '0') ?? 0,
+      capacity: json['capacity'] is int ? json['capacity'] : int.tryParse(json['capacity']?.toString() ?? '0') ?? 0,
+      code: json['code']?.toString() ?? '',
+      sideName: json['sideName']?.toString(),
     );
   }
 

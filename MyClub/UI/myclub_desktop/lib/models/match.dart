@@ -18,6 +18,35 @@ class Match {
   this.ticket, this.tickets, this.result});
 
   factory Match.fromJson(Map<String, dynamic> json) {
+    List<MatchTicket>? tickets;
+    
+    if (json['tickets'] != null) {
+      try {
+        // Check if tickets is a List
+        if (json['tickets'] is List) {
+          tickets = (json['tickets'] as List)
+              .map((ticket) => MatchTicket.fromJson(ticket))
+              .toList();
+        } else if (json['tickets'] is Map) {
+          // If it's a Map, it might be a single ticket object or empty object
+          Map<String, dynamic> ticketsMap = json['tickets'] as Map<String, dynamic>;
+          if (ticketsMap.isNotEmpty) {
+            // Try to convert single ticket map to list
+            tickets = [MatchTicket.fromJson(ticketsMap)];
+          } else {
+            tickets = [];
+          }
+        } else {
+          tickets = [];
+        }
+      } catch (e) {
+        print("Error parsing tickets: $e");
+        tickets = [];
+      }
+    } else {
+      tickets = [];
+    }
+
     return Match(
       id: json['id'],
       matchDate: DateTime.tryParse(json['matchDate'] ?? ''),
@@ -28,9 +57,7 @@ class Match {
       location: json['location'],
       description: json['description'],
       ticket: json['ticket'] != null ? MatchTicket.fromJson(json['ticket']) : null,
-      tickets: json['tickets'] != null 
-          ? (json['tickets'] as List).map((ticket) => MatchTicket.fromJson(ticket)).toList()
-          : [],
+      tickets: tickets,
       result: json['result'] != null ? MatchResult.fromJson(json['result']) : null,
     );
   }

@@ -35,8 +35,17 @@ class MatchProvider extends BaseProvider<Match> {
     var response = await http.get(Uri.parse(url), headers: headers);
 
     if (isValidResponse(response)) {
-      var data = jsonDecode(response.body) as List;
-      return data.map((item) => fromJson(item)).toList();
+      var responseBody = jsonDecode(response.body);
+      // Check if the response is a paged result with a 'data' field
+      if (responseBody is Map<String, dynamic> && responseBody.containsKey('data')) {
+        var data = responseBody['data'] as List;
+        return data.map((item) => fromJson(item)).toList();
+      } else if (responseBody is List) {
+        // Fallback for direct list response
+        return responseBody.map((item) => fromJson(item)).toList();
+      } else {
+        throw Exception("Unexpected response format for upcoming matches");
+      }
     } else {
       throw Exception("Error fetching upcoming matches");
     }
