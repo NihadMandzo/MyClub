@@ -51,8 +51,8 @@ class _InfoScreenState extends State<InfoScreen> with TickerProviderStateMixin {
       
       if (mounted) {
         setState(() {
-          _players = allPlayers.where((player) => player.isPlayer).toList();
-          _coachingStaff = allPlayers.where((player) => player.isCoachingStaff).toList();
+          _players = allPlayers.where((player) => player.position.isPlayer).toList();
+          _coachingStaff = allPlayers.where((player) => player.position.isPlayer==false).toList();
           _isLoading = false;
         });
       }
@@ -585,9 +585,14 @@ class _InfoScreenState extends State<InfoScreen> with TickerProviderStateMixin {
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(player.position),
+            Text(player.position.name,
+              style: TextStyle(
+                fontSize: 14,
+                color: Theme.of(context).primaryColor,
+              ),
+            ),
             Text(
-              '${player.age} godina • ${player.nationality}',
+              '${player.age} godina • ${player.nationality.name}',
               style: TextStyle(
                 fontSize: 12,
                 color: Colors.grey[600],
@@ -652,10 +657,10 @@ class _InfoScreenState extends State<InfoScreen> with TickerProviderStateMixin {
                 const SizedBox(height: 16),
               ],
               // Player details
-              _buildDetailRow('Pozicija', player.position),
+              _buildDetailRow('Pozicija', player.position.name),
               _buildDetailRow('Broj', player.number.toString()),
               _buildDetailRow('Godine', player.age.toString()),
-              _buildDetailRow('Nacionalnost', player.nationality),
+              _buildDetailRow('Nacionalnost', player.nationality.name),
               _buildDetailRow('Visina', '${player.height}cm'),
               _buildDetailRow('Težina', '${player.weight}kg'),
               if (player.dateOfBirth != null) ...[

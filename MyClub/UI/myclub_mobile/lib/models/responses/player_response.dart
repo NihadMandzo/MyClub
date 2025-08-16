@@ -1,9 +1,12 @@
+import 'package:myclub_mobile/models/responses/country_response.dart';
+import 'package:myclub_mobile/models/responses/position_response.dart';
+
 class PlayerResponse {
   final int id;
   final String fullName;
-  final String position;
+  final PositionResponse position;
   final int age;
-  final String nationality;
+  final CountryResponse nationality;
   final String? imageUrl;
   final int height; // Height in centimeters
   final int weight; // Weight in kilograms
@@ -29,9 +32,9 @@ class PlayerResponse {
     return PlayerResponse(
       id: json['id'] ?? 0,
       fullName: json['fullName'] ?? '',
-      position: json['position'] ?? '',
+      position: json['position'] != null ? PositionResponse.fromJson(json['position']) : PositionResponse(id: 0, name: '', isPlayer: false),
       age: json['age'] ?? 0,
-      nationality: json['nationality'] ?? '',
+      nationality: json['nationality'] != null ? CountryResponse.fromJson(json['nationality']) : CountryResponse(id: 0, name: '', code: ''),
       imageUrl: json['imageUrl'],
       height: json['height'] ?? 0,
       weight: json['weight'] ?? 0,
@@ -45,9 +48,9 @@ class PlayerResponse {
     return {
       'id': id,
       'fullName': fullName,
-      'position': position,
+      'position': position.toJson(),
       'age': age,
-      'nationality': nationality,
+      'nationality': nationality.toJson(),
       'imageUrl': imageUrl,
       'height': height,
       'weight': weight,
@@ -55,16 +58,5 @@ class PlayerResponse {
       'dateOfBirth': dateOfBirth?.toIso8601String(),
       'number': number,
     };
-  }
-
-  /// Check if this player is coaching staff
-  bool get isCoachingStaff {
-    final positionLower = position.toLowerCase();
-    return positionLower == 'trener' || positionLower == 'stručni štab';
-  }
-
-  /// Check if this player is a regular player
-  bool get isPlayer {
-    return !isCoachingStaff;
   }
 }
