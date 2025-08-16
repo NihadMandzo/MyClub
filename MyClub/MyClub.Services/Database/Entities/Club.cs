@@ -20,7 +20,12 @@ namespace MyClub.Services.Database
         
         [ForeignKey("LogoImageId")]
         public virtual Asset LogoImage { get; set; }
-        
+
+        public DateTime EstablishedDate { get; set; }
+
+        public string StadiumName { get; set; }
+        public string StadiumLocation { get; set; }
+        public int NumberOfTitles { get; set; }
         // Navigation collections
         public virtual ICollection<Player> Players { get; set; }
         public virtual ICollection<Match> Matches { get; set; }
