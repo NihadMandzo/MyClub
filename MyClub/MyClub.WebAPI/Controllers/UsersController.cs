@@ -6,6 +6,8 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using MyClub.Model.SearchObjects;
 using Microsoft.AspNetCore.Authorization;
+using MyClub.WebAPI.Filters;
+using System.Security.Claims;
 
 namespace MyClub.WebAPI.Controllers
 {
@@ -84,5 +86,21 @@ namespace MyClub.WebAPI.Controllers
             return Ok(result);
         }
 
+        [HttpPost("deactivate")]
+        public async Task<IActionResult> Deactivate()
+        {
+            await (_service as UserService)!.DeactivateSelfAsync();
+            return NoContent();
+        }
+        [HttpPut("update-profile")]
+        public async Task<IActionResult> UpdateProfile([FromBody] UserUpsertRequest request)
+        {
+            var userId = int.Parse(IHttpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+            
+            var result = await _userService.UpdateAsync(userId, request);
+            return Ok(result);
+        }
+        private IHttpContextAccessor IHttpContextAccessor => (IHttpContextAccessor)HttpContext.RequestServices.GetService(typeof(IHttpContextAccessor));
+    
     }
-} 
+}

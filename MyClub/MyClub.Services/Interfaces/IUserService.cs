@@ -13,5 +13,7 @@ namespace MyClub.Services
         Task<AuthResponse> AuthenticateAsync(LoginRequest request);
         Task<UserResponse> GetMeAsync();
         Task<bool> HasActiveUserMembership();
+        Task<bool> DeactivateSelfAsync();
+
     }
 } 

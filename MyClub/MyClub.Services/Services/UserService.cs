@@ -329,10 +329,14 @@ namespace MyClub.Services
                 .Include(u => u.Role)
                 .FirstOrDefaultAsync(u => u.Username == request.Username);
             
-            if(user == null)
+            
+            if (user == null)
                 throw new UserException("Invalid username or password", 401);
             
-            if(!VerifyPassword(request.Password, user.PasswordSalt, user.PasswordHash))
+            if(!user.IsActive)
+                throw new UserException("User account is deactivated", 403);
+            
+            if (!VerifyPassword(request.Password, user.PasswordSalt, user.PasswordHash))
                 throw new UserException("Invalid username or password", 401);
 
             // Update last login time
@@ -456,6 +460,35 @@ namespace MyClub.Services
                 throw new UserException("User not found", 404);
 
             return await _context.UserMemberships.AnyAsync(um => um.UserId == userId && um.MembershipCard.IsActive && um.MembershipCard.StartDate <= DateTime.UtcNow && um.MembershipCard.EndDate >= DateTime.UtcNow);
+        }
+
+        public async Task<bool> DeactivateSelfAsync()
+        {
+            int userId = GetCurrentUserId();
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+            if (user == null)
+                throw new UserException("User not found");
+
+            // Prevent deactivating last admin
+            if (user.RoleId == 1)
+            {
+                int adminCount = await _context.Users.CountAsync(u => u.RoleId == 1 && u.IsActive);
+                if (adminCount <= 1)
+                    throw new UserException("Cannot deactivate the last administrator account");
+            }
+
+            user.IsActive = false;
+            user.LastLogin = DateTime.UtcNow; // or null; adjust policy
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+        private int GetCurrentUserId()
+        {
+            var httpContext = _httpContextAccessor.HttpContext ?? throw new Exception("No HTTP context");
+            var auth = httpContext.Request.Headers["Authorization"].ToString();
+            if (string.IsNullOrEmpty(auth)) throw new Exception("No authorization header");
+            return JwtTokenManager.GetUserIdFromToken(auth);
         }
     }
 }
