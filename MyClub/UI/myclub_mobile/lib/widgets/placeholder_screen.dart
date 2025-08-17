@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utility/responsive_helper.dart';
 
 class PlaceholderScreen extends StatelessWidget {
   final String title;
@@ -16,22 +17,22 @@ class PlaceholderScreen extends StatelessWidget {
         children: [
           Icon(
             Icons.construction,
-            size: 64,
+            size: ResponsiveHelper.iconSize(context) * 2.5,
             color: Colors.grey,
           ),
-          SizedBox(height: 16),
+          SizedBox(height: ResponsiveHelper.deviceSize(context) == DeviceSize.small ? 12 : 16),
           Text(
             title,
             style: TextStyle(
-              fontSize: 24,
+              fontSize: ResponsiveHelper.font(context, base: 24),
               fontWeight: FontWeight.bold,
             ),
           ),
-          SizedBox(height: 8),
+          SizedBox(height: ResponsiveHelper.deviceSize(context) == DeviceSize.small ? 6 : 8),
           Text(
             'Coming Soon',
             style: TextStyle(
-              fontSize: 16,
+              fontSize: ResponsiveHelper.font(context, base: 16),
               color: Colors.grey,
             ),
           ),

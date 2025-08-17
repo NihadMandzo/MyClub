@@ -135,15 +135,15 @@ class TopNavBar extends StatelessWidget implements PreferredSizeWidget {
                   color: Colors.red,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                constraints: const BoxConstraints(
-                  minWidth: 16,
-                  minHeight: 16,
+                constraints: BoxConstraints(
+                  minWidth: ResponsiveHelper.deviceSize(context) == DeviceSize.small ? 14 : 16,
+                  minHeight: ResponsiveHelper.deviceSize(context) == DeviceSize.small ? 14 : 16,
                 ),
                 child: Text(
                   '$cartItemsCount',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Colors.white,
-                    fontSize: 10,
+                    fontSize: ResponsiveHelper.font(context, base: 10),
                     fontWeight: FontWeight.bold,
                   ),
                   textAlign: TextAlign.center,
@@ -192,9 +192,11 @@ class TopNavBar extends StatelessWidget implements PreferredSizeWidget {
           children: [
             // Handle bar
             Container(
-              width: 40,
-              height: 4,
-              margin: const EdgeInsets.only(bottom: 20),
+              width: ResponsiveHelper.deviceSize(context) == DeviceSize.small ? 35 : 40,
+              height: ResponsiveHelper.deviceSize(context) == DeviceSize.small ? 3 : 4,
+              margin: EdgeInsets.only(
+                bottom: ResponsiveHelper.deviceSize(context) == DeviceSize.small ? 16 : 20,
+              ),
               decoration: BoxDecoration(
                 color: Colors.grey[300],
                 borderRadius: BorderRadius.circular(2),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utility/responsive_helper.dart';
 
 class PlaceholderContent extends StatelessWidget {
   final String screenName;
@@ -13,8 +14,8 @@ class PlaceholderContent extends StatelessWidget {
     return Center(
       child: Text(
         'This $screenName screen works',
-        style: const TextStyle(
-          fontSize: 24,
+        style: TextStyle(
+          fontSize: ResponsiveHelper.font(context, base: 24),
           fontWeight: FontWeight.bold,
         ),
       ),

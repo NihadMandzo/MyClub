@@ -225,9 +225,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         errorBuilder: (context, error, stackTrace) {
                           return Container(
                             color: Colors.white,
-                            child: const Icon(
+                            child: Icon(
                               Icons.image_not_supported,
-                              size: 100,
+                              size: ResponsiveHelper.iconSize(context) * 3,
                               color: Colors.grey,
                             ),
                           );
@@ -236,9 +236,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     )
                   : Container(
                       color: Colors.white,
-                      child: const Icon(
+                      child: Icon(
                         Icons.image,
-                        size: 100,
+                        size: ResponsiveHelper.iconSize(context) * 3,
                         color: Colors.grey,
                       ),
                     ),
@@ -249,14 +249,17 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         // Image thumbnails
         if (images.length > 1)
           Container(
-            height: 80,
-            padding: const EdgeInsets.symmetric(vertical: 8),
+            height: ResponsiveHelper.deviceSize(context) == DeviceSize.small ? 70 : 80,
+            padding: EdgeInsets.symmetric(
+              vertical: ResponsiveHelper.deviceSize(context) == DeviceSize.small ? 6 : 8,
+            ),
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: ResponsiveHelper.pagePadding(context),
               itemCount: images.length,
               itemBuilder: (context, index) {
                 final isSelected = index == _selectedImageIndex;
+                final thumbSize = ResponsiveHelper.deviceSize(context) == DeviceSize.small ? 54.0 : 64.0;
                 return GestureDetector(
                   onTap: () {
                     setState(() {
@@ -265,9 +268,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   },
                   onLongPress: () => _openImageGallery(index),
                   child: Container(
-                    width: 64,
-                    height: 64,
-                    margin: const EdgeInsets.only(right: 8),
+                    width: thumbSize,
+                    height: thumbSize,
+                    margin: EdgeInsets.only(
+                      right: ResponsiveHelper.deviceSize(context) == DeviceSize.small ? 6 : 8,
+                    ),
                     decoration: BoxDecoration(
                       border: Border.all(
                         color: isSelected ? Colors.blue : Colors.grey.shade300,
@@ -286,9 +291,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                 errorBuilder: (context, error, stackTrace) {
                                   return Container(
                                     color: Colors.white,
-                                    child: const Icon(
+                                    child: Icon(
                                       Icons.image_not_supported,
-                                      size: 32,
+                                      size: ResponsiveHelper.iconSize(context),
                                       color: Colors.grey,
                                     ),
                                   );
@@ -296,9 +301,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                               )
                             : Container(
                                 color: Colors.white,
-                                child: const Icon(
+                                child: Icon(
                                   Icons.image,
-                                  size: 32,
+                                  size: ResponsiveHelper.iconSize(context),
                                   color: Colors.grey,
                                 ),
                               ),
@@ -313,13 +318,15 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         // Tap instruction text
         if (images.isNotEmpty && images[_selectedImageIndex].imageUrl.isNotEmpty)
           Padding(
-            padding: const EdgeInsets.only(top: 8),
+            padding: EdgeInsets.only(
+              top: ResponsiveHelper.deviceSize(context) == DeviceSize.small ? 6 : 8,
+            ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
                   Icons.touch_app,
-                  size: 14,
+                  size: ResponsiveHelper.font(context, base: 14),
                   color: Colors.grey.shade600,
                 ),
               ],
@@ -344,7 +351,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         Text(
           _product!.category.name,
           style: TextStyle(
-            fontSize: 16,
+            fontSize: ResponsiveHelper.font(context, base: 16),
             color: Colors.grey.shade600,
           ),
         ),
@@ -352,7 +359,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         Text(
           'Šifra: ${_product!.barCode}',
           style: TextStyle(
-            fontSize: 14,
+            fontSize: ResponsiveHelper.font(context, base: 14),
             color: Colors.grey.shade500,
           ),
         ),
@@ -366,8 +373,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       children: [
         Text(
           '${_product!.price.toStringAsFixed(2)} KM',
-          style: const TextStyle(
-            fontSize: 28,
+          style: TextStyle(
+            fontSize: ResponsiveHelper.font(context, base: 28),
             fontWeight: FontWeight.bold,
             color: Colors.blue,
           ),
@@ -375,16 +382,16 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         if (_product!.rating != null)
           Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.star,
                 color: Colors.amber,
-                size: 20,
+                size: ResponsiveHelper.iconSize(context) * 0.8,
               ),
               const SizedBox(width: 4),
               Text(
                 _product!.rating!.toStringAsFixed(1),
-                style: const TextStyle(
-                  fontSize: 16,
+                style: TextStyle(
+                  fontSize: ResponsiveHelper.font(context, base: 16),
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -398,10 +405,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Boja',
           style: TextStyle(
-            fontSize: 18,
+            fontSize: ResponsiveHelper.font(context, base: 18),
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -409,8 +416,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         Row(
           children: [
             Container(
-                      width: 16,
-                      height: 16,
+                      width: ResponsiveHelper.deviceSize(context) == DeviceSize.small ? 14 : 16,
+                      height: ResponsiveHelper.deviceSize(context) == DeviceSize.small ? 14 : 16,
                       decoration: BoxDecoration(
                         color: _parseColor(_product!.color.hexCode),
                         shape: BoxShape.circle,
@@ -424,8 +431,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 children: [
                   Text(
                     _product!.color.name,
-                    style: const TextStyle(
-                      fontSize: 16,
+                    style: TextStyle(
+                      fontSize: ResponsiveHelper.font(context, base: 16),
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -443,10 +450,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Veličina',
           style: TextStyle(
-            fontSize: 18,
+            fontSize: ResponsiveHelper.font(context, base: 18),
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -467,7 +474,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     }
                   : null,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: EdgeInsets.symmetric(
+                  horizontal: ResponsiveHelper.deviceSize(context) == DeviceSize.small ? 12 : 16,
+                  vertical: ResponsiveHelper.deviceSize(context) == DeviceSize.small ? 6 : 8,
+                ),
                 decoration: BoxDecoration(
                   border: Border.all(
                     color: isSelected
@@ -489,7 +499,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     Text(
                       productSize.size.name,
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: ResponsiveHelper.font(context, base: 16),
                         fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                         color: isAvailable ? Colors.black : Colors.grey,
                       ),
@@ -497,7 +507,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     Text(
                       '(${productSize.quantity})',
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: ResponsiveHelper.font(context, base: 12),
                         color: isAvailable ? Colors.grey.shade600 : Colors.grey,
                       ),
                     ),
@@ -515,10 +525,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Količina',
           style: TextStyle(
-            fontSize: 18,
+            fontSize: ResponsiveHelper.font(context, base: 18),
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -533,14 +543,17 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               child: DropdownButtonHideUnderline(
                 child: DropdownButton<int>(
                   value: _selectedQuantity,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: ResponsiveHelper.deviceSize(context) == DeviceSize.small ? 10 : 12,
+                    vertical: ResponsiveHelper.deviceSize(context) == DeviceSize.small ? 6 : 8,
+                  ),
                   borderRadius: BorderRadius.circular(8),
                   items: List.generate(10, (index) => index + 1)
                       .map((quantity) => DropdownMenuItem<int>(
                             value: quantity,
                             child: Text(
                               quantity.toString(),
-                              style: const TextStyle(fontSize: 16),
+                              style: TextStyle(fontSize: ResponsiveHelper.font(context, base: 16)),
                             ),
                           ))
                       .toList(),
@@ -558,7 +571,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             Text(
               'komad${_selectedQuantity == 1 ? '' : 'a'}',
               style: TextStyle(
-                fontSize: 16,
+                fontSize: ResponsiveHelper.font(context, base: 16),
                 color: Colors.grey.shade600,
               ),
             ),
@@ -572,18 +585,18 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Opis',
           style: TextStyle(
-            fontSize: 18,
+            fontSize: ResponsiveHelper.font(context, base: 18),
             fontWeight: FontWeight.bold,
           ),
         ),
         const SizedBox(height: 8),
         Text(
           _product!.description,
-          style: const TextStyle(
-            fontSize: 16,
+          style: TextStyle(
+            fontSize: ResponsiveHelper.font(context, base: 16),
             height: 1.5,
           ),
         ),

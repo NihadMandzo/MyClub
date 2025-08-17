@@ -10,7 +10,7 @@ class MembershipCard {
   final String? benefits;
   final String? imageUrl;
   final bool isActive;
-  final int? currentMembers;
+  final int? totalMembers;
 
   MembershipCard({
     this.id,
@@ -24,7 +24,7 @@ class MembershipCard {
     this.benefits,
     this.imageUrl,
     this.isActive = true,
-    this.currentMembers,
+    this.totalMembers,
   });
 
   factory MembershipCard.fromJson(Map<String, dynamic> json) {
@@ -44,7 +44,7 @@ class MembershipCard {
       benefits: json['benefits'],
       imageUrl: json['imageUrl'],
       isActive: json['isActive'] ?? true,
-      currentMembers: json['currentMembers'],
+      totalMembers: json['totalMembers'],
     );
   }
 
@@ -61,17 +61,17 @@ class MembershipCard {
       'benefits': benefits,
       'imageUrl': imageUrl,
       'isActive': isActive,
-      'currentMembers': currentMembers,
+      'totalMembers': totalMembers,
     };
   }
 
   double get membershipProgress {
-    if (currentMembers == null || targetMembers == 0) return 0.0;
-    return (currentMembers! / targetMembers).clamp(0.0, 1.0);
+    if (totalMembers == null || targetMembers == 0) return 0.0;
+    return (totalMembers! / targetMembers).clamp(0.0, 1.0);
   }
 
   String get progressText {
-    if (currentMembers == null) return '0 / $targetMembers';
-    return '$currentMembers / $targetMembers';
+    if (totalMembers == null) return '0 / $targetMembers';
+    return '$totalMembers / $targetMembers';
   }
 }
