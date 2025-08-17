@@ -10,9 +10,6 @@ namespace MyClub.Services.Database
         public int Id { get; set; }
         
         [Required]
-        public int Quantity { get; set; }
-        
-        [Required]
         [Column(TypeName = "decimal(10,2)")]
         public decimal TotalPrice { get; set; }
         
@@ -23,7 +20,7 @@ namespace MyClub.Services.Database
         public string QRCode { get; set; }
         
         [MaxLength(50)]
-        public string Status { get; set; } = "Valid";
+        public bool IsValid { get; set; } = true;
         public int PaymentId { get; set; }
 
         [ForeignKey("PaymentId")]

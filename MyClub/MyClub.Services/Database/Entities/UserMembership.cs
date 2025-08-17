@@ -10,13 +10,13 @@ namespace MyClub.Services.Database
         public int Id { get; set; }
         
         public int UserId { get; set; }
-        public int MembershipCardId { get; set; }
         
         [ForeignKey("UserId")]
-        public virtual User? User { get; set; }
-        
+        public virtual User User { get; set; }
+        public int MembershipCardId { get; set; }
+
         [ForeignKey("MembershipCardId")]
-        public virtual MembershipCard? MembershipCard { get; set; }
+        public virtual MembershipCard MembershipCard { get; set; }
         
         public int PaymentId { get; set; }
 

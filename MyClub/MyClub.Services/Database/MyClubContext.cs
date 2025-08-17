@@ -110,19 +110,7 @@ namespace MyClub.Services.Database
                 .HasForeignKey(na => na.AssetId)
                 .OnDelete(DeleteBehavior.NoAction);
 
-            // Configure UserMembership relationships explicitly
-            modelBuilder.Entity<UserMembership>()
-                .HasOne(um => um.User)
-                .WithMany(u => u.Memberships)
-                .HasForeignKey(um => um.UserId)
-                .OnDelete(DeleteBehavior.NoAction);
-
-            modelBuilder.Entity<UserMembership>()
-                .HasOne(um => um.MembershipCard)
-                .WithMany(mc => mc.UserMemberships)
-                .HasForeignKey(um => um.MembershipCardId)
-                .OnDelete(DeleteBehavior.NoAction);
-
+                
             // Configure unique constraints
             modelBuilder.Entity<User>()
                 .HasIndex(u => u.Username)
@@ -356,6 +344,7 @@ namespace MyClub.Services.Database
             modelBuilder.Entity<UserMembership>().SeedData();
             modelBuilder.Entity<Order>().SeedData();
             modelBuilder.Entity<OrderItem>().SeedData();
+            modelBuilder.Entity<UserTicket>().SeedData();
         }
     }
 }

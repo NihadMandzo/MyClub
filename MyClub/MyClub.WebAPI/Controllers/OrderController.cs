@@ -1,10 +1,12 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using MyClub.Model.Requests;
 using MyClub.Model.Responses;
 using MyClub.Model.SearchObjects;
 using MyClub.Services.Interfaces;
 using System.Collections.Generic;
+using System.Security.Claims;
 using System.Threading.Tasks;
 
 namespace MyClub.WebAPI.Controllers
@@ -33,7 +35,7 @@ namespace MyClub.WebAPI.Controllers
         {
             return await _orderService.GetAsync(search);
         }
- 
+
         [HttpPut("{id}/status")]
         [Authorize(Policy = "AdminOnly")]
         public async Task<ActionResult<OrderResponse>> ChangeOrderStatus(int id, [FromBody] OrderStateUpdateRequest request)
@@ -54,5 +56,15 @@ namespace MyClub.WebAPI.Controllers
         {
             return await _orderService.GetByIdAsync(id);
         }
+
+        [HttpGet("user-orders")]
+        [Authorize]
+        public async Task<ActionResult<PagedResult<OrderResponse>>> GetUserOrders()
+        {
+            var userId = int.Parse(IHttpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+            return Ok(await _orderService.GetUserOrdersAsync(userId));
+        }
+
+        private IHttpContextAccessor IHttpContextAccessor => (IHttpContextAccessor)HttpContext.RequestServices.GetService(typeof(IHttpContextAccessor));
     }
 } 

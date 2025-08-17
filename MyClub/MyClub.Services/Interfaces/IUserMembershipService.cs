@@ -9,10 +9,9 @@ namespace MyClub.Services.Interfaces
 {
     public interface IUserMembershipService : IService<UserMembershipResponse, UserMembershipSearchObject>
     {
-        Task<PagedResult<UserMembershipResponse>> GetUserMembershipsAsync(int userId);
+        Task<PagedResult<UserMembershipCardResponse>> GetUserMembershipsAsync(int userId);
         Task<UserMembershipResponse> PurchaseMembershipAsync(UserMembershipUpsertRequest request);
         Task<UserMembershipResponse> ConfirmPurchaseMembershipAsync(string transactionId);
-        Task<UserMembershipCardResponse> GetUserMembershipCardAsync(int membershipId);
         Task<bool> MarkAsShippedAsync(int membershipId);
 
     }

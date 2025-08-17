@@ -3,8 +3,6 @@ using System.Collections.Generic;
 
 namespace MyClub.Model.Responses
 {
-
-
     public class OrderResponse
     {
         public int Id { get; set; }

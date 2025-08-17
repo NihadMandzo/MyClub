@@ -10,7 +10,7 @@ namespace MyClub.Services
     {
         Task<UserTicketResponse> PurchaseTicketAsync(TicketPurchaseRequest request);
         Task<UserTicketResponse> ConfirmPurchaseTicketAsync(string transactionId);
-        Task<PagedResult<UserTicketResponse>> GetUserTicketsAsync(int userId, bool upcomingOnly = false);
+        Task<List<UserTicketResponse>> GetUserTicketsAsync(int userId, bool upcomingOnly = false);
         Task<QRValidationResponse> ValidateQRCodeAsync(QRValidationRequest request);
         Task<PagedResult<MatchResponse>> GetUpcomingMatchesAsync(BaseSearchObject search);
         Task<MatchResponse> UpdateMatchResultAsync(int matchId, MatchResultRequest request);

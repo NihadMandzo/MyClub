@@ -2,6 +2,8 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using System.Security.Cryptography;
+using System.Text;
 using MapsterMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Http;
@@ -117,7 +119,7 @@ namespace MyClub.Services.Services
             return MapToResponse(entity);
         }
 
-        public async Task<PagedResult<UserMembershipResponse>> GetUserMembershipsAsync(int userId)
+        public async Task<PagedResult<UserMembershipCardResponse>> GetUserMembershipsAsync(int userId)
         {
             var query = _context.UserMemberships
                 .AsNoTracking()
@@ -130,12 +132,34 @@ namespace MyClub.Services.Services
             var totalCount = await query.CountAsync();
             var memberships = await query.ToListAsync();
 
-            return new PagedResult<UserMembershipResponse>
+            return new PagedResult<UserMembershipCardResponse>
             {
-                Data = memberships.Select(MapToResponse).ToList(),
+                Data = memberships.Select(MapToCardResponse).ToList(),
                 TotalCount = totalCount,
                 CurrentPage = 0,
                 PageSize = totalCount > 0 ? totalCount : 10
+            };
+        }
+
+        private UserMembershipCardResponse MapToCardResponse(UserMembership membership)
+        {
+            // Generate QR code data similar to the MatchService pattern
+            string qrCodeData = GenerateMembershipQRCodeData(membership.UserId, membership.Id, membership.MembershipCardId);
+
+            return new UserMembershipCardResponse
+            {
+                Id = membership.Id,
+                UserFullName = !string.IsNullOrEmpty(membership.RecipientFirstName) 
+                    ? $"{membership.RecipientFirstName} {membership.RecipientLastName}"
+                    : $"{membership.User?.FirstName} {membership.User?.LastName}",
+                MembershipCardName = membership.MembershipCard?.Name ?? string.Empty,
+                Year = membership.MembershipCard?.Year ?? 0,
+                JoinDate = membership.JoinDate,
+                MembershipNumber = $"{membership.MembershipCard?.Year}-{membership.Id:D6}",
+                CardImageUrl = membership.MembershipCard?.Image?.Url ?? string.Empty,
+                IsActive = membership.MembershipCard?.IsActive ?? false,
+                ValidUntil = membership.MembershipCard?.EndDate ?? DateTime.MinValue,
+                QRCodeData = qrCodeData
             };
         }
 
@@ -143,16 +167,16 @@ namespace MyClub.Services.Services
         // {
         //     // Get the current user ID from the token
         //     var userId = GetCurrentUserId();
-            
+
         //     // Get the membership card
         //     var membershipCard = await _context.MembershipCards
         //         .FirstOrDefaultAsync(mc => mc.Id == request.MembershipCardId);
-                
+
         //     if (membershipCard == null)
         //     {
         //         throw new Exception("Membership card not found");
         //     }
-            
+
         //     // Check if the membership card is active
         //     if (!membershipCard.IsActive)
         //     {
@@ -161,7 +185,7 @@ namespace MyClub.Services.Services
 
         //     // Validate the request
         //     request.Validate();
-            
+
         //     // Validate the payment amount matches the membership card price
         //     if (Math.Abs(request.PaymentAmount - membershipCard.Price) > 0.1m)
         //     {
@@ -174,7 +198,7 @@ namespace MyClub.Services.Services
         //         var existingMembership = await _context.UserMemberships
         //             .Where(um => um.UserId == userId && um.MembershipCardId == request.MembershipCardId)
         //             .FirstOrDefaultAsync();
-                    
+
         //         if (existingMembership != null)
         //         {
         //             throw new Exception("You already have a membership for this campaign");
@@ -186,13 +210,13 @@ namespace MyClub.Services.Services
         //     {
         //         var previousMembership = await _context.UserMemberships
         //             .FirstOrDefaultAsync(um => um.Id == request.PreviousMembershipId && um.UserId == userId);
-                    
+
         //         if (previousMembership == null)
         //         {
         //             throw new Exception("Previous membership not found");
         //         }
         //     }
-            
+
         //     // Create a payment record first
         //     Guid paymentId;
         //     try
@@ -209,14 +233,14 @@ namespace MyClub.Services.Services
         //         };
         //         _context.Payments.Add(payment);
         //         await _context.SaveChangesAsync();
-                
+
         //         paymentId = payment.Id;
         //     }
         //     catch (Exception ex)
         //     {
         //         throw new Exception($"Failed to process payment: {ex.Message}");
         //     }
-            
+
         //     // Create the user membership
         //     var userMembership = new UserMembership
         //     {
@@ -238,19 +262,19 @@ namespace MyClub.Services.Services
         //         userMembership.RecipientLastName = request.RecipientLastName;
         //         userMembership.RecipientEmail = request.RecipientEmail;
         //     }
-            
+
         //     // Add shipping information if physical card is requested
         //     if (request.PhysicalCardRequested)
         //     {
         //         ShippingDetails shippingDetails = null;
-                
+
         //         if (request.OperationType == MembershipOperationType.Renewal && request.Shipping == null)
         //         {
         //             // For renewals, use previous address if not updating
         //             var previousMembership = await _context.UserMemberships
         //                 .Include(um => um.ShippingDetails)
         //                 .FirstOrDefaultAsync(um => um.Id == request.PreviousMembershipId);
-                        
+
         //             if (previousMembership?.ShippingDetails != null)
         //             {
         //                 // Create new shipping details based on previous membership
@@ -274,7 +298,7 @@ namespace MyClub.Services.Services
         //                 ShippingCountry = request.Shipping.ShippingCountry
         //             };
         //         }
-                
+
         //         if (shippingDetails != null)
         //         {
         //             _context.Set<ShippingDetails>().Add(shippingDetails);
@@ -282,28 +306,28 @@ namespace MyClub.Services.Services
         //             userMembership.ShippingDetailsId = shippingDetails.Id;
         //         }
         //     }
-            
+
         //     // Add the user membership
         //     _context.UserMemberships.Add(userMembership);
-            
+
         //     // Update the membership card total members
         //     membershipCard.TotalMembers += 1;
-            
+
         //     await _context.SaveChangesAsync();
-            
+
         //     // Load related entities for the response
         //     await _context.Entry(userMembership)
         //         .Reference(um => um.User)
         //         .LoadAsync();
-                
+
         //     await _context.Entry(userMembership)
         //         .Reference(um => um.MembershipCard)
         //         .LoadAsync();
-                
+
         //     await _context.Entry(userMembership)
         //         .Reference(um => um.ShippingDetails)
         //         .LoadAsync();
-                
+
         //     return MapToResponse(userMembership);
         // }
 
@@ -328,24 +352,24 @@ namespace MyClub.Services.Services
             }
             
             // Generate a unique membership number
-            string membershipNumber = $"{userMembership.MembershipCard.Year}-{userMembership.Id:D6}";
+            string membershipNumber = $"{userMembership.MembershipCard?.Year}-{userMembership.Id:D6}";
             
-            // Create QR code data (in a real app, this would be encrypted or digitally signed)
-            string qrCodeData = $"MID:{userMembership.Id}|UID:{userMembership.UserId}|MCID:{userMembership.MembershipCardId}|DATE:{userMembership.JoinDate:yyyyMMdd}";
+            // Generate QR code data using the same method as MapToCardResponse
+            string qrCodeData = GenerateMembershipQRCodeData(userMembership.UserId, userMembership.Id, userMembership.MembershipCardId);
             
             var response = new UserMembershipCardResponse
             {
                 Id = userMembership.Id,
-                MembershipCardName = userMembership.MembershipCard.Name,
-                Year = userMembership.MembershipCard.Year,
+                MembershipCardName = userMembership.MembershipCard?.Name ?? string.Empty,
+                Year = userMembership.MembershipCard?.Year ?? 0,
                 UserFullName = !string.IsNullOrEmpty(userMembership.RecipientFirstName) 
                     ? $"{userMembership.RecipientFirstName} {userMembership.RecipientLastName}"
-                    : $"{userMembership.User.FirstName} {userMembership.User.LastName}",
+                    : $"{userMembership.User?.FirstName} {userMembership.User?.LastName}",
                 JoinDate = userMembership.JoinDate,
                 MembershipNumber = membershipNumber,
-                CardImageUrl = userMembership.MembershipCard.Image?.Url,
-                IsActive = userMembership.MembershipCard.IsActive,
-                ValidUntil = userMembership.MembershipCard.EndDate,
+                CardImageUrl = userMembership.MembershipCard?.Image?.Url ?? string.Empty,
+                IsActive = userMembership.MembershipCard?.IsActive ?? false,
+                ValidUntil = userMembership.MembershipCard?.EndDate ?? DateTime.MinValue,
                 QRCodeData = qrCodeData
             };
             
@@ -425,6 +449,29 @@ namespace MyClub.Services.Services
         public async Task<UserMembershipResponse> ConfirmPurchaseMembershipAsync(string transactionId)
         {
             return null;
+        }
+
+        private string GenerateMembershipQRCodeData(int userId, int membershipId, int membershipCardId)
+        {
+            // Create a unique membership identifier with important details
+            string membershipData = $"{userId}|{membershipId}|{membershipCardId}|{DateTime.UtcNow.Ticks}";
+
+            // Generate a hash for verification and make it part of the QR code
+            string hash = GenerateHash(membershipData);
+
+            return $"{membershipData}|{hash}";
+        }
+
+        private string GenerateHash(string input)
+        {
+            using (SHA256 sha256 = SHA256.Create())
+            {
+                byte[] bytes = Encoding.UTF8.GetBytes(input);
+                byte[] hashBytes = sha256.ComputeHash(bytes);
+
+                // Convert to short string representation
+                return Convert.ToBase64String(hashBytes).Substring(0, 16);
+            }
         }
 
     }

@@ -46,7 +46,7 @@ namespace MyClub.Services.Services
         public override async Task<PagedResult<OrderResponse>> GetAsync(OrderSearchObject search)
         {
             var query = _context.Set<Database.Order>().AsQueryable();
-            
+
             // Add necessary includes
             query = query.Include(x => x.OrderItems)
                 .ThenInclude(x => x.ProductSize)
@@ -59,28 +59,28 @@ namespace MyClub.Services.Services
                 .Include(x => x.ShippingDetails)
                 .ThenInclude(s => s.City)
                 .ThenInclude(c => c.Country);
-                
+
             // Apply filters
             query = ApplyFilter(query, search);
-            
+
             // Get total count before pagination
             int totalCount = 0;
             if (search.IncludeTotalCount)
             {
                 totalCount = await query.CountAsync();
             }
-            
+
             // Apply pagination
             int pageSize = search.PageSize ?? 10;
             int currentPage = search.Page ?? 0;
-            
+
             if (!search.RetrieveAll)
             {
                 query = query.Skip(currentPage * pageSize).Take(pageSize);
             }
-            
+
             var list = await query.ToListAsync();
-            
+
             return new PagedResult<OrderResponse>
             {
                 Data = list.Select(MapToResponse).ToList(),
@@ -122,9 +122,9 @@ namespace MyClub.Services.Services
         {
             if (entity == null)
                 return null;
-                
+
             var response = base.MapToResponse(entity);
-            
+
             // Safely map user full name
             if (entity.User != null)
             {
@@ -135,7 +135,7 @@ namespace MyClub.Services.Services
             if (entity.ShippingDetails != null)
             {
                 response.ShippingAddress = entity.ShippingDetails.ShippingAddress;
-                
+
                 // Map City and Country if available
                 if (entity.ShippingDetails.City != null)
                 {
@@ -146,7 +146,7 @@ namespace MyClub.Services.Services
                         Name = entity.ShippingDetails.City.Name,
                         PostalCode = entity.ShippingDetails.City.PostalCode,
                     };
-                    
+
                     // Map Country from City if available
                     if (entity.ShippingDetails.City.Country != null)
                     {
@@ -176,7 +176,7 @@ namespace MyClub.Services.Services
             // Check if a membership discount was applied (20%)
             response.OriginalAmount = itemsTotal;
             response.HasMembershipDiscount = itemsTotal > entity.TotalAmount;
-            
+
             if (response.HasMembershipDiscount)
             {
                 response.DiscountAmount = itemsTotal - entity.TotalAmount;
@@ -228,13 +228,40 @@ namespace MyClub.Services.Services
             var orderState = _baseOrderState.GetOrderState(entity.OrderState);
 
             return await orderState.ChangeOrderState(orderId, request);
-           
+
         }
         public async Task<OrderResponse> ConfirmOrder(ConfirmOrderRequest request)
         {
             var baseOrderState = _baseOrderState.GetOrderState("Procesiranje");
             var result = await baseOrderState.ConfirmOrder(request);
             return result;
+        }
+
+
+        public async Task<PagedResult<OrderResponse>> GetUserOrdersAsync(int userId)
+        {
+            var query = _context.Orders
+                .Include(o => o.OrderItems)
+                    .ThenInclude(oi => oi.ProductSize)
+                        .ThenInclude(ps => ps.Product)
+                .Include(o => o.User)
+                .Where(o => o.UserId == userId);
+
+                
+
+            var totalCount = await query.CountAsync();
+
+            var orders = await query.ToListAsync();
+
+            var responses = orders.Select(MapToResponse).ToList();
+
+            return new PagedResult<OrderResponse>
+            {
+                Data = responses,
+                TotalCount = totalCount,
+                CurrentPage = 0,
+                PageSize = totalCount // Return all results
+            };
         }
     }
 }

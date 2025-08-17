@@ -230,7 +230,7 @@ namespace MyClub.Services
             return null;
         }
 
-        public async Task<PagedResult<UserTicketResponse>> GetUserTicketsAsync(int userId, bool upcomingOnly = false)
+        public async Task<List<UserTicketResponse>> GetUserTicketsAsync(int userId, bool upcomingOnly = false)
         {
             var query = _context.UserTickets
                 .AsNoTracking()
@@ -262,10 +262,10 @@ namespace MyClub.Services
             var response = list.Select(ut => new UserTicketResponse
             {
                 Id = ut.Id,
-                Quantity = ut.Quantity,
                 TotalPrice = ut.TotalPrice,
                 PurchaseDate = ut.PurchaseDate,
                 QRCodeData = ut.QRCode,
+                IsValid = ut.IsValid,
                 MatchId = ut.MatchTicket.Match.Id,
                 OpponentName = ut.MatchTicket.Match.OpponentName,
                 MatchDate = ut.MatchTicket.Match.MatchDate,
@@ -275,13 +275,7 @@ namespace MyClub.Services
             }).ToList();
 
             // Create the paged result with proper pagination metadata
-            return new PagedResult<UserTicketResponse>
-            {
-                Data = response,
-                TotalCount = totalCount,
-                CurrentPage = 0,
-                PageSize = totalCount > 0 ? totalCount : 10
-            };
+            return response;
         }
 
         public async Task<QRValidationResponse> ValidateQRCodeAsync(QRValidationRequest request)
@@ -301,15 +295,15 @@ namespace MyClub.Services
                     return new QRValidationResponse { IsValid = false, Message = "Ticket not found" };
 
                 // Check if the ticket has already been used
-                if (userTicket.Status != "Valid")
-                    return new QRValidationResponse { IsValid = false, Message = $"Ticket is {userTicket.Status}" };
+                if (!userTicket.IsValid)
+                    return new QRValidationResponse { IsValid = false, Message = $"Ticket is invalid" };
 
                 // Check if the match is in the future
                 if (userTicket.MatchTicket.Match.MatchDate < DateTime.UtcNow)
                     return new QRValidationResponse { IsValid = false, Message = "Match has already taken place" };
 
                 // Mark the ticket as used
-                userTicket.Status = "Used";
+                userTicket.IsValid = false;
                 await _context.SaveChangesAsync();
 
                 // Return success
@@ -317,15 +311,6 @@ namespace MyClub.Services
                 {
                     IsValid = true,
                     Message = "Ticket is valid",
-                    TicketDetails = new UserTicketDetails
-                    {
-                        TicketId = userTicket.Id,
-                        Username = userTicket.User.Username,
-                        Quantity = userTicket.Quantity,
-                        MatchInfo = $"{userTicket.MatchTicket.Match.OpponentName} on {userTicket.MatchTicket.Match.MatchDate:g}",
-                        SectorInfo = $"{userTicket.MatchTicket.StadiumSector.StadiumSide.Name} - {userTicket.MatchTicket.StadiumSector.Code}",
-                        PurchaseDate = userTicket.PurchaseDate
-                    }
                 };
             }
             catch (Exception ex)
