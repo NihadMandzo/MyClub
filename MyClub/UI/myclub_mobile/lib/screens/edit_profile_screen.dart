@@ -340,12 +340,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         token: widget.user.token,
       );
 
-      // Call the update method (you'll need to implement this in UserProvider)
-      await userProvider.updateUser(updatedUser);
+      // Call the updateProfile method specifically for user profile updates
+      final updatedResult = await userProvider.updateProfile(updatedUser);
 
       if (mounted) {
         NotificationHelper.showSuccess(context, 'Profil je uspješno ažuriran');
-        Navigator.of(context).pop(updatedUser);
+        Navigator.of(context).pop(updatedResult);
       }
     } catch (e) {
       print('Error updating profile: $e');

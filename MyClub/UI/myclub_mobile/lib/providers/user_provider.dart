@@ -90,18 +90,27 @@ class UserProvider extends BaseProvider<User> {
     return false; // Default to no discount if there's an error
   }
 
-  /// Update user profile
-  Future<User> updateUser(User user) async {
+  /// Update current user profile using the /me/update endpoint
+  Future<User> updateProfile(User user) async {
     try {
-      var url = "${BaseProvider.baseUrl}${endpoint}/${user.id}";
+      var url = "${BaseProvider.baseUrl}${endpoint}/update-profile";
       var uri = Uri.parse(url);
       var headers = createHeaders();
       
-      var jsonRequest = jsonEncode(user.toJson());
+      // Create a request payload without sensitive fields like token
+      var updatePayload = {
+        'firstName': user.firstName,
+        'lastName': user.lastName,
+        'username': user.username,
+        'email': user.email,
+        'phoneNumber': user.phoneNumber,
+      };
       
-      print("API PUT Update User Request URL: $url");
-      print("API PUT Update User Request Headers: $headers");
-      print("API PUT Update User Request Body: $jsonRequest");
+      var jsonRequest = jsonEncode(updatePayload);
+      
+      print("API PUT Update Profile Request URL: $url");
+      print("API PUT Update Profile Request Headers: $headers");
+      print("API PUT Update Profile Request Body: $jsonRequest");
 
       var response = await http.put(uri, headers: headers, body: jsonRequest);
 
@@ -109,10 +118,32 @@ class UserProvider extends BaseProvider<User> {
         var data = jsonDecode(response.body);
         return fromJson(data);
       } else {
-        throw Exception("Greška pri ažuriranju korisnika");
+        throw Exception("Greška pri ažuriranju profila");
       }
     } catch (e) {
-      throw Exception("Greška pri ažuriranju korisnika: $e");
+      throw Exception("Greška pri ažuriranju profila: $e");
     }
   }
+
+  /// Deactivate current user account
+  Future<void> deactivateAccount() async {
+    try {
+      var url = "${BaseProvider.baseUrl}${endpoint}/deactivate";
+      var uri = Uri.parse(url);
+      var headers = createHeaders();
+      
+      print("API POST Deactivate User Request URL: $url");
+      print("API POST Deactivate User Request Headers: $headers");
+
+      var response = await http.post(uri, headers: headers);
+
+      if (!isValidResponse(response)) {
+        throw Exception("Greška pri deaktivaciji korisničkog naloga");
+      }
+    } catch (e) {
+      throw Exception("Greška pri deaktivaciji korisničkog naloga: $e");
+    }
+  }
+
+  
 }

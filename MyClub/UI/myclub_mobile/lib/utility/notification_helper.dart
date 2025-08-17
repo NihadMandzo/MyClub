@@ -86,6 +86,7 @@ class NotificationHelper {
               onPressed: () => Navigator.of(context).pop(true),
               style: ElevatedButton.styleFrom(
                 backgroundColor: confirmButtonColor,
+                foregroundColor: Colors.white
               ),
               child: Text(confirmText),
             ),

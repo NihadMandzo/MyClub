@@ -4,6 +4,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import '../utility/responsive_helper.dart';
 import '../utility/notification_helper.dart';
 import '../providers/user_provider.dart';
+import '../providers/auth_provider.dart';
 import '../providers/match_provider.dart';
 import '../providers/user_membership_card_provider.dart';
 import '../providers/order_provider.dart';
@@ -14,6 +15,7 @@ import '../models/responses/order_response.dart';
 import '../models/responses/order_item_response.dart';
 import 'edit_profile_screen.dart';
 import 'ticket_detail_screen.dart';
+import 'login_screen.dart';
 
 /// Profile screen with user information, edit/deactivate buttons, and expandable cards
 class ProfileScreen extends StatefulWidget {
@@ -1502,7 +1504,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   /// Handle deactivate profile action
-  void _handleDeactivateProfile(BuildContext context) {
+  void _handleDeactivateProfile(BuildContext context) async {
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -1517,10 +1519,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: const Text('Otkaži'),
             ),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 Navigator.of(context).pop();
-                NotificationHelper.showInfo(context, 'Profil je deaktiviran');
-                // TODO: Implement profile deactivation logic
+                await _performDeactivation();
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red,
@@ -1532,5 +1533,69 @@ class _ProfileScreenState extends State<ProfileScreen> {
         );
       },
     );
+  }
+
+  /// Perform the actual deactivation
+  Future<void> _performDeactivation() async {
+    // Store context references before async operations
+    final navigator = Navigator.of(context);
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    
+    try {
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return const Center(
+            child: CircularProgressIndicator(),
+          );
+        },
+      );
+
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      
+      // Call deactivation endpoint
+      await userProvider.deactivateAccount();
+
+      // Close loading dialog - use stored navigator
+      navigator.pop();
+      
+      // Show success message using ScaffoldMessenger instead of NotificationHelper
+      scaffoldMessenger.showSnackBar(
+        const SnackBar(
+          content: Text('Profil je uspješno deaktiviran'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      
+      // Clear all authentication data and logout
+      await authProvider.logout();
+      
+      // Navigate to login screen by replacing all routes
+      navigator.pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+        (Route<dynamic> route) => false,
+      );
+      
+    } catch (e) {
+      print('Error deactivating profile: $e');
+      
+      // Close loading dialog if still open - use stored navigator
+      try {
+        navigator.pop();
+      } catch (navError) {
+        print('Navigation error while closing dialog: $navError');
+      }
+      
+      // Show error message using ScaffoldMessenger
+      scaffoldMessenger.showSnackBar(
+        SnackBar(
+          content: Text('Greška pri deaktivaciji profila: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 }
