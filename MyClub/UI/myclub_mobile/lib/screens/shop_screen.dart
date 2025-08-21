@@ -29,11 +29,13 @@ class _ShopScreenState extends State<ShopScreen> {
   late SizeProvider _sizeProvider;
 
   List<ProductResponse> _products = [];
+  List<ProductResponse> _recommendedProducts = [];
   List<CategoryResponse> _categories = [];
   List<ColorResponse> _colors = [];
   List<SizeResponse> _sizes = [];
 
   bool _isLoading = false;
+  bool _isRecommendedLoading = false;
   bool _isSearchBarOpen = false;
 
   // Pagination variables
@@ -72,13 +74,33 @@ class _ShopScreenState extends State<ShopScreen> {
       // Load filter options
       await Future.wait([_loadCategories(), _loadColors(), _loadSizes()]);
 
-      // Load products
-      await _loadProducts();
+      // Load products and recommended products
+      await Future.wait([_loadProducts(), _loadRecommendedProducts()]);
     } catch (e) {
       _showErrorSnackBar('Greška pri učitavanju podataka: $e');
     } finally {
       setState(() {
         _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _loadRecommendedProducts() async {
+    setState(() {
+      _isRecommendedLoading = true;
+    });
+
+    try {
+      final recommendedProducts = await _productProvider.getRecommended();
+      setState(() {
+        _recommendedProducts = recommendedProducts;
+      });
+    } catch (e) {
+      print('Error loading recommended products: $e');
+      // Don't show error for recommended products, just fail silently
+    } finally {
+      setState(() {
+        _isRecommendedLoading = false;
       });
     }
   }
@@ -581,76 +603,292 @@ class _ShopScreenState extends State<ShopScreen> {
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
-                : _products.isEmpty
-                ? const Center(
-                    child: Text(
-                      'Nema proizvoda za prikaz',
-                      style: TextStyle(fontSize: 16, color: Colors.grey),
-                    ),
-                  )
                 : SingleChildScrollView(
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Products grid
-                        GridView.builder(
-                          padding: ResponsiveHelper.pagePadding(context),
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          gridDelegate:
-                              SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount:
-                                    ResponsiveHelper.gridCrossAxisCount(
-                                      context,
-                                    ),
-                                childAspectRatio:
-                                    ResponsiveHelper.gridChildAspectRatio(
-                                      context,
-                                    ),
-                                crossAxisSpacing: ResponsiveHelper.gridSpacing(
-                                  context,
+                        // Recommended products section
+                        if (_recommendedProducts.isNotEmpty && !_isSearchBarOpen)
+                          _buildRecommendedSection(),
+                        
+                        // Main products section
+                        _products.isEmpty
+                            ? const Center(
+                                child: Padding(
+                                  padding: EdgeInsets.all(32.0),
+                                  child: Text(
+                                    'Nema proizvoda za prikaz',
+                                    style: TextStyle(fontSize: 16, color: Colors.grey),
+                                  ),
                                 ),
-                                mainAxisSpacing: ResponsiveHelper.gridSpacing(
-                                  context,
-                                ),
-                              ),
-                          itemCount: _products.length,
-                          itemBuilder: (context, index) {
-                            final product = _products[index];
-                            return _buildProductCard(product);
-                          },
-                        ),
+                              )
+                            : Column(
+                                children: [
+                                  Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                    child: Text(
+                                      'Proizvodi',
+                                      style: TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.blue.shade700,
+                                      ),
+                                      textAlign: TextAlign.left,
+                                    ),
+                                  ),
+                                  // Products grid
+                                  GridView.builder(
+                                    padding: ResponsiveHelper.pagePadding(context),
+                                    shrinkWrap: true,
+                                    physics: const NeverScrollableScrollPhysics(),
+                                    gridDelegate:
+                                        SliverGridDelegateWithFixedCrossAxisCount(
+                                          crossAxisCount:
+                                              ResponsiveHelper.gridCrossAxisCount(
+                                                context,
+                                              ),
+                                          childAspectRatio:
+                                              ResponsiveHelper.gridChildAspectRatio(
+                                                context,
+                                              ),
+                                          crossAxisSpacing: ResponsiveHelper.gridSpacing(
+                                            context,
+                                          ),
+                                          mainAxisSpacing: ResponsiveHelper.gridSpacing(
+                                            context,
+                                          ),
+                                        ),
+                                    itemCount: _products.length,
+                                    itemBuilder: (context, index) {
+                                      final product = _products[index];
+                                      return _buildProductCard(product);
+                                    },
+                                  ),
 
-                        // Pagination at the end of the list
-                        if (_totalPages > 1)
-                          Container(
-                            margin: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(8),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.1),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: PaginationWidget(
-                              currentPage: _currentPage,
-                              totalPages: _totalPages,
-                              currentPageSize: _pageSize,
-                              onPageChanged: _onPageChanged,
-                              isLoading: _isLoading,
-                              showPageNumbers: true,
-                              showPageSizeSelector:
-                                  false, // Disabled page size selector
-                            ),
-                          ),
+                                  // Pagination at the end of the list
+                                  if (_totalPages > 1)
+                                    Container(
+                                      margin: const EdgeInsets.all(16),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(8),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withOpacity(0.1),
+                                            blurRadius: 4,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: PaginationWidget(
+                                        currentPage: _currentPage,
+                                        totalPages: _totalPages,
+                                        currentPageSize: _pageSize,
+                                        onPageChanged: _onPageChanged,
+                                        isLoading: _isLoading,
+                                        showPageNumbers: true,
+                                        showPageSizeSelector:
+                                            false, // Disabled page size selector
+                                      ),
+                                    ),
+                                ],
+                              ),
                       ],
                     ),
                   ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildRecommendedSection() {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.recommend,
+                  color: Colors.blue.shade700,
+                  size: 24,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Preporučeno za tebe',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue.shade700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          if (_isRecommendedLoading)
+            Container(
+              height: 200,
+              child: const Center(
+                child: CircularProgressIndicator(),
+              ),
+            )
+          else
+            Container(
+              height: 250,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: _recommendedProducts.length,
+                itemBuilder: (context, index) {
+                  final product = _recommendedProducts[index];
+                  return Container(
+                    width: 150,
+                    margin: const EdgeInsets.only(right: 12),
+                    child: _buildRecommendedProductCard(product),
+                  );
+                },
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRecommendedProductCard(ProductResponse product) {
+    return Card(
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ProductDetailScreen(
+                productId: product.id,
+                onCartUpdated: widget.onCartUpdated,
+              ),
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Product image
+            Expanded(
+              flex: 3,
+              child: Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(10),
+                  ),
+                  color: Colors.white,
+                ),
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(10),
+                  ),
+                  child: product.primaryImageUrl.imageUrl.isNotEmpty
+                      ? Image.network(
+                          product.primaryImageUrl.imageUrl,
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              color: Colors.white,
+                              child: const Icon(
+                                Icons.image_not_supported,
+                                size: 40,
+                                color: Colors.grey,
+                              ),
+                            );
+                          },
+                        )
+                      : Container(
+                          color: Colors.white,
+                          child: const Icon(
+                            Icons.image,
+                            size: 40,
+                            color: Colors.grey,
+                          ),
+                        ),
+                ),
+              ),
+            ),
+            // Product details
+            Expanded(
+              flex: 2,
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          product.name,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          product.category.name,
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.grey.shade600,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                    // Price and rating
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (product.rating != null)
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.star,
+                                color: Colors.amber,
+                                size: 12,
+                              ),
+                              const SizedBox(width: 2),
+                              Text(
+                                product.rating!.toStringAsFixed(1),
+                                style: const TextStyle(fontSize: 10),
+                              ),
+                            ],
+                          ),
+                        Text(
+                          '${product.price.toStringAsFixed(2)} KM',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                            color: Colors.blue,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

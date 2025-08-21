@@ -314,24 +314,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               },
             ),
           ),
-        
-        // Tap instruction text
-        if (images.isNotEmpty && images[_selectedImageIndex].imageUrl.isNotEmpty)
-          Padding(
-            padding: EdgeInsets.only(
-              top: ResponsiveHelper.deviceSize(context) == DeviceSize.small ? 6 : 8,
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.touch_app,
-                  size: ResponsiveHelper.font(context, base: 14),
-                  color: Colors.grey.shade600,
-                ),
-              ],
-            ),
-          ),
       ],
     );
   }
