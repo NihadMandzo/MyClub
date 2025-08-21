@@ -455,7 +455,11 @@ namespace MyClub.Services
                         Id = t.StadiumSectorId,
                         Capacity = t.StadiumSector.Capacity,
                         Code = t.StadiumSector.Code,
-                        SideName = t.StadiumSector.StadiumSide.Name
+                        StadiumSide = new StadiumSideResponse
+                        {
+                            Id = t.StadiumSector.StadiumSideId,
+                            Name = t.StadiumSector.StadiumSide.Name
+                        }
                     },
                     AvailableQuantity = t.AvailableQuantity,
                     UsedQuantity = t.UsedQuantity

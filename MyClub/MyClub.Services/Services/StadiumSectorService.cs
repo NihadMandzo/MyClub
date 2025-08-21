@@ -67,7 +67,11 @@ namespace MyClub.Services.Services
             var result = _mapper.Map<StadiumSectorResponse>(entity);
             if (entity.StadiumSide != null)
             {
-                result.SideName = entity.StadiumSide.Name;
+                result.StadiumSide = new StadiumSideResponse
+                {
+                    Id = entity.StadiumSide.Id,
+                    Name = entity.StadiumSide.Name
+                };
             }
             return result;
         }
