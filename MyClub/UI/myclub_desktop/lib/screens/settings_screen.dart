@@ -1539,7 +1539,7 @@ class _SettingsContentState extends State<_SettingsContent> {
         final side = _stadiumSides[index];
         // Get sectors for this side
         final sideSectors = _stadiumSectors
-            .where((sector) => sector.sideName == side.name)
+            .where((sector) => sector.stadiumSide?.name == side.name)
             .toList();
             
         // Check if this side is expanded
@@ -1680,7 +1680,7 @@ class _SettingsContentState extends State<_SettingsContent> {
       } else if (_selectedStadiumSideForDetail != null) {
         // Show stadium side details
         final sideSectors = _stadiumSectors
-            .where((sector) => sector.sideName == _selectedStadiumSideForDetail!.name)
+            .where((sector) => sector.stadiumSide?.name == _selectedStadiumSideForDetail!.name)
             .toList();
             
         return Card(
@@ -1780,7 +1780,7 @@ class _SettingsContentState extends State<_SettingsContent> {
                               _stadiumSectorCodeController.text = _selectedStadiumSectorForDetail!.code;
                               _stadiumSectorCapacityController.text = _selectedStadiumSectorForDetail!.capacity.toString();
                               _selectedStadiumSide = _stadiumSides.firstWhere(
-                                (side) => side.name == _selectedStadiumSectorForDetail!.sideName,
+                                (side) => side.name == _selectedStadiumSectorForDetail!.stadiumSide?.name,
                                 orElse: () => _stadiumSides.first,
                               );
                             });
@@ -1802,7 +1802,7 @@ class _SettingsContentState extends State<_SettingsContent> {
                 const SizedBox(height: 8),
                 _buildDetailItem('Kapacitet', _selectedStadiumSectorForDetail!.capacity.toString()),
                 const SizedBox(height: 8),
-                _buildDetailItem('Strana stadiona', _selectedStadiumSectorForDetail!.sideName ?? 'Nepoznato'),
+                _buildDetailItem('Strana stadiona', _selectedStadiumSectorForDetail!.stadiumSide?.name ?? 'Nepoznato'),
               ],
             ),
           ),

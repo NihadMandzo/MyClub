@@ -56,6 +56,8 @@ class _TicketsContentState extends State<_TicketsContent> {
   final Map<int, Map<String, dynamic>> _sectorValues = {};
   // Existing tickets for the selected match
   Map<int, MatchTicket> _existingTickets = {};
+  // Validation errors for each sector
+  Map<int, String?> _sectorValidationErrors = {};
   
   // ScrollController for the horizontal matches scroll
   final ScrollController _matchesScrollController = ScrollController();
@@ -108,24 +110,8 @@ class _TicketsContentState extends State<_TicketsContent> {
       _upcomingMatches = results[0] as List<Match>;
       final sectorsResult = results[1] as PagedResult<StadiumSector>;
       
-      // Extract stadium sectors from paged result and assign default side names if null
-      _stadiumSectors = sectorsResult.data.map((sector) {
-        if (sector.sideName == null || sector.sideName!.isEmpty) {
-          // Assign default side names based on sector code patterns
-          if (sector.code.startsWith('A')) {
-            sector.sideName = 'Sjever';
-          } else if (sector.code.startsWith('B')) {
-            sector.sideName = 'Jug';
-          } else if (sector.code.startsWith('C')) {
-            sector.sideName = 'Istok';
-          } else if (sector.code.startsWith('D')) {
-            sector.sideName = 'Zapad';
-          } else {
-            sector.sideName = 'Ostalo';
-          }
-        }
-        return sector;
-      }).toList();
+      // Extract stadium sectors from paged result - stadium side should now come from backend
+      _stadiumSectors = sectorsResult.data;
       
       // Auto-select first match if available
       if (_upcomingMatches.isNotEmpty) {
@@ -166,6 +152,7 @@ class _TicketsContentState extends State<_TicketsContent> {
       setState(() {
         _existingTickets.clear();
         _sectorValues.clear(); // Clear first
+        _sectorValidationErrors.clear(); // Clear validation errors
         
         // Group tickets by sector and sum quantities and prices
         Map<int, List<MatchTicket>> ticketsBySector = {};
@@ -227,6 +214,7 @@ class _TicketsContentState extends State<_TicketsContent> {
         setState(() {
           _existingTickets.clear();
           _sectorValues.clear();
+          _sectorValidationErrors.clear(); // Clear validation errors
           
           // Initialize all sectors with empty values
           for (var sector in _stadiumSectors) {
@@ -253,11 +241,21 @@ class _TicketsContentState extends State<_TicketsContent> {
         _sectorValues[sectorId] = {};
       }
       _sectorValues[sectorId]![field] = value;
+      
+      // Clear validation error for this sector when user starts typing
+      if (_sectorValidationErrors.containsKey(sectorId)) {
+        _sectorValidationErrors.remove(sectorId);
+      }
     });
   }
 
   Future<void> _addTickets() async {
     if (_selectedMatch == null || !mounted) return;
+
+    // Clear previous validation errors
+    setState(() {
+      _sectorValidationErrors.clear();
+    });
 
     setState(() {
       _isLoadingTickets = true;
@@ -265,7 +263,7 @@ class _TicketsContentState extends State<_TicketsContent> {
 
     try {
       List<Map<String, dynamic>> tickets = [];
-      List<String> validationErrors = [];
+      bool hasValidationErrors = false;
 
       // Check if user has actually entered any data before validating
       bool hasUserInput = false;
@@ -280,13 +278,12 @@ class _TicketsContentState extends State<_TicketsContent> {
         }
       }
       
-      // If no user input, don't validate - just show warning
+      // If no user input, don't proceed
       if (!hasUserInput) {
         if (!mounted) return;
-        NotificationUtility.showWarning(
-          context,
-          message: 'Molim unesite količinu i cijenu za najmanje jedan sektor',
-        );
+        setState(() {
+          _isLoadingTickets = false;
+        });
         return;
       }
       
@@ -310,15 +307,32 @@ class _TicketsContentState extends State<_TicketsContent> {
         // Check if there's an existing ticket for this sector
         final existingTicket = _existingTickets[sectorId];
         final currentReleasedQuantity = existingTicket?.releasedQuantity ?? 0;
+        final existingPrice = existingTicket?.price;
         
         // If this sector has any input (quantity or price), validate it
         if (quantity > 0 || price > 0) {
-          // Both quantity and price must be provided
-          if (quantity <= 0 || price <= 0) {
-            validationErrors.add(
-              'Sektor ${sector.code}: Molim unesite i količinu i cijenu'
-            );
-            continue;
+          // For sectors with existing tickets, only quantity is required (use existing price)
+          // For new sectors, both quantity and price are required
+          if (existingPrice != null) {
+            // Sector has existing tickets - only validate quantity
+            if (quantity <= 0) {
+              setState(() {
+                _sectorValidationErrors[sectorId] = 'Molim unesite količinu';
+              });
+              hasValidationErrors = true;
+              continue;
+            }
+            // Use existing price instead of user input
+            price = existingPrice;
+          } else {
+            // New sector - both quantity and price must be provided
+            if (quantity <= 0 || price <= 0) {
+              setState(() {
+                _sectorValidationErrors[sectorId] = 'Molim unesite i količinu i cijenu';
+              });
+              hasValidationErrors = true;
+              continue;
+            }
           }
           
           // IMPORTANT: The form shows existing quantity, user enters ADDITIONAL quantity
@@ -328,26 +342,28 @@ class _TicketsContentState extends State<_TicketsContent> {
           
           print("DEBUG: Sector ${sector.code}: Current=$currentReleasedQuantity, Adding=$newQuantityToAdd, Total will be=$totalAfterAddition");
           
-          // Frontend validation: Check if total after addition exceeds 100
-          if (totalAfterAddition > 100) {
-            final maxCanAdd = 100 - currentReleasedQuantity;
+          // Frontend validation: Check if total after addition exceeds sector capacity
+          if (totalAfterAddition > sector.capacity) {
+            final maxCanAdd = sector.capacity - currentReleasedQuantity;
             if (maxCanAdd <= 0) {
-              validationErrors.add(
-                'Sektor ${sector.code}: Već imate ${currentReleasedQuantity} ulaznica (maksimum je 100). Ne možete dodati više ulaznica.'
-              );
+              setState(() {
+                _sectorValidationErrors[sectorId] = 'Sektor je popunjen (${currentReleasedQuantity}/${sector.capacity})';
+              });
             } else {
-              validationErrors.add(
-                'Sektor ${sector.code}: Trenutno imate ${currentReleasedQuantity} ulaznica. Možete dodati maksimalno ${maxCanAdd} ulaznica (ukupno 100). Pokušavate dodati ${newQuantityToAdd} ulaznica.'
-              );
+              setState(() {
+                _sectorValidationErrors[sectorId] = 'Maksimalno možete dodati ${maxCanAdd} ulaznica';
+              });
             }
+            hasValidationErrors = true;
             continue;
           }
           
-          // If sector already has 100 tickets, don't allow any additions
-          if (currentReleasedQuantity >= 100) {
-            validationErrors.add(
-              'Sektor ${sector.code}: Već imate ${currentReleasedQuantity} ulaznica što je maksimum. Ne možete dodati više ulaznica.'
-            );
+          // If sector already has reached capacity, don't allow any additions
+          if (currentReleasedQuantity >= sector.capacity) {
+            setState(() {
+              _sectorValidationErrors[sectorId] = 'Sektor je popunjen';
+            });
+            hasValidationErrors = true;
             continue;
           }
           
@@ -364,18 +380,13 @@ class _TicketsContentState extends State<_TicketsContent> {
         }
       }
 
-      // If there are validation errors, show them and don't proceed
-      if (validationErrors.isNotEmpty) {
-        print("DEBUG: Validation failed with ${validationErrors.length} errors:");
-        for (var error in validationErrors) {
-          print("DEBUG: - $error");
-        }
-        
+      // If there are validation errors, don't proceed
+      if (hasValidationErrors) {
+        print("DEBUG: Validation failed");
         if (!mounted) return;
-        NotificationUtility.showError(
-          context,
-          message: 'Greške validacije:\n${validationErrors.join('\n')}',
-        );
+        setState(() {
+          _isLoadingTickets = false;
+        });
         return;
       }
       
@@ -399,25 +410,10 @@ class _TicketsContentState extends State<_TicketsContent> {
       if (!mounted) return;
       
       String errorMessage = _formatErrorMessage(e);
+      print("Error in _addTickets: $errorMessage");
       
-      // Check if it's a backend validation error about ticket limits
-      if (errorMessage.contains('Total released quantity cannot exceed 100') || 
-          errorMessage.contains('limit') || 
-          errorMessage.contains('100') || 
-          errorMessage.contains('maksimum') ||
-          errorMessage.contains('exceed')) {
-        NotificationUtility.showError(
-          context,
-          message: 'Greška validacije: Ukupna količina ulaznica ne može premašiti 100 po sektoru. Molim smanjite količinu.',
-        );
-      } else {
-        NotificationUtility.showError(
-          context,
-          message: 'Greška tokom dodavanja ulaznica: $errorMessage',
-        );
-      }
-      
-      print("Error in _addTickets: $e");
+      // For backend errors, we'll just log them and not show notifications
+      // The validation should be handled by the frontend visual feedback
     } finally {
       if (mounted) {
         setState(() {
@@ -434,6 +430,7 @@ class _TicketsContentState extends State<_TicketsContent> {
     setState(() {
       // Clear the sector values but keep the form state
       _sectorValues.clear();
+      _sectorValidationErrors.clear(); // Clear validation errors
       
       // Don't attempt to initialize sectors if they're not loaded yet
       if (_stadiumSectors.isNotEmpty) {
@@ -773,7 +770,7 @@ class _TicketsContentState extends State<_TicketsContent> {
                                                   orElse: () => StadiumSector(id: 0, capacity: 0, code: 'Nepoznat')
                                                 );
                                                 
-                                                final isOverLimit = (ticket.releasedQuantity ?? 0) > 100;
+                                                final isOverLimit = (ticket.releasedQuantity ?? 0) > sector.capacity;
                                                 
                                                 return Container(
                                                   padding: const EdgeInsets.all(16),
@@ -815,7 +812,7 @@ class _TicketsContentState extends State<_TicketsContent> {
                                                           ),
                                                           const SizedBox(width: 8),
                                                           Text(
-                                                            sector.sideName ?? 'Nepoznato',
+                                                            sector.stadiumSide?.name ?? 'Nepoznato',
                                                             style: TextStyle(
                                                               fontSize: 12,
                                                               color: Colors.grey[600],
@@ -863,10 +860,6 @@ class _TicketsContentState extends State<_TicketsContent> {
                                                             
                                                             Row(
                                                               children: [
-                                                                Icon(Icons.attach_money, 
-                                                                     size: 16, 
-                                                                     color: Colors.green[600]),
-                                                                const SizedBox(width: 4),
                                                                 Text(
                                                                   '${ticket.price?.toStringAsFixed(2) ?? '0.00'} KM',
                                                                   style: const TextStyle(
@@ -976,7 +969,7 @@ class _TicketsContentState extends State<_TicketsContent> {
                                               const SizedBox(width: 8),
                                               Expanded(
                                                 child: Text(
-                                                  'Maksimalno 100 ulaznica po sektoru',
+                                                  'Maksimalna količina ovisi o kapacitetu sektora',
                                                   style: TextStyle(
                                                     fontSize: 12,
                                                     color: Colors.blue[700],
@@ -997,17 +990,25 @@ class _TicketsContentState extends State<_TicketsContent> {
                                               final sectorId = sector.id;
                                               final existingTicket = _existingTickets[sectorId];
                                               final currentQuantity = existingTicket?.releasedQuantity ?? 0;
-                                              final maxCanAdd = math.max(0, 100 - currentQuantity);
+                                              final existingPrice = existingTicket?.price;
+                                              final maxCanAdd = math.max(0, sector.capacity - currentQuantity);
                                               final canAddTickets = maxCanAdd > 0;
+                                              final hasValidationError = _sectorValidationErrors.containsKey(sectorId);
+                                              final validationError = _sectorValidationErrors[sectorId];
                                               
                                               return Container(
                                                 margin: const EdgeInsets.only(bottom: 16),
                                                 padding: const EdgeInsets.all(16),
                                                 decoration: BoxDecoration(
-                                                  color: canAddTickets ? Colors.grey[50] : Colors.red[50],
+                                                  color: hasValidationError 
+                                                      ? Colors.red[50] 
+                                                      : (canAddTickets ? Colors.grey[50] : Colors.red[50]),
                                                   borderRadius: BorderRadius.circular(8),
                                                   border: Border.all(
-                                                    color: canAddTickets ? Colors.grey[200]! : Colors.red[200]!,
+                                                    color: hasValidationError 
+                                                        ? Colors.red[400]! 
+                                                        : (canAddTickets ? Colors.grey[200]! : Colors.red[200]!),
+                                                    width: hasValidationError ? 2 : 1,
                                                   ),
                                                 ),
                                                 child: Column(
@@ -1064,7 +1065,7 @@ class _TicketsContentState extends State<_TicketsContent> {
                                                             const SizedBox(width: 8),
                                                             Expanded(
                                                               child: Text(
-                                                                'Sektor je popunjen (${currentQuantity}/100)',
+                                                                'Sektor je popunjen (${currentQuantity}/${sector.capacity})',
                                                                 style: TextStyle(
                                                                   fontSize: 12,
                                                                   color: Colors.red[700],
@@ -1077,6 +1078,7 @@ class _TicketsContentState extends State<_TicketsContent> {
                                                       ),
                                                     ] else ...[
                                                       Row(
+                                                        crossAxisAlignment: CrossAxisAlignment.start,
                                                         children: [
                                                           // Quantity field
                                                           Expanded(
@@ -1098,7 +1100,21 @@ class _TicketsContentState extends State<_TicketsContent> {
                                                                   decoration: InputDecoration(
                                                                     hintText: 'Broj dodatnih',
                                                                     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                                                    border: const OutlineInputBorder(),
+                                                                    border: OutlineInputBorder(
+                                                                      borderSide: BorderSide(
+                                                                        color: hasValidationError ? Colors.red[400]! : Colors.grey[300]!,
+                                                                      ),
+                                                                    ),
+                                                                    enabledBorder: OutlineInputBorder(
+                                                                      borderSide: BorderSide(
+                                                                        color: hasValidationError ? Colors.red[400]! : Colors.grey[300]!,
+                                                                      ),
+                                                                    ),
+                                                                    focusedBorder: OutlineInputBorder(
+                                                                      borderSide: BorderSide(
+                                                                        color: hasValidationError ? Colors.red[400]! : Colors.blue[600]!,
+                                                                      ),
+                                                                    ),
                                                                     isDense: true,
                                                                     fillColor: canAddTickets ? Colors.white : Colors.grey[100],
                                                                     filled: true,
@@ -1120,9 +1136,9 @@ class _TicketsContentState extends State<_TicketsContent> {
                                                             child: Column(
                                                               crossAxisAlignment: CrossAxisAlignment.start,
                                                               children: [
-                                                                const Text(
+                                                                Text(
                                                                   'Cijena (KM)',
-                                                                  style: TextStyle(
+                                                                  style: const TextStyle(
                                                                     fontSize: 12, 
                                                                     fontWeight: FontWeight.w500
                                                                   ),
@@ -1130,21 +1146,44 @@ class _TicketsContentState extends State<_TicketsContent> {
                                                                 const SizedBox(height: 4),
                                                                 TextFormField(
                                                                   key: ValueKey('price_${sector.id}_$_formRebuildCounter'),
-                                                                  initialValue: '', // Always empty
-                                                                  enabled: canAddTickets,
+                                                                  initialValue: existingPrice != null ? existingPrice.toStringAsFixed(2) : '',
+                                                                  enabled: canAddTickets && existingPrice == null,
                                                                   decoration: InputDecoration(
-                                                                    hintText: 'Unesite cijenu',
+                                                                    hintText: existingPrice != null 
+                                                                        ? 'Postojeća: ${existingPrice.toStringAsFixed(2)} KM' 
+                                                                        : 'Unesite cijenu',
                                                                     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                                                    border: const OutlineInputBorder(),
+                                                                    border: OutlineInputBorder(
+                                                                      borderSide: BorderSide(
+                                                                        color: hasValidationError ? Colors.red[400]! : Colors.grey[300]!,
+                                                                      ),
+                                                                    ),
+                                                                    enabledBorder: OutlineInputBorder(
+                                                                      borderSide: BorderSide(
+                                                                        color: hasValidationError ? Colors.red[400]! : Colors.grey[300]!,
+                                                                      ),
+                                                                    ),
+                                                                    focusedBorder: OutlineInputBorder(
+                                                                      borderSide: BorderSide(
+                                                                        color: hasValidationError ? Colors.red[400]! : Colors.blue[600]!,
+                                                                      ),
+                                                                    ),
                                                                     isDense: true,
-                                                                    fillColor: canAddTickets ? Colors.white : Colors.grey[100],
+                                                                    fillColor: existingPrice != null 
+                                                                        ? Colors.grey[100] 
+                                                                        : (canAddTickets ? Colors.white : Colors.grey[100]),
                                                                     filled: true,
                                                                   ),
-                                                                  style: const TextStyle(fontSize: 14),
+                                                                  style: TextStyle(
+                                                                    fontSize: 14,
+                                                                    color: existingPrice != null ? Colors.grey[600] : null,
+                                                                  ),
                                                                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                                                                   inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
                                                                   onChanged: (value) {
-                                                                    _updateSectorValue(sector.id, 'price', double.tryParse(value) ?? 0.0);
+                                                                    if (existingPrice == null) {
+                                                                      _updateSectorValue(sector.id, 'price', double.tryParse(value) ?? 0.0);
+                                                                    }
                                                                   },
                                                                 ),
                                                               ],
@@ -1152,6 +1191,64 @@ class _TicketsContentState extends State<_TicketsContent> {
                                                           ),
                                                         ],
                                                       ),
+                                                      
+                                                      // Show price info below the fields if existing price
+                                                      if (existingPrice != null) ...[
+                                                        const SizedBox(height: 8),
+                                                        Container(
+                                                          padding: const EdgeInsets.all(8),
+                                                          decoration: BoxDecoration(
+                                                            color: Colors.blue[50],
+                                                            borderRadius: BorderRadius.circular(6),
+                                                            border: Border.all(color: Colors.blue[200]!),
+                                                          ),
+                                                          child: Row(
+                                                            children: [
+                                                              Icon(Icons.info_outline, color: Colors.blue[600], size: 16),
+                                                              const SizedBox(width: 8),
+                                                              Expanded(
+                                                                child: Text(
+                                                                  'Postojeća cijena ${existingPrice.toStringAsFixed(2)} KM će biti zadržana',
+                                                                  style: TextStyle(
+                                                                    fontSize: 12,
+                                                                    color: Colors.blue[700],
+                                                                    fontWeight: FontWeight.w500,
+                                                                  ),
+                                                                ),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        ),
+                                                      ],
+                                                      
+                                                      // Show validation error if exists
+                                                      if (hasValidationError && validationError != null) ...[
+                                                        const SizedBox(height: 8),
+                                                        Container(
+                                                          padding: const EdgeInsets.all(8),
+                                                          decoration: BoxDecoration(
+                                                            color: Colors.red[100],
+                                                            borderRadius: BorderRadius.circular(6),
+                                                            border: Border.all(color: Colors.red[300]!),
+                                                          ),
+                                                          child: Row(
+                                                            children: [
+                                                              Icon(Icons.error_outline, color: Colors.red[600], size: 16),
+                                                              const SizedBox(width: 8),
+                                                              Expanded(
+                                                                child: Text(
+                                                                  validationError,
+                                                                  style: TextStyle(
+                                                                    fontSize: 12,
+                                                                    color: Colors.red[700],
+                                                                    fontWeight: FontWeight.w500,
+                                                                  ),
+                                                                ),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        ),
+                                                      ],
                                                     ],
                                                   ],
                                                 ),

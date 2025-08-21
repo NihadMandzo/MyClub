@@ -147,6 +147,7 @@ class _OrdersContentState extends State<_OrdersContent> {
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
+                color: Colors.blue,
               ),
             ),
             const SizedBox(height: 16),
@@ -160,9 +161,18 @@ class _OrdersContentState extends State<_OrdersContent> {
                     decoration: InputDecoration(
                       hintText: 'Pretraga po broju narudžbe ili imenu kupca',
                       prefixIcon: const Icon(Icons.search),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: Colors.blue.shade300),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: Colors.blue.shade600, width: 2),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: Colors.blue.shade300),
+                            ),
                       contentPadding: const EdgeInsets.symmetric(vertical: 12),
                     ),
                     onSubmitted: (_) => _onSearch(),
@@ -172,6 +182,13 @@ class _OrdersContentState extends State<_OrdersContent> {
                 ElevatedButton(
                   onPressed: _onSearch,
                   child: const Text('Pretraži'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
                 ),
                 const SizedBox(width: 8),
                 if (_searchText != null && _searchText!.isNotEmpty)
