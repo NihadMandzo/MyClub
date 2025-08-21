@@ -15,11 +15,14 @@ namespace MyClub.Services
         private readonly IBlobStorageService _blobStorageService;
         private const string _containerName = "products";
 
-        public ProductService(MyClubContext context, IMapper mapper, IBlobStorageService blobStorageService) 
+        private readonly IRecommendationService _recommendationService;
+
+        public ProductService(MyClubContext context, IMapper mapper, IBlobStorageService blobStorageService, IRecommendationService recommendationService)
             : base(context, mapper)
         {
             _context = context;
             _blobStorageService = blobStorageService;
+            _recommendationService = recommendationService;
         }
 
         // Custom implementation of GetAsync to include related data
@@ -54,7 +57,7 @@ namespace MyClub.Services
             }
 
             var list = await query.ToListAsync();
-            
+
             return new PagedResult<ProductResponse>
             {
                 Data = list.Select(x => MapToResponse(x)).ToList(),
@@ -82,15 +85,15 @@ namespace MyClub.Services
 
             return MapToResponse(entity);
         }
-        
+
         protected override IQueryable<Database.Product> ApplyFilter(IQueryable<Database.Product> query, ProductSearchObject search)
         {
             // Implement full-text search
             if (!string.IsNullOrWhiteSpace(search?.FTS))
             {
                 string searchTerm = search.FTS.Trim().ToLower();
-                query = query.Where(p => 
-                    p.Name.ToLower().Contains(searchTerm) || 
+                query = query.Where(p =>
+                    p.Name.ToLower().Contains(searchTerm) ||
                     p.Description.ToLower().Contains(searchTerm) ||
                     p.Category.Name.ToLower().Contains(searchTerm) ||
                     p.Color.Name.ToLower().Contains(searchTerm)
@@ -289,11 +292,11 @@ namespace MyClub.Services
                         {
                             Url = imageUrl,
                         };
-                        
+
                         // First add and save the asset to get its ID
                         await _context.Assets.AddAsync(asset);
                         await _context.SaveChangesAsync();
-                        
+
                         // Now create the relationship with the valid ID
                         var productAsset = new ProductAsset
                         {
@@ -338,7 +341,7 @@ namespace MyClub.Services
                 {
                     // Get existing product sizes
                     var existingSizes = entity.ProductSizes.ToDictionary(ps => ps.SizeId, ps => ps);
-                    
+
                     foreach (var sizeRequest in request.ProductSizes)
                     {
                         // If size already exists for this product, update the quantity
@@ -358,17 +361,17 @@ namespace MyClub.Services
                             await _context.ProductSizes.AddAsync(productSize);
                         }
                     }
-                    
+
                     // Handle sizes that are not in the request
                     var requestSizeIds = request.ProductSizes.Select(ps => ps.SizeId).ToHashSet();
                     var sizesToRemove = entity.ProductSizes.Where(ps => !requestSizeIds.Contains(ps.SizeId)).ToList();
-                    
+
                     foreach (var sizeToRemove in sizesToRemove)
                     {
                         // Check if this product size is referenced in any order
                         var isUsedInOrder = await _context.OrderItems
                             .AnyAsync(oi => oi.ProductSizeId == sizeToRemove.Id);
-                        
+
                         if (isUsedInOrder)
                         {
                             // If used in orders, just set quantity to 0 instead of removing
@@ -389,7 +392,7 @@ namespace MyClub.Services
                         // Check if this product size is referenced in any order
                         var isUsedInOrder = await _context.OrderItems
                             .AnyAsync(oi => oi.ProductSizeId == existingSize.Id);
-                        
+
                         if (isUsedInOrder)
                         {
                             // If used in orders, just set quantity to 0 instead of removing
@@ -407,7 +410,7 @@ namespace MyClub.Services
                 var imagesToDelete = entity.ProductAssets
                     .Where(pa => request.ImagesToKeep == null || !request.ImagesToKeep.Contains(pa.AssetId))
                     .ToList();
-                
+
                 foreach (var image in imagesToDelete)
                 {
                     // Delete from Azure Blob Storage - ensure URL is not null
@@ -419,10 +422,10 @@ namespace MyClub.Services
                     // First remove the relationship
                     _context.ProductAssets.Remove(image);
                 }
-                
+
                 // Save changes after removing relationships
                 await _context.SaveChangesAsync();
-                
+
                 // Now remove the assets that are no longer referenced by any product
                 foreach (var image in imagesToDelete)
                 {
@@ -431,14 +434,14 @@ namespace MyClub.Services
                         // Check if this asset is used by any other product before deleting
                         var isAssetUsedElsewhere = await _context.ProductAssets
                             .AnyAsync(pa => pa.AssetId == image.AssetId);
-                            
+
                         if (!isAssetUsedElsewhere)
                         {
                             _context.Assets.Remove(image.Asset);
                         }
                     }
                 }
-                
+
                 // Save changes after deleting assets
                 await _context.SaveChangesAsync();
 
@@ -455,11 +458,11 @@ namespace MyClub.Services
                         {
                             Url = imageUrl,
                         };
-                        
+
                         // First add and save the asset to get its ID
                         await _context.Assets.AddAsync(asset);
                         await _context.SaveChangesAsync();
-                        
+
                         // Now create the relationship with the valid ID
                         var productAsset = new ProductAsset
                         {
@@ -521,7 +524,7 @@ namespace MyClub.Services
             // Validate name is unique
             var nameExists = await _context.Products
                 .AnyAsync(p => p.Name == request.Name && (id == null || p.Id != id));
-                
+
             if (nameExists)
                 throw new UserException($"Product with name '{request.Name}' already exists");
 
@@ -530,7 +533,7 @@ namespace MyClub.Services
             {
                 var barcodeExists = await _context.Products
                     .AnyAsync(p => p.BarCode == request.BarCode && (id == null || p.Id != id));
-                    
+
                 if (barcodeExists)
                     throw new UserException($"Product with barcode '{request.BarCode}' already exists");
             }
@@ -541,7 +544,7 @@ namespace MyClub.Services
         private ProductResponse MapToResponse(Database.Product entity)
         {
             var response = _mapper.Map<ProductResponse>(entity);
-            
+
             // Handle Category
             if (entity.Category != null)
             {
@@ -551,7 +554,7 @@ namespace MyClub.Services
                     Name = entity.Category.Name
                 };
             }
-            
+
             // Handle Color
             if (entity.Color != null)
             {
@@ -562,7 +565,7 @@ namespace MyClub.Services
                     HexCode = entity.Color.HexCode
                 };
             }
-            
+
             // Handle PrimaryImageUrl safely
             var firstProductAsset = entity.ProductAssets?.FirstOrDefault();
             if (firstProductAsset != null && firstProductAsset.Asset != null)
@@ -573,7 +576,7 @@ namespace MyClub.Services
                     ImageUrl = firstProductAsset.Asset.Url
                 };
             }
-            
+
             // Handle ImageUrls safely
             response.ImageUrls = entity.ProductAssets?
                 .Where(pa => pa.Asset != null)
@@ -583,7 +586,7 @@ namespace MyClub.Services
                     ImageUrl = pa.Asset.Url
                 })
                 .ToList() ?? new List<AssetResponse>();
-            
+
             // Handle Sizes safely
             response.Sizes = entity.ProductSizes?
                 .Where(ps => ps.Size != null)
@@ -598,7 +601,7 @@ namespace MyClub.Services
                     Quantity = ps.Quantity
                 })
                 .ToList() ?? new List<ProductSizeResponse>();
-            
+
             return response;
         }
 
@@ -629,6 +632,45 @@ namespace MyClub.Services
             entity.IsActive = request.IsActive;
             entity.UpdatedAt = DateTime.UtcNow;
             return entity;
+        }
+
+        public async Task<List<ProductResponse>> GetRecommendationsAsync(int userId, int count = 10)
+        {
+            try
+            {
+                if (!_recommendationService.IsModelTrained())
+                {
+                    await _recommendationService.TrainModelAsync();
+                }
+                var recs = await _recommendationService.GetRecommendationsAsync(userId, count);
+                if (recs == null || !recs.Any())
+                {
+                    // Fallback to newest products if no recommendations found
+                    return await GetNewestProductsAsync(count);
+                }
+                return recs;
+            }
+            catch
+            {
+                return await GetNewestProductsAsync(count);
+            }
+        }
+
+        private async Task<List<ProductResponse>> GetNewestProductsAsync(int count)
+        {
+            var newest = await _context.Products
+                .Where(p => p.IsActive)
+                .Include(p => p.Category)
+                .Include(p => p.Color)
+                .Include(p => p.ProductAssets)
+                .ThenInclude(pa => pa.Asset)
+                .Include(p => p.ProductSizes)
+                .ThenInclude(ps => ps.Size)
+                .OrderByDescending(p => p.Id)
+                .Take(count)
+                .ToListAsync();
+
+            return newest.Select(MapToResponse).ToList();
         }
     }
 }

@@ -12,6 +12,6 @@ namespace MyClub.Services
 {
     public interface IProductService : ICRUDService<ProductResponse, ProductSearchObject, ProductUpsertRequest, ProductUpsertRequest>
     {
-
+        Task<List<ProductResponse>> GetRecommendationsAsync(int userId, int count = 10);
     }
 }
