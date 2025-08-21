@@ -27,6 +27,7 @@ class _InfoScreenState extends State<InfoScreen> with TickerProviderStateMixin {
   ClubResponse? _clubInfo;
   bool _isLoading = false;
   bool _isMembershipLoading = false;
+  bool _isCardExpanded = false;
 
   @override
   void initState() {
@@ -748,9 +749,55 @@ class _InfoScreenState extends State<InfoScreen> with TickerProviderStateMixin {
 
   /// Build club information card
   Widget _buildClubInfoCard(BuildContext context) {
+    // Show loading state if club info is not loaded yet
+    if (_clubInfo == null) {
+      return Card(
+        elevation: ResponsiveHelper.cardElevation(context),
+        child: Container(
+          width: double.infinity,
+          height: 300,
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            gradient: LinearGradient(
+              colors: [
+                Theme.of(context).primaryColor,
+                Theme.of(context).primaryColor.withOpacity(0.8),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.sports_soccer,
+                size: ResponsiveHelper.iconSize(context) + 20,
+                color: Colors.white,
+              ),
+              const SizedBox(height: 16),
+              const CircularProgressIndicator(
+                color: Colors.white,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Učitavanje informacija o klubu...',
+                style: TextStyle(
+                  fontSize: ResponsiveHelper.font(context, base: 16),
+                  color: Colors.white70,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Card(
       elevation: ResponsiveHelper.cardElevation(context),
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
         width: double.infinity,
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
@@ -765,36 +812,239 @@ class _InfoScreenState extends State<InfoScreen> with TickerProviderStateMixin {
           ),
         ),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.sports_soccer,
-              size: ResponsiveHelper.iconSize(context) + 20,
-              color: Colors.white,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              _clubInfo!.name ?? 'N/A',
-              style: TextStyle(
-                fontSize: ResponsiveHelper.font(context, base: 28),
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Osnovan ${_clubInfo!.establishedDate?.year ?? 'N/A'}.',
-              style: TextStyle(
-                fontSize: ResponsiveHelper.font(context, base: 16),
-                color: Colors.white70,
-              ),
-            ),
-            const SizedBox(height: 16),
+            // Club header with logo and basic info
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                _buildStatItem(context, '${DateTime.now().year - _clubInfo!.establishedDate!.year}', 'Godine'),
-                _buildStatItem(context, '${_clubInfo!.numberOfTitles ?? 0}', 'Trofeji'),
+                // Club logo
+                if (_clubInfo?.imageUrl != null)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(
+                      _clubInfo!.imageUrl!,
+                      width: 60,
+                      height: 60,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          width: 60,
+                          height: 60,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            Icons.sports_soccer,
+                            size: 30,
+                            color: Colors.white,
+                          ),
+                        );
+                      },
+                    ),
+                  )
+                else
+                  Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      Icons.sports_soccer,
+                      size: 30,
+                      color: Colors.white,
+                    ),
+                  ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _clubInfo?.name ?? 'N/A',
+                        style: TextStyle(
+                          fontSize: ResponsiveHelper.font(context, base: 22),
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Osnovan ${_clubInfo?.establishedDate?.year ?? 'N/A'}.',
+                        style: TextStyle(
+                          fontSize: ResponsiveHelper.font(context, base: 14),
+                          color: Colors.white70,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
+            ),
+            const SizedBox(height: 16),
+            
+            // Stadium information
+            if (_clubInfo?.stadiumName != null || _clubInfo?.stadiumLocation != null)
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.stadium,
+                      size: 20,
+                      color: Colors.white,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (_clubInfo?.stadiumName != null)
+                            Text(
+                              _clubInfo!.stadiumName!,
+                              style: TextStyle(
+                                fontSize: ResponsiveHelper.font(context, base: 14),
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                          if (_clubInfo?.stadiumLocation != null)
+                            Text(
+                              _clubInfo!.stadiumLocation!,
+                              style: TextStyle(
+                                fontSize: ResponsiveHelper.font(context, base: 12),
+                                color: Colors.white70,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            
+            if (!_isCardExpanded) ...[
+              const SizedBox(height: 16),
+              // Stats row
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildStatItem(
+                    context, 
+                    _clubInfo?.establishedDate != null 
+                      ? '${DateTime.now().year - _clubInfo!.establishedDate!.year}' 
+                      : 'N/A', 
+                    'Godine'
+                  ),
+                  _buildStatItem(context, '${_clubInfo?.numberOfTitles ?? 0}', 'Trofeji'),
+                ],
+              ),
+            ],
+            
+            if (_isCardExpanded) ...[
+              const SizedBox(height: 16),
+              // Expanded content
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Stats row in expanded view
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        _buildStatItem(
+                          context, 
+                          _clubInfo?.establishedDate != null 
+                            ? '${DateTime.now().year - _clubInfo!.establishedDate!.year}' 
+                            : 'N/A', 
+                          'Godine'
+                        ),
+                        _buildStatItem(context, '${_clubInfo?.numberOfTitles ?? 0}', 'Trofeji'),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // Description
+                    if (_clubInfo?.description != null) ...[
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            size: 18,
+                            color: Colors.white,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'O klubu',
+                            style: TextStyle(
+                              fontSize: ResponsiveHelper.font(context, base: 16),
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _clubInfo!.description,
+                        style: TextStyle(
+                          fontSize: ResponsiveHelper.font(context, base: 14),
+                          color: Colors.white,
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+            
+            const SizedBox(height: 12),
+            // Expand/Collapse button
+            GestureDetector(
+              onTap: () {
+                setState(() {
+                  _isCardExpanded = !_isCardExpanded;
+                });
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _isCardExpanded ? 'Prikaži manje' : 'Prikaži više',
+                      style: TextStyle(
+                        fontSize: ResponsiveHelper.font(context, base: 12),
+                        color: Colors.white,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(
+                      _isCardExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                  ],
+                ),
+              ),
             ),
           ],
         ),
