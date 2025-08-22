@@ -291,16 +291,12 @@ namespace MyClub.Services
                     .ThenInclude(ss => ss.StadiumSide)
                     .FirstOrDefaultAsync(ut => ut.QRCode == request.QRCodeData);
 
-                if (userTicket == null)
-                    return new QRValidationResponse { IsValid = false, Message = "Ticket not found" };
-
-                // Check if the ticket has already been used
-                if (!userTicket.IsValid)
-                    return new QRValidationResponse { IsValid = false, Message = $"Ticket is invalid" };
-
+                if (userTicket == null || !userTicket.IsValid)
+                    return new QRValidationResponse { IsValid = false, Message = "Karta nije validna" }; 
+                    
                 // Check if the match is in the future
-                if (userTicket.MatchTicket.Match.MatchDate < DateTime.UtcNow)
-                    return new QRValidationResponse { IsValid = false, Message = "Match has already taken place" };
+                if (userTicket.MatchTicket.Match.MatchDate < (DateTime.UtcNow + TimeSpan.FromMinutes(10)))
+                    return new QRValidationResponse { IsValid = false, Message = "Utakmica je već odigrana" };
 
                 // Mark the ticket as used
                 userTicket.IsValid = false;
@@ -310,7 +306,7 @@ namespace MyClub.Services
                 return new QRValidationResponse
                 {
                     IsValid = true,
-                    Message = "Ticket is valid",
+                    Message = "Karta je validna",
                 };
             }
             catch (Exception ex)

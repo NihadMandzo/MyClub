@@ -1,8 +1,7 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:qr_code_scanner/qr_code_scanner.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:myclub_mobile/providers/match_provider.dart';
 import 'package:provider/provider.dart';
-import '../providers/ticket_validation_provider.dart';
 import '../providers/auth_provider.dart';
 import '../utility/auth_helper.dart';
 
@@ -14,33 +13,34 @@ class AdminQRScannerScreen extends StatefulWidget {
 }
 
 class _AdminQRScannerScreenState extends State<AdminQRScannerScreen> {
-  Barcode? result;
-  QRViewController? controller;
-  final GlobalKey qrKey = GlobalKey(debugLabel: 'QR');
+  BarcodeCapture? result;
+  MobileScannerController? controller;
   bool isLoading = false;
   String? lastScannedData;
   String? validationMessage;
   bool? isValid;
 
-  late TicketValidationProvider _ticketValidationProvider;
+  late MatchProvider _matchProvider;
 
   @override
   void initState() {
     super.initState();
-    _ticketValidationProvider = TicketValidationProvider();
+    _matchProvider = MatchProvider();
+    controller = MobileScannerController();
+  }
+  
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Set context for the match provider
+    _matchProvider.setContext(context);
   }
 
-  // In order to get hot reload to work we need to pause the camera if the platform
-  // is android, or resume the camera if the platform is iOS.
+  // No need for reassemble method with mobile_scanner
   @override
   void reassemble() {
     super.reassemble();
-    if (controller != null) {
-      if (Platform.isAndroid) {
-        controller!.pauseCamera();
-      }
-      controller!.resumeCamera();
-    }
+    // mobile_scanner handles platform differences automatically
   }
 
   @override
@@ -200,7 +200,7 @@ class _AdminQRScannerScreenState extends State<AdminQRScannerScreen> {
                                 isValid = null;
                                 lastScannedData = null;
                               });
-                              controller?.resumeCamera();
+                              controller?.start();
                             },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF1976D2),
@@ -225,18 +225,12 @@ class _AdminQRScannerScreenState extends State<AdminQRScannerScreen> {
                       // Flash control
                       IconButton(
                         onPressed: () async {
-                          await controller?.toggleFlash();
-                          setState(() {});
+                          await controller?.toggleTorch();
                         },
-                        icon: FutureBuilder(
-                          future: controller?.getFlashStatus(),
-                          builder: (context, snapshot) {
-                            return Icon(
-                              snapshot.data == true ? Icons.flash_on : Icons.flash_off,
-                              color: const Color(0xFF1976D2),
-                              size: 32,
-                            );
-                          },
+                        icon: const Icon(
+                          Icons.flash_auto,
+                          color: Color(0xFF1976D2),
+                          size: 32,
                         ),
                       ),
                     ],
@@ -253,18 +247,9 @@ class _AdminQRScannerScreenState extends State<AdminQRScannerScreen> {
   Widget _buildQrView(BuildContext context) {
     return Stack(
       children: [
-        QRView(
-          key: qrKey,
-          onQRViewCreated: _onQRViewCreated,
-          overlay: QrScannerOverlayShape(
-            borderColor: Colors.transparent,
-            borderRadius: 0,
-            borderLength: 0,
-            borderWidth: 0,
-            cutOutSize: 300.0,
-            overlayColor: Colors.transparent,
-          ),
-          onPermissionSet: (ctrl, p) => _onPermissionSet(context, ctrl, p),
+        MobileScanner(
+          controller: controller,
+          onDetect: _onBarcodeDetect,
         ),
         // Custom scanning indicator
         Center(
@@ -288,35 +273,30 @@ class _AdminQRScannerScreenState extends State<AdminQRScannerScreen> {
     );
   }
 
-  void _onQRViewCreated(QRViewController controller) {
-    setState(() {
-      this.controller = controller;
-    });
-    
-    // Set context for the ticket validation provider
-    _ticketValidationProvider.setContext(context);
-    
-    controller.scannedDataStream.listen((scanData) {
-      if (!isLoading && scanData.code != lastScannedData && scanData.code != null) {
+  void _onBarcodeDetect(BarcodeCapture capture) {
+    final List<Barcode> barcodes = capture.barcodes;
+    if (barcodes.isNotEmpty && !isLoading) {
+      final barcode = barcodes.first;
+      if (barcode.rawValue != null && barcode.rawValue != lastScannedData) {
         setState(() {
-          result = scanData;
-          lastScannedData = scanData.code;
+          result = capture;
+          lastScannedData = barcode.rawValue;
           isLoading = true;
           validationMessage = null;
           isValid = null;
         });
         
-        // Pause camera while processing
-        controller.pauseCamera();
-        _validateTicket(scanData.code!);
+        // Stop camera while processing
+        controller?.stop();
+        _validateTicket(barcode.rawValue!);
       }
-    });
+    }
   }
 
   Future<void> _validateTicket(String qrData) async {
     try {
-      final response = await _ticketValidationProvider.validateTicket(qrData);
-      
+      final response = await _matchProvider.validateTicket(qrData);
+
       setState(() {
         isLoading = false;
         isValid = response.isValid;
@@ -349,14 +329,6 @@ class _AdminQRScannerScreenState extends State<AdminQRScannerScreen> {
           ),
         );
       }
-    }
-  }
-
-  void _onPermissionSet(BuildContext context, QRViewController ctrl, bool p) {
-    if (!p) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Camera permission is required to scan QR codes')),
-      );
     }
   }
 

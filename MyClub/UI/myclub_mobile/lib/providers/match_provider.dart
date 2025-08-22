@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:myclub_mobile/models/requests/qr_validation_request.dart';
+import 'package:myclub_mobile/models/responses/qr_validation_response.dart';
 import 'package:myclub_mobile/models/search_objects/base_search_object.dart';
 import '../models/responses/match_response.dart';
 import '../models/responses/paged_result.dart';
@@ -119,6 +121,28 @@ Future<PagedResult<MatchResponse>> getPastMatches() async {
       }
     } catch (e) {
       throw Exception("Greška pri dohvatanju korisničkih ulaznica: $e");
+    }
+  }
+
+    /// Validate QR code ticket
+  Future<QRValidationResponse> validateTicket(String qrCodeData) async {
+    var url = "${BaseProvider.baseUrl}$endpoint/validate-ticket";
+    var uri = Uri.parse(url);
+    var headers = createHeaders();
+
+    var request = QRValidationRequest(qrCodeData: qrCodeData);
+    var jsonRequest = jsonEncode(request.toJson());
+
+    print("Ticket validation URL: $url");
+    print("Request body: $jsonRequest");
+
+    var response = await http.post(uri, headers: headers, body: jsonRequest);
+
+    if (isValidResponse(response)) {
+      var data = jsonDecode(response.body);
+      return QRValidationResponse.fromJson(data);
+    } else {
+      throw Exception("Greška tokom validacije tiketa");
     }
   }
 }

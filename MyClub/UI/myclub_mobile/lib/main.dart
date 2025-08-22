@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_stripe/flutter_stripe.dart';
 
 // Providers
 import 'providers/auth_provider.dart';
@@ -18,7 +19,7 @@ import 'providers/player_provider.dart';
 import 'providers/cart_provider.dart';
 import 'providers/user_membership_card_provider.dart';
 import 'providers/order_provider.dart';
-import 'providers/ticket_validation_provider.dart';
+import 'providers/city_provider.dart';
 
 // Screens
 import 'screens/login_screen.dart';
@@ -27,6 +28,10 @@ import 'screens/admin_qr_scanner_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize Stripe
+  Stripe.publishableKey = 'pk_test_51RfItJPbM3J89QMyHbK9bhxkSCXFD392r6CDLnrsBWSekppq8XPYFoYCvA5sQl0VFCQ6038HZ5vGxddcjOerFpwN00vRgBKhfF'; // Replace with your actual publishable key
+  
   // Set system UI colors before the app runs
   runApp(const MyClubApp());
 }
@@ -51,7 +56,7 @@ class MyClubApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => CartProvider()),
         ChangeNotifierProvider(create: (_) => UserMembershipCardProvider()),
         ChangeNotifierProvider(create: (_) => OrderProvider()),
-        ChangeNotifierProvider(create: (_) => TicketValidationProvider()),
+        ChangeNotifierProvider(create: (_) => CityProvider()),
       ],
       child: Consumer<AuthProvider>(
         builder: (context, authProvider, child) {
