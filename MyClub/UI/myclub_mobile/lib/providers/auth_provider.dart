@@ -49,16 +49,16 @@ class AuthProvider with ChangeNotifier {
         var jsonResponse = json.decode(response.body);
         authResponse = AuthResponse.fromJson(jsonResponse);
         
-        // First check for user role (roleId should be 2 for user based on your change)
-        if (authResponse!.roleId != 2) {
-          // Don't set any auth data if not a user
-          errorMessage = "Pristup odbijen: Samo korisnici mogu koristiti ovu aplikaciju.";
+        // Check for user role (roleId should be 2 for regular users, 1 for admin)
+        if (authResponse!.roleId != 2 && authResponse!.roleId != 1) {
+          // Don't set any auth data if not a user or admin
+          errorMessage = "Pristup odbijen: Samo korisnici i administratori mogu koristiti ovu aplikaciju.";
           isLoading = false;
           notifyListeners();
           return false;
         }
         
-        // Only set authentication data if it's a user
+        // Set authentication data for both users and admins
         token = authResponse!.token;
         userId = authResponse!.userId;
         roleId = authResponse!.roleId;
@@ -73,7 +73,7 @@ class AuthProvider with ChangeNotifier {
           username: username,
         );
         
-        print("Login successful: Token received and saved for user");
+        print("Login successful: Token received and saved for ${isAdmin ? 'admin' : 'user'}");
         isLoading = false;
         notifyListeners();
         return true;
@@ -109,8 +109,14 @@ class AuthProvider with ChangeNotifier {
 
   bool get isAuthenticated => token != null;
   
-  // Additional check to ensure only admins are authorized (roleId = 2)
-  bool get isAuthorized => token != null && roleId == 2;
+  // Check if user is admin (roleId = 1)
+  bool get isAdmin => token != null && roleId == 1;
+  
+  // Check if user is regular user (roleId = 2)
+  bool get isUser => token != null && roleId == 2;
+  
+  // Additional check to ensure users and admins are authorized
+  bool get isAuthorized => token != null && (roleId == 1 || roleId == 2);
 
   /// Register a new user
   Future<bool> register(UserUpsertRequest request) async {

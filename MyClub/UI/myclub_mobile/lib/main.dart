@@ -18,10 +18,12 @@ import 'providers/player_provider.dart';
 import 'providers/cart_provider.dart';
 import 'providers/user_membership_card_provider.dart';
 import 'providers/order_provider.dart';
+import 'providers/ticket_validation_provider.dart';
 
 // Screens
 import 'screens/login_screen.dart';
 import 'screens/app_layout.dart';
+import 'screens/admin_qr_scanner_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -49,6 +51,7 @@ class MyClubApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => CartProvider()),
         ChangeNotifierProvider(create: (_) => UserMembershipCardProvider()),
         ChangeNotifierProvider(create: (_) => OrderProvider()),
+        ChangeNotifierProvider(create: (_) => TicketValidationProvider()),
       ],
       child: Consumer<AuthProvider>(
         builder: (context, authProvider, child) {
@@ -146,9 +149,17 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
     return Consumer<AuthProvider>(
       builder: (context, authProvider, child) {
-        return authProvider.isAuthorized
-            ? const AppLayout()
-            : const LoginScreen();
+        if (!authProvider.isAuthorized) {
+          return const LoginScreen();
+        }
+        
+        // If admin, show only QR scanner screen
+        if (authProvider.isAdmin) {
+          return const AdminQRScannerScreen();
+        }
+        
+        // If regular user, show app layout
+        return const AppLayout();
       },
     );
   }
