@@ -29,15 +29,11 @@ namespace MyClub.WebAPI
             return Ok(await _matchService.GetUpcomingMatchesAsync(search));
         }
 
-        [HttpPost("tickets/{ticketId}/purchase")]
-        public async Task<ActionResult<UserTicketResponse>> PurchaseTicket(int ticketId, [FromBody] TicketPurchaseRequest request)
+        [HttpPost("purchase-ticket")]
+        public async Task<ActionResult<UserTicketResponse>> PurchaseTicket([FromBody] TicketPurchaseRequest request)
         {
             // Get the user ID from the auth token
             int userId = GetUserIdFromToken();
-
-            request.MatchTicketId = ticketId;
-
-
             var result = await _matchService.PurchaseTicketAsync(request);
             return Ok(result);
         }
@@ -122,6 +118,12 @@ namespace MyClub.WebAPI
         {
             return Ok(await _matchService.GetPastMatchesAsync(search));
         }
-    }
 
+        [HttpPost("confirm")]
+        public async Task<IActionResult> ConfirmTicket([FromBody] string transactionId)
+        {
+            var result = await _matchService.ConfirmPurchaseTicketAsync(transactionId);
+            return Ok(result);
+        }
+    }
 } 

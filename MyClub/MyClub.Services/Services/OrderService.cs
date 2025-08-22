@@ -232,7 +232,7 @@ namespace MyClub.Services.Services
         }
         public async Task<OrderResponse> ConfirmOrder(ConfirmOrderRequest request)
         {
-            var baseOrderState = _baseOrderState.GetOrderState("Procesiranje");
+            var baseOrderState = _baseOrderState.GetOrderState("Iniciranje");
             var result = await baseOrderState.ConfirmOrder(request);
             return result;
         }

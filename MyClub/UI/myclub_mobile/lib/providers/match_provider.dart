@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:myclub_mobile/models/requests/qr_validation_request.dart';
+import 'package:myclub_mobile/models/requests/ticket_purchase_request.dart';
+import 'package:myclub_mobile/models/responses/payment_response.dart';
 import 'package:myclub_mobile/models/responses/qr_validation_response.dart';
 import 'package:myclub_mobile/models/search_objects/base_search_object.dart';
 import '../models/responses/match_response.dart';
@@ -143,6 +145,47 @@ Future<PagedResult<MatchResponse>> getPastMatches() async {
       return QRValidationResponse.fromJson(data);
     } else {
       throw Exception("Greška tokom validacije tiketa");
+    }
+  }
+
+  /// Purchase ticket
+  Future<PaymentResponse> purchaseTicket(TicketPurchaseRequest request) async {
+    var url = "${BaseProvider.baseUrl}$endpoint/purchase-ticket";
+    var uri = Uri.parse(url);
+    var headers = createHeaders();
+
+    var jsonRequest = jsonEncode(request.toJson());
+    print("API POST Purchase Ticket Request URL: $url");
+    print("API POST Purchase Ticket Request Body: $jsonRequest");
+    print("API POST Purchase Ticket Request Headers: $headers");
+
+    var response = await http.post(uri, headers: headers, body: jsonRequest);
+    print("API POST Purchase Ticket Response Status: ${response.statusCode}");
+    print("API POST Purchase Ticket Response Body: ${response.body}");
+
+    if (isValidResponse(response)) {
+      var data = jsonDecode(response.body);
+      return PaymentResponse.fromJson(data);
+    } else {
+      throw Exception("${response.statusCode}: ${response.body}");
+    }
+  }
+
+  /// Confirm ticket purchase
+  Future<void> confirmOrder(String transactionId) async {
+    var url = "${BaseProvider.baseUrl}$endpoint/confirm-ticket-purchase/$transactionId";
+    var uri = Uri.parse(url);
+    var headers = createHeaders();
+
+    print("API POST Confirm Ticket Purchase Request URL: $url");
+    print("API POST Confirm Ticket Purchase Request Headers: $headers");
+
+    var response = await http.post(uri, headers: headers);
+    print("API POST Confirm Ticket Purchase Response Status: ${response.statusCode}");
+    print("API POST Confirm Ticket Purchase Response Body: ${response.body}");
+
+    if (!isValidResponse(response)) {
+      throw Exception("${response.statusCode}: ${response.body}");
     }
   }
 }

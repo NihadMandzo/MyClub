@@ -705,24 +705,29 @@ class _ShopScreenState extends State<ShopScreen> {
 
   Widget _buildRecommendedSection() {
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 16),
+      margin: EdgeInsets.symmetric(
+        vertical: ResponsiveHelper.productCardSpacing(context, base: 16),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: ResponsiveHelper.pagePadding(context).copyWith(
+              top: 0,
+              bottom: 0,
+            ),
             child: Row(
               children: [
                 Icon(
                   Icons.recommend,
                   color: Colors.blue.shade700,
-                  size: 24,
+                  size: ResponsiveHelper.iconSize(context),
                 ),
-                const SizedBox(width: 8),
+                SizedBox(width: ResponsiveHelper.productCardSpacing(context, base: 8)),
                 Text(
                   'Preporučeno za tebe',
                   style: TextStyle(
-                    fontSize: 20,
+                    fontSize: ResponsiveHelper.titleSize(context),
                     fontWeight: FontWeight.bold,
                     color: Colors.blue.shade700,
                   ),
@@ -730,26 +735,31 @@ class _ShopScreenState extends State<ShopScreen> {
               ],
             ),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: ResponsiveHelper.productCardSpacing(context, base: 12)),
           if (_isRecommendedLoading)
             Container(
-              height: 200,
+              height: ResponsiveHelper.deviceSize(context) == DeviceSize.small ? 160 : 180,
               child: const Center(
                 child: CircularProgressIndicator(),
               ),
             )
           else
             Container(
-              height: 250,
+              height: ResponsiveHelper.recommendedCardHeight(context),
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                padding: ResponsiveHelper.pagePadding(context).copyWith(
+                  top: 0,
+                  bottom: 0,
+                ),
                 itemCount: _recommendedProducts.length,
                 itemBuilder: (context, index) {
                   final product = _recommendedProducts[index];
                   return Container(
-                    width: 150,
-                    margin: const EdgeInsets.only(right: 12),
+                    width: ResponsiveHelper.recommendedCardWidth(context),
+                    margin: EdgeInsets.only(
+                      right: ResponsiveHelper.productCardSpacing(context, base: 12),
+                    ),
                     child: _buildRecommendedProductCard(product),
                   );
                 },
@@ -762,8 +772,10 @@ class _ShopScreenState extends State<ShopScreen> {
 
   Widget _buildRecommendedProductCard(ProductResponse product) {
     return Card(
-      elevation: 3,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      elevation: ResponsiveHelper.cardElevation(context),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(ResponsiveHelper.productCardSpacing(context, base: 12)),
+      ),
       child: InkWell(
         onTap: () {
           Navigator.push(
@@ -776,7 +788,7 @@ class _ShopScreenState extends State<ShopScreen> {
             ),
           );
         },
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(ResponsiveHelper.productCardSpacing(context, base: 12)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -786,14 +798,14 @@ class _ShopScreenState extends State<ShopScreen> {
               child: Container(
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(10),
+                  borderRadius: BorderRadius.vertical(
+                    top: Radius.circular(ResponsiveHelper.productCardSpacing(context, base: 12)),
                   ),
                   color: Colors.white,
                 ),
                 child: ClipRRect(
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(10),
+                  borderRadius: BorderRadius.vertical(
+                    top: Radius.circular(ResponsiveHelper.productCardSpacing(context, base: 12)),
                   ),
                   child: product.primaryImageUrl.imageUrl.isNotEmpty
                       ? Image.network(
@@ -802,9 +814,9 @@ class _ShopScreenState extends State<ShopScreen> {
                           errorBuilder: (context, error, stackTrace) {
                             return Container(
                               color: Colors.white,
-                              child: const Icon(
+                              child: Icon(
                                 Icons.image_not_supported,
-                                size: 40,
+                                size: ResponsiveHelper.iconSize(context) * 1.5,
                                 color: Colors.grey,
                               ),
                             );
@@ -812,9 +824,9 @@ class _ShopScreenState extends State<ShopScreen> {
                         )
                       : Container(
                           color: Colors.white,
-                          child: const Icon(
+                          child: Icon(
                             Icons.image,
-                            size: 40,
+                            size: ResponsiveHelper.iconSize(context) * 1.5,
                             color: Colors.grey,
                           ),
                         ),
@@ -825,63 +837,51 @@ class _ShopScreenState extends State<ShopScreen> {
             Expanded(
               flex: 2,
               child: Padding(
-                padding: const EdgeInsets.all(8),
+                padding: ResponsiveHelper.productCardPadding(context),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
+                    // Product name and category section
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
+                        // Product name
                         Text(
                           product.name,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            fontSize: 12,
+                            fontSize: ResponsiveHelper.productTitleSize(context) * 0.85, // Slightly smaller for recommended
+                            height: 1.2,
                           ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(height: 2),
+                        // Small spacing between name and category
+                        SizedBox(height: ResponsiveHelper.productCardSpacing(context, base: 1)),
+                        // Category name
                         Text(
                           product.category.name,
                           style: TextStyle(
-                            fontSize: 10,
+                            fontSize: ResponsiveHelper.productSubtitleSize(context) * 0.85,
                             color: Colors.grey.shade600,
+                            height: 1.0,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
-                    // Price and rating
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (product.rating != null)
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.star,
-                                color: Colors.amber,
-                                size: 12,
-                              ),
-                              const SizedBox(width: 2),
-                              Text(
-                                product.rating!.toStringAsFixed(1),
-                                style: const TextStyle(fontSize: 10),
-                              ),
-                            ],
-                          ),
-                        Text(
-                          '${product.price.toStringAsFixed(2)} KM',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                            color: Colors.blue,
-                          ),
-                        ),
-                      ],
+                    // Price section
+                    Text(
+                      '${product.price.toStringAsFixed(2)} KM',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: ResponsiveHelper.productPriceSize(context) * 0.85,
+                        color: Colors.blue,
+                        height: 1.0,
+                      ),
                     ),
                   ],
                 ),
@@ -962,44 +962,39 @@ class _ShopScreenState extends State<ShopScreen> {
             Expanded(
               flex: 2,
               child: Padding(
-                padding: EdgeInsets.all(
-                  ResponsiveHelper.deviceSize(context) == DeviceSize.small
-                      ? 6
-                      : 8,
-                ),
+                padding: ResponsiveHelper.productCardPadding(context),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Product name and category (takes needed space)
+                    // Product name and category - fixed space allocation
                     Expanded(
+                      flex: 3,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.start,
                         children: [
-                          Text(
-                            product.name,
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: ResponsiveHelper.productTitleSize(
-                                context,
+                          // Product name - takes up to 2 lines
+                          Expanded(
+                            flex: 2,
+                            child: Text(
+                              product.name,
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: ResponsiveHelper.productTitleSize(context),
+                                height: 1.2,
                               ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
                           ),
-                          SizedBox(
-                            height:
-                                ResponsiveHelper.deviceSize(context) ==
-                                    DeviceSize.small
-                                ? 2
-                                : 4,
-                          ),
+                          
+                          // Category name - single line
                           Text(
                             product.category.name,
                             style: TextStyle(
-                              fontSize: ResponsiveHelper.productSubtitleSize(
-                                context,
-                              ),
+                              fontSize: ResponsiveHelper.productSubtitleSize(context),
                               color: Colors.grey.shade600,
+                              height: 1.0,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -1008,56 +1003,33 @@ class _ShopScreenState extends State<ShopScreen> {
                       ),
                     ),
 
-                    // Rating and Price (fixed at bottom, minimal space)
+                    // Fixed spacing between sections
+                    SizedBox(height: ResponsiveHelper.productCardSpacing(context, base: 15)),
+
+                    // Rating and Price section - fixed space allocation
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        // Rating
-                        if (product.rating != null)
-                          Padding(
-                            padding: EdgeInsets.only(
-                              bottom:
-                                  ResponsiveHelper.deviceSize(context) ==
-                                      DeviceSize.small
-                                  ? 2
-                                  : 4,
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.star,
-                                  size:
-                                      ResponsiveHelper.iconSize(context) * 0.6,
-                                  color: Colors.amber,
-                                ),
-                                const SizedBox(width: 2),
-                                Text(
-                                  product.rating!.toStringAsFixed(1),
-                                  style: TextStyle(
-                                    fontSize:
-                                        ResponsiveHelper.productSubtitleSize(
-                                          context,
-                                        ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
 
-                        // Price
-                        Text(
-                          '${product.price.toStringAsFixed(2)} KM',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: ResponsiveHelper.productPriceSize(
-                              context,
+                        // Price - always at the bottom with consistent spacing
+                        Container(
+                          width: double.infinity,
+                          child: Text(
+                            '${product.price.toStringAsFixed(2)} KM',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: ResponsiveHelper.productPriceSize(context),
+                              color: Colors.blue,
+                              height: 1.0,
                             ),
-                            color: Colors.blue,
                           ),
                         ),
                       ],
                     ),
+
+                    // Consistent bottom padding
+                    SizedBox(height: ResponsiveHelper.productCardSpacing(context, base: 2)),
                   ],
                 ),
               ),

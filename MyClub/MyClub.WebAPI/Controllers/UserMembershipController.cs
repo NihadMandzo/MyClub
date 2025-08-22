@@ -56,11 +56,25 @@ namespace MyClub.WebAPI.Controllers
         }
 
         [HttpPost("purchase")]
-        public async Task<IActionResult> PurchaseMembership([FromBody] UserMembershipUpsertRequest request)
+        public async Task<IActionResult> PurchaseMembership([FromBody] MembershipPurchaseRequest request)
         {
             try
             {
                 var result = await _service.PurchaseMembershipAsync(request);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [HttpPost("confirm")]
+        public async Task<IActionResult> ConfirmMembership([FromBody] string transactionId)
+        {
+            try
+            {
+                var result = await _service.ConfirmPurchaseMembershipAsync(transactionId);
                 return Ok(result);
             }
             catch (Exception ex)

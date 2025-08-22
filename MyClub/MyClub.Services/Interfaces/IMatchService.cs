@@ -8,7 +8,7 @@ namespace MyClub.Services
 {
     public interface IMatchService : ICRUDService<MatchResponse, BaseSearchObject, MatchUpsertRequest, MatchUpsertRequest>
     {
-        Task<UserTicketResponse> PurchaseTicketAsync(TicketPurchaseRequest request);
+        Task<PaymentResponse> PurchaseTicketAsync(TicketPurchaseRequest request);
         Task<UserTicketResponse> ConfirmPurchaseTicketAsync(string transactionId);
         Task<List<UserTicketResponse>> GetUserTicketsAsync(int userId, bool upcomingOnly = false);
         Task<QRValidationResponse> ValidateQRCodeAsync(QRValidationRequest request);

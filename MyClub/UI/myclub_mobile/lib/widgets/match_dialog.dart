@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/responses/match_response.dart';
 import '../models/responses/match_ticket_response.dart';
+import '../screens/ticket_purchase_screen.dart';
 import '../utility/responsive_helper.dart';
 
 /// Dialog widget that displays detailed information about an upcoming match
@@ -513,14 +514,7 @@ class MatchDialog extends StatelessWidget {
                             fontWeight: FontWeight.w600,
                             color: isAvailable ? Colors.green[700] : Colors.red[700],
                           ),
-                        ),
-                        Text(
-                          'od ${ticket.releasedQuantity}',
-                          style: TextStyle(
-                            fontSize: ResponsiveHelper.font(context, base: 12),
-                            color: Colors.grey[600],
-                          ),
-                        ),
+                        )
                       ],
                     ),
                   ],
@@ -545,7 +539,14 @@ class MatchDialog extends StatelessWidget {
                       const SizedBox(width: 8),
                       Expanded(
                         child: ElevatedButton.icon(
-                          onPressed: () => _showBuyTicketDialog(context, ticket),
+                          onPressed: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => TicketPurchaseScreen(
+                                match: match,
+                                ticket: ticket,
+                              ),
+                            ),
+                          ),
                           icon: const Icon(Icons.shopping_cart, size: 16),
                           label: const Text('Kupi'),
                           style: ElevatedButton.styleFrom(
@@ -677,54 +678,16 @@ class MatchDialog extends StatelessWidget {
             ElevatedButton(
               onPressed: () {
                 Navigator.of(context).pop();
-                _showBuyTicketDialog(context, ticket);
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => TicketPurchaseScreen(
+                      match: match,
+                      ticket: ticket,
+                    ),
+                  ),
+                );
               },
               child: const Text('Kupi kartu'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  /// Show buy ticket dialog (placeholder)
-  void _showBuyTicketDialog(BuildContext context, MatchTicketResponse ticket) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Kupovina karte'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.construction,
-                size: 48,
-                color: Colors.orange[600],
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Funkcionalnost kupovine karata će biti implementirana uskoro.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: ResponsiveHelper.font(context, base: 16),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Karta: ${ticket.stadiumSector?.code ?? "Nepoznat sektor"}\nCijena: ${ticket.price.toStringAsFixed(2)} BAM',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: ResponsiveHelper.font(context, base: 14),
-                  color: Colors.grey[600],
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Razumijem'),
             ),
           ],
         );

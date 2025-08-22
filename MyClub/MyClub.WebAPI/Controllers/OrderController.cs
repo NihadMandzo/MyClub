@@ -22,7 +22,7 @@ namespace MyClub.WebAPI.Controllers
             _orderService = service;
         }
 
-        [HttpPost]
+        [HttpPost("place-order")]
         [Authorize]
         public async Task<ActionResult<OrderResponse>> PlaceOrder([FromBody] OrderInsertRequest request)
         {

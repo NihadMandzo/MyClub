@@ -26,20 +26,10 @@ namespace MyClub.Services.Database
         
         // For friend purchase
         [MaxLength(50)]
-        public string RecipientFirstName { get; set; } = string.Empty;
+        public string? RecipientFirstName { get; set; } = string.Empty;
         
         [MaxLength(50)]
-        public string RecipientLastName { get; set; } = string.Empty;
-        
-        [EmailAddress]
-        [MaxLength(100)]
-        public string RecipientEmail { get; set; } = string.Empty;
-        
-        // Is this a renewal of a previous membership
-        public bool IsRenewal { get; set; } = false;
-        
-        // Previous membership ID if this is a renewal
-        public int? PreviousMembershipId { get; set; }
+        public string? RecipientLastName { get; set; } = string.Empty;
         
         // For physical card delivery
         public bool PhysicalCardRequested { get; set; } = false;

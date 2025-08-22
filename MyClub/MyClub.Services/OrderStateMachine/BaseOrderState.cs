@@ -8,6 +8,7 @@ using MyClub.Services.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 using MapsterMapper;
+using Microsoft.AspNetCore.Http;
 
 namespace MyClub.Services.OrderStateMachine
 {
@@ -17,6 +18,8 @@ namespace MyClub.Services.OrderStateMachine
         protected readonly MyClubContext _context;
         protected readonly IMapper _mapper;
         protected readonly IRabbitMQService _rabbitMQService;
+        private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly IPaymentService _paymentService;
 
         public BaseOrderState(IServiceProvider serviceProvider)
         {
@@ -24,6 +27,8 @@ namespace MyClub.Services.OrderStateMachine
             _context = _serviceProvider.GetRequiredService<MyClubContext>();
             _mapper = _serviceProvider.GetRequiredService<IMapper>();
             _rabbitMQService = _serviceProvider.GetRequiredService<IRabbitMQService>();
+            _paymentService = _serviceProvider.GetRequiredService<IPaymentService>();
+            _httpContextAccessor = _serviceProvider.GetRequiredService<IHttpContextAccessor>();
         }
         public virtual async Task<OrderResponse> ChangeOrderState(int orderId, OrderStateUpdateRequest request)
         {

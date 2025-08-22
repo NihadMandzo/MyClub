@@ -41,11 +41,6 @@ namespace MyClub.Services.Services
                 query = query.Where(x => x.MembershipCardId == search.MembershipCardId.Value);
             }
 
-            if (search.IsRenewal.HasValue)
-            {
-                query = query.Where(x => x.IsRenewal == search.IsRenewal.Value);
-            }
-
             if (search.PhysicalCardRequested.HasValue)
             {
                 query = query.Where(x => x.PhysicalCardRequested == search.PhysicalCardRequested.Value);
@@ -163,182 +158,143 @@ namespace MyClub.Services.Services
             };
         }
 
-        // public async Task<UserMembershipResponse> PurchaseMembershipAsync(UserMembershipUpsertRequest request)
-        // {
-        //     // Get the current user ID from the token
-        //     var userId = GetCurrentUserId();
-
-        //     // Get the membership card
-        //     var membershipCard = await _context.MembershipCards
-        //         .FirstOrDefaultAsync(mc => mc.Id == request.MembershipCardId);
-
-        //     if (membershipCard == null)
-        //     {
-        //         throw new Exception("Membership card not found");
-        //     }
-
-        //     // Check if the membership card is active
-        //     if (!membershipCard.IsActive)
-        //     {
-        //         throw new Exception("This membership campaign is no longer active");
-        //     }
-
-        //     // Validate the request
-        //     request.Validate();
-
-        //     // Validate the payment amount matches the membership card price
-        //     if (Math.Abs(request.PaymentAmount - membershipCard.Price) > 0.1m)
-        //     {
-        //         throw new Exception($"Payment amount ({request.PaymentAmount}) does not match membership price ({membershipCard.Price})");
-        //     }
-
-        //     // Check for existing membership (except for gift purchases)
-        //     if (request.OperationType != MembershipOperationType.GiftPurchase)
-        //     {
-        //         var existingMembership = await _context.UserMemberships
-        //             .Where(um => um.UserId == userId && um.MembershipCardId == request.MembershipCardId)
-        //             .FirstOrDefaultAsync();
-
-        //         if (existingMembership != null)
-        //         {
-        //             throw new Exception("You already have a membership for this campaign");
-        //         }
-        //     }
-
-        //     // For renewals, verify the previous membership
-        //     if (request.OperationType == MembershipOperationType.Renewal)
-        //     {
-        //         var previousMembership = await _context.UserMemberships
-        //             .FirstOrDefaultAsync(um => um.Id == request.PreviousMembershipId && um.UserId == userId);
-
-        //         if (previousMembership == null)
-        //         {
-        //             throw new Exception("Previous membership not found");
-        //         }
-        //     }
-
-        //     // Create a payment record first
-        //     Guid paymentId;
-        //     try
-        //     {
-        //         // Create payment record
-        //         var payment = new Payment
-        //         {
-        //             Id = Guid.NewGuid(),
-        //             Amount = request.PaymentAmount,
-        //             Method = request.Method,
-        //             Status = "Completed",
-        //             CreatedAt = DateTime.UtcNow,
-        //             CompletedAt = DateTime.UtcNow
-        //         };
-        //         _context.Payments.Add(payment);
-        //         await _context.SaveChangesAsync();
-
-        //         paymentId = payment.Id;
-        //     }
-        //     catch (Exception ex)
-        //     {
-        //         throw new Exception($"Failed to process payment: {ex.Message}");
-        //     }
-
-        //     // Create the user membership
-        //     var userMembership = new UserMembership
-        //     {
-        //         UserId = userId,
-        //         MembershipCardId = request.MembershipCardId,
-        //         JoinDate = DateTime.UtcNow,
-        //         IsRenewal = request.OperationType == MembershipOperationType.Renewal,
-        //         PreviousMembershipId = request.PreviousMembershipId,
-        //         PhysicalCardRequested = request.PhysicalCardRequested,
-        //         IsPaid = true,
-        //         PaymentDate = DateTime.UtcNow,
-        //         PaymentId = paymentId // Link to the payment record
-        //     };
-
-        //     // Add recipient information for gift purchases
-        //     if (request.OperationType == MembershipOperationType.GiftPurchase)
-        //     {
-        //         userMembership.RecipientFirstName = request.RecipientFirstName;
-        //         userMembership.RecipientLastName = request.RecipientLastName;
-        //         userMembership.RecipientEmail = request.RecipientEmail;
-        //     }
-
-        //     // Add shipping information if physical card is requested
-        //     if (request.PhysicalCardRequested)
-        //     {
-        //         ShippingDetails shippingDetails = null;
-
-        //         if (request.OperationType == MembershipOperationType.Renewal && request.Shipping == null)
-        //         {
-        //             // For renewals, use previous address if not updating
-        //             var previousMembership = await _context.UserMemberships
-        //                 .Include(um => um.ShippingDetails)
-        //                 .FirstOrDefaultAsync(um => um.Id == request.PreviousMembershipId);
-
-        //             if (previousMembership?.ShippingDetails != null)
-        //             {
-        //                 // Create new shipping details based on previous membership
-        //                 shippingDetails = new ShippingDetails
-        //                 {
-        //                     ShippingAddress = previousMembership.ShippingDetails.ShippingAddress,
-        //                     ShippingCity = previousMembership.ShippingDetails.ShippingCity,
-        //                     ShippingPostalCode = previousMembership.ShippingDetails.ShippingPostalCode,
-        //                     ShippingCountry = previousMembership.ShippingDetails.ShippingCountry
-        //                 };
-        //             }
-        //         }
-        //         else if (request.Shipping != null)
-        //         {
-        //             // Use new shipping information
-        //             shippingDetails = new ShippingDetails
-        //             {
-        //                 ShippingAddress = request.Shipping.ShippingAddress,
-        //                 ShippingCity = request.Shipping.ShippingCity,
-        //                 ShippingPostalCode = request.Shipping.ShippingPostalCode,
-        //                 ShippingCountry = request.Shipping.ShippingCountry
-        //             };
-        //         }
-
-        //         if (shippingDetails != null)
-        //         {
-        //             _context.Set<ShippingDetails>().Add(shippingDetails);
-        //             await _context.SaveChangesAsync();
-        //             userMembership.ShippingDetailsId = shippingDetails.Id;
-        //         }
-        //     }
-
-        //     // Add the user membership
-        //     _context.UserMemberships.Add(userMembership);
-
-        //     // Update the membership card total members
-        //     membershipCard.TotalMembers += 1;
-
-        //     await _context.SaveChangesAsync();
-
-        //     // Load related entities for the response
-        //     await _context.Entry(userMembership)
-        //         .Reference(um => um.User)
-        //         .LoadAsync();
-
-        //     await _context.Entry(userMembership)
-        //         .Reference(um => um.MembershipCard)
-        //         .LoadAsync();
-
-        //     await _context.Entry(userMembership)
-        //         .Reference(um => um.ShippingDetails)
-        //         .LoadAsync();
-
-        //     return MapToResponse(userMembership);
-        // }
-
-        public async Task<UserMembershipResponse> PurchaseMembershipAsync(UserMembershipUpsertRequest request)
+        public async Task<PaymentResponse> PurchaseMembershipAsync(MembershipPurchaseRequest request)
         {
-            // Get the current user ID from the token
-            var userId = GetCurrentUserId();
-            return null;   
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                // Validate membership card exists and is active
+                var membershipCard = await _context.MembershipCards
+                    .FirstOrDefaultAsync(mc => mc.Id == request.MembershipCardId);
+
+                if (membershipCard == null)
+                {
+                    throw new ArgumentException("Membership card not found.");
+                }
+
+                if (!membershipCard.IsActive)
+                {
+                    throw new InvalidOperationException("Membership card is not active.");
+                }
+
+                // Validate amount
+                if (Math.Abs(request.Amount - membershipCard.Price) > 0.1m)
+                {
+                    throw new ArgumentException("Invalid amount for membership card.");
+                }
+
+                // Get current user ID
+                var authHeader = _httpContextAccessor.HttpContext?.Request.Headers["Authorization"].FirstOrDefault();
+                if (string.IsNullOrEmpty(authHeader))
+                {
+                    throw new UnauthorizedAccessException("Authentication required.");
+                }
+
+                var currentUserId = GetCurrentUserId();
+
+                // Check if user already has membership for this year (only if not a gift purchase)
+                bool isGiftPurchase = !string.IsNullOrEmpty(request.RecipientFirstName) && 
+                                     !string.IsNullOrEmpty(request.RecipientLastName);
+
+                if (!isGiftPurchase)
+                {
+                    var existingMembership = await _context.UserMemberships
+                        .Include(um => um.MembershipCard)
+                        .FirstOrDefaultAsync(um => um.UserId == currentUserId && 
+                                           um.MembershipCard.Year == membershipCard.Year);
+
+                    if (existingMembership != null)
+                    {
+                        throw new InvalidOperationException($"User already has membership for year {membershipCard.Year}.");
+                    }
+                }
+
+                // Create payment request
+                PaymentResponse paymentResponse;
+                if (request.Type == "Stripe")
+                {
+                    paymentResponse = await _paymentService.CreateStripePaymentAsync(request);
+                }
+                else if (request.Type == "PayPal")
+                {
+                    var paypalUrl = await _paymentService.CreatePayPalPaymentAsync(request);
+                    paymentResponse = new PaymentResponse
+                    {
+                        transactionId = Guid.NewGuid().ToString(),
+                        clientSecret = paypalUrl
+                    };
+                }
+                else
+                {
+                    throw new ArgumentException("Invalid payment type. Use 'Stripe' or 'PayPal'.");
+                }
+
+                // Create payment record in database with pending status
+                var payment = new Payment
+                {
+                    Amount = request.Amount,
+                    Method = request.Type,
+                    Status = "Pending", // Initially pending until confirmed
+                    CreatedAt = DateTime.UtcNow,
+                    TransactionId = paymentResponse.transactionId
+                };
+
+                _context.Payments.Add(payment);
+                await _context.SaveChangesAsync();
+
+                // Create shipping details if physical card is requested
+                ShippingDetails? shippingDetails = null;
+                if (request.PhysicalCardRequested)
+                {
+                    if (request.Shipping == null)
+                    {
+                        throw new ArgumentException("Shipping details are required for physical card delivery.");
+                    }
+
+                    shippingDetails = new ShippingDetails
+                    {
+                        ShippingAddress = request.Shipping.ShippingAddress,
+                        CityId = request.Shipping.CityId
+                    };
+
+                    _context.ShippingDetails.Add(shippingDetails);
+                    await _context.SaveChangesAsync();
+                }
+
+                // Create user membership record (initially unpaid)
+                var userMembership = new UserMembership
+                {
+                    UserId = currentUserId,
+                    MembershipCardId = request.MembershipCardId,
+                    PaymentId = payment.Id, // Use the actual payment ID
+                    JoinDate = DateTime.UtcNow,
+                    RecipientFirstName = request.RecipientFirstName ?? string.Empty,
+                    RecipientLastName = request.RecipientLastName ?? string.Empty,
+                    PhysicalCardRequested = request.PhysicalCardRequested,
+                    ShippingDetailsId = shippingDetails?.Id,
+                    IsShipped = false,
+                    IsPaid = false
+                };
+
+                _context.UserMemberships.Add(userMembership);
+                await _context.SaveChangesAsync();
+
+                // Store the membership ID and transaction ID for later confirmation
+                // This could be stored in a temporary table or in memory cache
+                // For now, we'll assume the payment service handles this mapping
+
+
+                await transaction.CommitAsync();
+                return paymentResponse;
+            }
+            catch (Exception)
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
 
-        public async Task<UserMembershipCardResponse> GetUserMembershipCardAsync(int membershipId)
+        public async Task<UserMembershipCardResponse?> GetUserMembershipCardAsync(int membershipId)
         {
             var userMembership = await _context.UserMemberships
                 .Include(um => um.User)
@@ -399,19 +355,15 @@ namespace MyClub.Services.Services
             var response = new UserMembershipResponse
             {
                 Id = entity.Id,
-                UserId = entity.UserId,
                 UserFullName = $"{entity.User?.FirstName} {entity.User?.LastName}",
                 MembershipCardId = entity.MembershipCardId,
-                MembershipName = entity.MembershipCard?.Name,
+                MembershipName = entity.MembershipCard?.Name ?? string.Empty,
                 Year = entity.MembershipCard?.Year ?? 0,
                 JoinDate = entity.JoinDate,
-                IsRenewal = entity.IsRenewal,
-                PreviousMembershipId = entity.PreviousMembershipId,
                 PhysicalCardRequested = entity.PhysicalCardRequested,
                 RecipientFullName = !string.IsNullOrEmpty(entity.RecipientFirstName) 
                     ? $"{entity.RecipientFirstName} {entity.RecipientLastName}" 
                     : string.Empty,
-                RecipientEmail = entity.RecipientEmail,
                 ShippingAddress = entity.ShippingDetails?.ShippingAddress ?? string.Empty,
                 ShippingCity = new CityResponse
                 {
@@ -446,9 +398,51 @@ namespace MyClub.Services.Services
             return JwtTokenManager.GetUserIdFromToken(authHeader);
         }
 
-        public async Task<UserMembershipResponse> ConfirmPurchaseMembershipAsync(string transactionId)
+        public async Task<UserMembershipCardResponse> ConfirmPurchaseMembershipAsync(string transactionId)
         {
-            return null;
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                // Confirm payment with PaymentService
+                var paymentConfirmed = await _paymentService.ConfirmStripePayment(transactionId);
+
+                if (!paymentConfirmed)
+                    throw new InvalidOperationException("Payment confirmation failed");
+
+                // Find the payment associated with this transaction
+                var payment = await _context.Payments
+                    .FirstOrDefaultAsync(p => p.TransactionId == transactionId);
+
+                if (payment == null)
+                    throw new InvalidOperationException($"Payment with transaction ID {transactionId} not found");
+
+                // Find the user membership associated with this payment
+                var userMembership = await _context.UserMemberships
+                    .Include(um => um.User)
+                    .Include(um => um.MembershipCard)
+                    .ThenInclude(mc => mc.Image)
+                    .FirstOrDefaultAsync(um => um.PaymentId == payment.Id);
+
+                if (userMembership == null)
+                    throw new InvalidOperationException("User membership not found for this payment");
+
+                // Mark the membership as paid now that payment is confirmed
+                userMembership.IsPaid = true;
+                userMembership.PaymentDate = DateTime.UtcNow;
+                userMembership.PaymentId = payment.Id;
+
+                _context.UserMemberships.Update(userMembership);
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                // Return the confirmed membership card
+                return MapToCardResponse(userMembership);
+            }
+            catch (Exception)
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
 
         private string GenerateMembershipQRCodeData(int userId, int membershipId, int membershipCardId)

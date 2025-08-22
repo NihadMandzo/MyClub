@@ -62,7 +62,6 @@ public static class OrderSeeder
                 OrderState = orderState,
                 TotalAmount = totalAmount,
                 ShippingDetailsId = shippingDetailsId,
-                PaymentMethod = paymentMethod,
                 ShippedDate = shippedDate,
                 DeliveredDate = deliveredDate,
                 Notes = note

@@ -20,7 +20,7 @@ namespace MyClub.Services.Database.Seeders
                     TotalPrice = 25.00m,
                     PurchaseDate = DateTime.UtcNow.AddDays(-30),
                     QRCode = "QR_USER1_TICKET_001",
-                    IsValid = true,
+                    IsValid = false,
                     PaymentId = 1,
                     UserId = 1,
                     MatchTicketId = 1
@@ -31,7 +31,7 @@ namespace MyClub.Services.Database.Seeders
                     TotalPrice = 30.00m,
                     PurchaseDate = DateTime.UtcNow.AddDays(-25),
                     QRCode = "QR_USER1_TICKET_002",
-                    IsValid = true,
+                    IsValid = false,
                     PaymentId = 2,
                     UserId = 1,
                     MatchTicketId = 2
@@ -54,7 +54,7 @@ namespace MyClub.Services.Database.Seeders
                     TotalPrice = 35.00m,
                     PurchaseDate = DateTime.UtcNow.AddDays(-28),
                     QRCode = "QR_USER2_TICKET_001",
-                    IsValid = true,
+                    IsValid = false,
                     PaymentId = 4,
                     UserId = 2,
                     MatchTicketId = 1
@@ -68,7 +68,7 @@ namespace MyClub.Services.Database.Seeders
                     IsValid = true,
                     PaymentId = 5,
                     UserId = 2,
-                    MatchTicketId = 4
+                    MatchTicketId = 44
                 },
                 new UserTicket
                 {
@@ -79,7 +79,7 @@ namespace MyClub.Services.Database.Seeders
                     IsValid = true,
                     PaymentId = 6,
                     UserId = 2,
-                    MatchTicketId = 5
+                    MatchTicketId = 10
                 }
             };
 

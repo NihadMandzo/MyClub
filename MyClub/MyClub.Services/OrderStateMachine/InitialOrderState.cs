@@ -67,6 +67,7 @@ namespace MyClub.Services.OrderStateMachine
             }
             var oldState = order.OrderState;
             order.OrderState = "Procesiranje";
+            order.Payment.Status = "Completed";
             await _context.SaveChangesAsync();
             // Send message to RabbitMQ
             base.SendOrderStateChangeEmail(order, oldState);
@@ -114,13 +115,22 @@ namespace MyClub.Services.OrderStateMachine
                 {
                     UserId = request.UserId,
                     OrderDate = DateTime.Now,
-                    OrderState = "Procesiranje",
+                    OrderState = "Iniciranje",
                     TotalAmount = request.Amount,
                     Notes = request.Notes,
-                    ShippingDetailsId = shippingDetails.Id,
-                    PaymentMethod = request.PaymentMethod
+                    ShippingDetailsId = shippingDetails.Id
                 };
+                
 
+                var cart = await _context.Carts
+                    .Include(c => c.Items)
+                    .FirstOrDefaultAsync(c => c.UserId == request.UserId);
+
+                foreach (var cartItem in cart.Items)
+                {
+                    _context.CartItems.Remove(cartItem);
+                }
+                _context.Carts.Remove(cart);
                 _context.Orders.Add(order);
                 await _context.SaveChangesAsync(); // Save to get Order ID
 
@@ -171,7 +181,7 @@ namespace MyClub.Services.OrderStateMachine
                 {
                     OrderId = order.Id,
                     Amount = request.Amount,
-                    Method = request.PaymentMethod,
+                    Method = request.Type,
                     TransactionId = paymentResponse.transactionId,
                     Status = "Pending",
                     CreatedAt = DateTime.Now

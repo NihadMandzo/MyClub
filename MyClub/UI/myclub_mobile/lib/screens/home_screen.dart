@@ -10,6 +10,7 @@ import '../models/search_objects/base_search_object.dart';
 import '../utility/responsive_helper.dart';
 import '../widgets/pagination_widget.dart';
 import '../screens/news_detail_screen.dart';
+import '../screens/membership_purchase_screen.dart';
 
 /// Home screen with responsive layout and example content
 class HomeScreen extends StatefulWidget {
@@ -192,6 +193,87 @@ class _HomeScreenState extends State<HomeScreen> {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),
+        child: InkWell(
+          onTap: () => _navigateToMembershipPurchase(),
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              gradient: const LinearGradient(
+                colors: [
+                  Colors.blue,
+                  Color(0xFF1976D2),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Nema aktivnog članstva',
+                        style: TextStyle(
+                          fontSize: ResponsiveHelper.font(context, base: 18),
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        'Postani član',
+                        style: TextStyle(
+                          fontSize: ResponsiveHelper.font(context, base: 12),
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                LinearProgressIndicator(
+                  value: 0.0,
+                  backgroundColor: Colors.white.withOpacity(0.3),
+                  valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                  minHeight: 6,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '0 / 0 članova',
+                  style: TextStyle(
+                    fontSize: ResponsiveHelper.font(context, base: 14),
+                    color: Colors.white70,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    final membership = _currentMembership!;
+    return Card(
+      elevation: ResponsiveHelper.cardElevation(context),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: InkWell(
+        onTap: () => _navigateToMembershipPurchase(),
+        borderRadius: BorderRadius.circular(12),
         child: Container(
           width: double.infinity,
           padding: const EdgeInsets.all(16),
@@ -209,24 +291,46 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Nema aktivnog članstva',
-                style: TextStyle(
-                  fontSize: ResponsiveHelper.font(context, base: 18),
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      membership.name,
+                      style: TextStyle(
+                        fontSize: ResponsiveHelper.font(context, base: 18),
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      'Kupi sada',
+                      style: TextStyle(
+                        fontSize: ResponsiveHelper.font(context, base: 12),
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 12),
               LinearProgressIndicator(
-                value: 0.0,
+                value: membership.membershipProgress,
                 backgroundColor: Colors.white.withOpacity(0.3),
                 valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
                 minHeight: 6,
               ),
               const SizedBox(height: 8),
               Text(
-                '0 / 0 članova',
+                membership.progressText,
                 style: TextStyle(
                   fontSize: ResponsiveHelper.font(context, base: 14),
                   color: Colors.white70,
@@ -234,57 +338,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
-        ),
-      );
-    }
-
-    final membership = _currentMembership!;
-    return Card(
-      elevation: ResponsiveHelper.cardElevation(context),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          gradient: const LinearGradient(
-            colors: [
-              Colors.blue,
-              Color(0xFF1976D2),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              membership.name,
-              style: TextStyle(
-                fontSize: ResponsiveHelper.font(context, base: 18),
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            const SizedBox(height: 12),
-            LinearProgressIndicator(
-              value: membership.membershipProgress,
-              backgroundColor: Colors.white.withOpacity(0.3),
-              valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-              minHeight: 6,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              membership.progressText,
-              style: TextStyle(
-                fontSize: ResponsiveHelper.font(context, base: 14),
-                color: Colors.white70,
-              ),
-            ),
-          ],
         ),
       ),
     );
@@ -672,5 +725,25 @@ class _HomeScreenState extends State<HomeScreen> {
         builder: (context) => NewsDetailScreen(news: news),
       ),
     );
+  }
+
+  void _navigateToMembershipPurchase() {
+    if (_currentMembership != null) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => MembershipPurchaseScreen(
+            membershipCard: _currentMembership!,
+          ),
+        ),
+      );
+    } else {
+      // Show message to create membership campaign first
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Trenutno nema dostupnih kampanja za članstvo'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    }
   }
 }

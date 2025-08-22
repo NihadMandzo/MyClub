@@ -8,6 +8,7 @@ import '../providers/player_provider.dart';
 import '../providers/membership_provider.dart';
 import '../models/responses/player_response.dart';
 import '../models/responses/membership_card.dart';
+import '../screens/membership_purchase_screen.dart';
 
 /// Info screen with various options and club information
 class InfoScreen extends StatefulWidget {
@@ -470,20 +471,11 @@ class _InfoScreenState extends State<InfoScreen> with TickerProviderStateMixin {
 
   /// Handle become member action
   void _becomeMember(MembershipCard membership) {
-    // TODO: Implement membership registration logic
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Članstvo'),
-        content: Text(
-          'Funkcionalnost za registraciju članstva "${membership.name}" će biti implementirana uskoro.',
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => MembershipPurchaseScreen(
+          membershipCard: membership,
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('U redu'),
-          ),
-        ],
       ),
     );
   }

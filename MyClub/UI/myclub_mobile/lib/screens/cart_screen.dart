@@ -7,6 +7,7 @@ import '../providers/cart_provider.dart';
 import '../utility/responsive_helper.dart';
 import '../utility/notification_helper.dart';
 import '../widgets/top_navbar.dart';
+import 'checkout_screen.dart';
 
 /// Cart screen showing user's cart items and total
 class CartScreen extends StatefulWidget {
@@ -153,8 +154,11 @@ class _CartScreenState extends State<CartScreen> {
   }
 
   void _proceedToCheckout() {
-    // TODO: Implement checkout functionality
-    NotificationHelper.showInfo(context, 'Funkcija checkout-a će biti implementirana...');
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => CheckoutScreen(cart: _cart!),
+      ),
+    );
   }
 
   @override
@@ -398,42 +402,109 @@ class _CartScreenState extends State<CartScreen> {
                   const SizedBox(height: 8),
                   
                   // Quantity controls and subtotal
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // Quantity controls
-                      Row(
-                        children: [
-                          _buildQuantityButton(
-                            icon: Icons.remove,
-                            onTap: () => _updateQuantity(item, item.quantity - 1),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                            child: Text(
-                              '${item.quantity}',
-                              style: const TextStyle(
-                                fontSize: 16,
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final availableWidth = constraints.maxWidth;
+                      final deviceSize = ResponsiveHelper.deviceSize(context);
+                      final isNarrow = availableWidth < 200 || deviceSize == DeviceSize.small;
+                      
+                      if (isNarrow) {
+                        // Use Column layout for narrow spaces
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Quantity controls
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                _buildQuantityButton(
+                                  icon: Icons.remove,
+                                  onTap: () => _updateQuantity(item, item.quantity - 1),
+                                ),
+                                Container(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: ResponsiveHelper.adaptiveSpacing(context, base: 8),
+                                    vertical: ResponsiveHelper.adaptiveSpacing(context, base: 4),
+                                  ),
+                                  child: Text(
+                                    '${item.quantity}',
+                                    style: TextStyle(
+                                      fontSize: ResponsiveHelper.font(context, base: 14),
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                _buildQuantityButton(
+                                  icon: Icons.add,
+                                  onTap: () => _updateQuantity(item, item.quantity + 1),
+                                ),
+                              ],
+                            ),
+                            SizedBox(height: ResponsiveHelper.adaptiveSpacing(context, base: 4)),
+                            // Subtotal
+                            Text(
+                              '${item.subtotal.toStringAsFixed(2)} KM',
+                              style: TextStyle(
+                                fontSize: ResponsiveHelper.font(context, base: 14),
                                 fontWeight: FontWeight.bold,
+                                color: Colors.green,
                               ),
                             ),
-                          ),
-                          _buildQuantityButton(
-                            icon: Icons.add,
-                            onTap: () => _updateQuantity(item, item.quantity + 1),
-                          ),
-                        ],
-                      ),
-                      
-                      // Subtotal
-                      Text(
-                        '${item.subtotal.toStringAsFixed(2)} KM',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
+                          ],
+                        );
+                      } else {
+                        // Use Row layout for wider spaces
+                        return Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            // Quantity controls
+                            Flexible(
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  _buildQuantityButton(
+                                    icon: Icons.remove,
+                                    onTap: () => _updateQuantity(item, item.quantity - 1),
+                                  ),
+                                  Container(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: ResponsiveHelper.adaptiveSpacing(context, base: 12),
+                                      vertical: ResponsiveHelper.adaptiveSpacing(context, base: 6),
+                                    ),
+                                    child: Text(
+                                      '${item.quantity}',
+                                      style: TextStyle(
+                                        fontSize: ResponsiveHelper.font(context, base: 16),
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                  _buildQuantityButton(
+                                    icon: Icons.add,
+                                    onTap: () => _updateQuantity(item, item.quantity + 1),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            
+                            const SizedBox(width: 8),
+                            
+                            // Subtotal
+                            Flexible(
+                              child: Text(
+                                '${item.subtotal.toStringAsFixed(2)} KM',
+                                style: TextStyle(
+                                  fontSize: ResponsiveHelper.font(context, base: 16),
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                                textAlign: TextAlign.end,
+                              ),
+                            ),
+                          ],
+                        );
+                      }
+                    },
                   ),
                 ],
               ),
@@ -458,16 +529,16 @@ class _CartScreenState extends State<CartScreen> {
     return GestureDetector(
       onTap: _isUpdating ? null : onTap,
       child: Container(
-        width: 32,
-        height: 32,
+        width: ResponsiveHelper.deviceSize(context) == DeviceSize.small ? 26 : 28,
+        height: ResponsiveHelper.deviceSize(context) == DeviceSize.small ? 26 : 28,
         decoration: BoxDecoration(
           border: Border.all(color: Colors.grey.shade300),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(6),
           color: _isUpdating ? Colors.grey.shade100 : Colors.white,
         ),
         child: Icon(
           icon,
-          size: 18,
+          size: ResponsiveHelper.deviceSize(context) == DeviceSize.small ? 14 : 16,
           color: _isUpdating ? Colors.grey : Colors.black87,
         ),
       ),

@@ -403,8 +403,6 @@ namespace MyClub.Services.Services
                 Year = campaign.Year,
                 TotalMembers = campaign.UserMemberships.Count,
                 TargetMembers = campaign.TargetMembers,
-                NewMemberships = campaign.UserMemberships.Count(um => !um.IsRenewal),
-                RenewedMemberships = campaign.UserMemberships.Count(um => um.IsRenewal),
                 PhysicalCardsRequested = campaign.UserMemberships.Count(um => um.PhysicalCardRequested),
                 PhysicalCardsShipped = campaign.UserMemberships.Count(um => um.IsShipped),
                 TotalRevenue = campaign.UserMemberships.Sum(um => um.Payment?.Amount ?? 0)

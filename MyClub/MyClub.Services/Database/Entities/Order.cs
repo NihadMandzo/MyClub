@@ -34,9 +34,7 @@ namespace MyClub.Services.Database
         [ForeignKey("ShippingDetailsId")]
         public virtual ShippingDetails ShippingDetails { get; set; }
         
-        [MaxLength(100)]
-        public string PaymentMethod { get; set; } = string.Empty;
-        
+
         public DateTime? ShippedDate { get; set; }
         
         public DateTime? DeliveredDate { get; set; }

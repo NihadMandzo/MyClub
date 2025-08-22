@@ -11,19 +11,23 @@ using System.Text;
 using System.Linq;
 using System.Threading.Tasks;
 using MyClub.Model;
+using MyClub.Services.Helpers;
+using Microsoft.AspNetCore.Http;
 
 namespace MyClub.Services
 {
     public class MatchService : BaseCRUDService<MatchResponse, BaseSearchObject, MatchUpsertRequest, MatchUpsertRequest, Database.Match>, IMatchService
     {
         private readonly MyClubContext _context;
-        private readonly IMapper _mapper;
+        private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly IPaymentService _paymentService;
 
-        public MatchService(MyClubContext context, IMapper mapper)
+        public MatchService(MyClubContext context, IMapper mapper, IHttpContextAccessor httpContextAccessor, IPaymentService paymentService)
             : base(context, mapper)
         {
             _context = context;
-            _mapper = mapper;
+            _httpContextAccessor = httpContextAccessor;
+            _paymentService = paymentService;
         }
 
         public override async Task<PagedResult<MatchResponse>> GetAsync(BaseSearchObject search)
@@ -71,8 +75,6 @@ namespace MyClub.Services
                 PageSize = pageSize
             };
         }
-
-
         public override async Task<MatchResponse?> GetByIdAsync(int id)
         {
             var entity = await _context.Matches
@@ -88,7 +90,6 @@ namespace MyClub.Services
 
             return MapToResponse(entity);
         }
-
         public override async Task<MatchResponse> CreateAsync(MatchUpsertRequest request)
         {
             using var transaction = await _context.Database.BeginTransactionAsync();
@@ -107,7 +108,6 @@ namespace MyClub.Services
                 throw;
             }
         }
-
         public override async Task<MatchResponse> UpdateAsync(int id, MatchUpsertRequest request)
         {
             using var transaction = await _context.Database.BeginTransactionAsync();
@@ -133,103 +133,88 @@ namespace MyClub.Services
                 throw;
             }
         }
-
-        public async Task<UserTicketResponse> PurchaseTicketAsync(TicketPurchaseRequest request)
+        public async Task<PaymentResponse> PurchaseTicketAsync(TicketPurchaseRequest request)
         {
-            //     using var transaction = await _context.Database.BeginTransactionAsync();
-            //     try
-            //     {
-            //         // Get the match ticket
-            //         var matchTicket = await _context.MatchTickets
-            //             .Include(mt => mt.Match)
-            //             .Include(mt => mt.StadiumSector)
-            //             .ThenInclude(ss => ss.StadiumSide)
-            //             .FirstOrDefaultAsync(mt => mt.Id == request.MatchTicketId);
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                // Get the match ticket
+                var matchTicket = await _context.MatchTickets
+                    .Include(mt => mt.Match)
+                    .Include(mt => mt.StadiumSector)
+                    .ThenInclude(ss => ss.StadiumSide)
+                    .FirstOrDefaultAsync(mt => mt.Id == request.MatchTicketId);
 
-            //         if (matchTicket == null)
-            //             throw new Exception($"Match ticket with ID {request.MatchTicketId} not found");
+                if (matchTicket == null)
+                    throw new UserException($"Match ticket with ID {request.MatchTicketId} not found");
 
-            //         // Check if the ticket is active
-            //         if (!matchTicket.IsActive)
-            //             throw new Exception("The selected tickets are not available for purchase");
+                // Check if the ticket is available for purchase
+                if (matchTicket.AvailableQuantity <= 0)
+                    throw new UserException("No tickets available for this match");
 
-            //         // Check if there are enough tickets available
-            //         if (matchTicket.AvailableQuantity < request.Quantity)
-            //             throw new Exception($"Not enough tickets available. Requested: {request.Quantity}, Available: {matchTicket.AvailableQuantity}");
+                // Check if the match is in the future
+                if (matchTicket.Match.MatchDate <= DateTime.UtcNow)
+                    throw new UserException("Cannot purchase tickets for past matches");
 
-            //         // Get the user
-            //         var user = await _context.Users.FindAsync(request.UserId);
-            //         if (user == null)
-            //             throw new Exception($"User with ID {request.UserId} not found");
+                string? authHeader = _httpContextAccessor.HttpContext?.Request.Headers["Authorization"];
+                if (string.IsNullOrEmpty(authHeader))
+                    throw new UserException("Authorization header is required");
 
-            //         // Calculate total price
-            //         decimal totalPrice = matchTicket.Price * request.Quantity;
+                var userId = JwtTokenManager.GetUserIdFromToken(authHeader);
 
-            //         // Create a payment record first
-            //         var payment = new Payment
-            //         {
-            //             Id = Guid.NewGuid(),
-            //             Amount = totalPrice,
-            //             Method = "Card", // Default method, should be passed from request
-            //             Status = "Succeeded", // Assuming payment is successful immediately
-            //             CreatedAt = DateTime.UtcNow,
-            //             CompletedAt = DateTime.UtcNow
-            //         };
+                // Create Stripe payment intent using PaymentService
+                var paymentResponse = await _paymentService.CreateStripePaymentAsync(request);
 
-            //         _context.Payments.Add(payment);
-            //         await _context.SaveChangesAsync();
+                // Create a payment record with pending status
+                var payment = new Payment
+                {
+                    Amount = request.Amount,
+                    Method = "Card",
+                    Status = "Pending", // Initially pending until confirmed
+                    CreatedAt = DateTime.UtcNow,
+                    TransactionId = paymentResponse.transactionId
+                };
 
-            //         // Generate QR code data
-            //         string qrCodeData = GenerateQRCodeData(request.UserId, matchTicket.Match.Id, matchTicket.StadiumSectorId, request.Quantity);
+                _context.Payments.Add(payment);
+                await _context.SaveChangesAsync();
 
-            //         // Create the user ticket
-            //         var userTicket = new UserTicket
-            //         {
-            //             UserId = request.UserId,
-            //             MatchTicketId = request.MatchTicketId,
-            //             Quantity = request.Quantity,
-            //             TotalPrice = totalPrice,
-            //             PurchaseDate = DateTime.UtcNow,
-            //             QRCode = qrCodeData,
-            //             Status = "Valid",
-            //             PaymentId = payment.Id // Link to the payment record
-            //         };
+                // Generate QR code data but don't create user ticket yet - wait for payment confirmation
+                string qrCodeData = GenerateQRCodeData(userId, matchTicket.Match.Id, matchTicket.StadiumSectorId, 1);
 
-            //         // Update available tickets
-            //         matchTicket.AvailableQuantity -= request.Quantity;
+                // Create a user ticket record but mark it as not valid until payment is confirmed
+                var userTicket = new UserTicket
+                {
+                    UserId = userId,
+                    MatchTicketId = request.MatchTicketId,
+                    TotalPrice = request.Amount,
+                    PurchaseDate = DateTime.UtcNow,
+                    IsValid = false, // Will be set to true when payment is confirmed
+                    QRCode = qrCodeData,
+                    PaymentId = payment.Id
+                };
 
-            //         // Save changes
-            //         _context.UserTickets.Add(userTicket);
-            //         _context.MatchTickets.Update(matchTicket);
-            //         await _context.SaveChangesAsync();
+                _context.UserTickets.Add(userTicket);
 
-            //         await transaction.CommitAsync();
+                // Temporarily reserve the ticket by reducing available quantity
+                matchTicket.AvailableQuantity -= 1;
+                _context.MatchTickets.Update(matchTicket);
+                await _context.SaveChangesAsync();
 
-            //         // Return the response
-            //         return new UserTicketResponse
-            //         {
-            //             Id = userTicket.Id,
-            //             Quantity = userTicket.Quantity,
-            //             TotalPrice = userTicket.TotalPrice,
-            //             PurchaseDate = userTicket.PurchaseDate,
-            //             QRCodeData = qrCodeData,
-            //             MatchId = matchTicket.Match.Id,
-            //             OpponentName = matchTicket.Match.OpponentName,
-            //             MatchDate = matchTicket.Match.MatchDate,
-            //             Location = matchTicket.Match.Location,
-            //             SectorCode = matchTicket.StadiumSector.Code,
-            //             StadiumSide = matchTicket.StadiumSector.StadiumSide.Name
-            //         };
-            //     }
-            //     catch (Exception)
-            //     {
-            //         await transaction.RollbackAsync();
-            //         throw;
-            //     }
+                await transaction.CommitAsync();
 
-            return null;
+                // Return the user ticket response with payment information
+                return new PaymentResponse
+                {
+                    transactionId = paymentResponse.transactionId,
+                    clientSecret = paymentResponse.clientSecret
+                };
+            }
+            catch (Exception)
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
-
         public async Task<List<UserTicketResponse>> GetUserTicketsAsync(int userId, bool upcomingOnly = false)
         {
             var query = _context.UserTickets
@@ -277,7 +262,6 @@ namespace MyClub.Services
             // Create the paged result with proper pagination metadata
             return response;
         }
-
         public async Task<QRValidationResponse> ValidateQRCodeAsync(QRValidationRequest request)
         {
             try
@@ -293,7 +277,7 @@ namespace MyClub.Services
 
                 if (userTicket == null || !userTicket.IsValid)
                     return new QRValidationResponse { IsValid = false, Message = "Karta nije validna" }; 
-                    
+
                 // Check if the match is in the future
                 if (userTicket.MatchTicket.Match.MatchDate < (DateTime.UtcNow + TimeSpan.FromMinutes(10)))
                     return new QRValidationResponse { IsValid = false, Message = "Utakmica je već odigrana" };
@@ -314,7 +298,6 @@ namespace MyClub.Services
                 return new QRValidationResponse { IsValid = false, Message = $"Error validating QR code: {ex.Message}" };
             }
         }
-
         public async Task<PagedResult<MatchResponse>> GetUpcomingMatchesAsync(BaseSearchObject search)
         {
             // Create query for matches with available tickets
@@ -373,12 +356,10 @@ namespace MyClub.Services
         {
             await ValidateAsync(request);
         }
-
         protected override async Task BeforeUpdate(Database.Match entity, MatchUpsertRequest request)
         {
             await ValidateAsync(request);
         }
-
         protected override async Task BeforeDelete(Database.Match entity)
         {
             // Check if there are any user tickets for this match
@@ -396,7 +377,6 @@ namespace MyClub.Services
             _context.MatchTickets.RemoveRange(tickets);
             await _context.SaveChangesAsync();
         }
-
         private async Task<bool> ValidateAsync(MatchUpsertRequest request)
         {
             // Validate club exists
@@ -406,7 +386,6 @@ namespace MyClub.Services
 
             return true;
         }
-
         protected override Database.Match MapInsertToEntity(Database.Match entity, MatchUpsertRequest request)
         {
             entity.MatchDate = request.MatchDate;
@@ -418,7 +397,6 @@ namespace MyClub.Services
 
             return entity;
         }
-
         protected override Database.Match MapUpdateToEntity(Database.Match entity, MatchUpsertRequest request)
         {
             entity.MatchDate = request.MatchDate;
@@ -429,8 +407,7 @@ namespace MyClub.Services
 
             return entity;
         }
-
-        private MatchResponse MapToResponse(Database.Match entity)
+        protected override MatchResponse MapToResponse(Database.Match entity)
         {
             var response = _mapper.Map<MatchResponse>(entity);
             response.Status = entity.MatchDate > DateTime.UtcNow ? "Zakazana" : "Završena";
@@ -470,7 +447,6 @@ namespace MyClub.Services
 
             return response;
         }
-
         private string GenerateQRCodeData(int userId, int matchId, int sectorId, int quantity)
         {
             // Create a unique ticket identifier with important details
@@ -481,7 +457,6 @@ namespace MyClub.Services
 
             return $"{ticketData}|{hash}";
         }
-
         private string GenerateHash(string input)
         {
             using (SHA256 sha256 = SHA256.Create())
@@ -493,7 +468,6 @@ namespace MyClub.Services
                 return Convert.ToBase64String(hashBytes).Substring(0, 16);
             }
         }
-
         protected override IQueryable<Match> ApplyFilter(IQueryable<Match> query, BaseSearchObject search)
         {
             // Apply text search filter
@@ -512,12 +486,63 @@ namespace MyClub.Services
 
             return query;
         }
-
         public async Task<UserTicketResponse> ConfirmPurchaseTicketAsync(string transactionId)
         {
-            return null;
-        }
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                // Confirm payment with PaymentService
+                var paymentConfirmed = await _paymentService.ConfirmStripePayment(transactionId);
 
+                if (!paymentConfirmed)
+                    throw new UserException("Payment confirmation failed");
+
+                // Find the user ticket associated with this transaction
+                var payment = await _context.Payments
+                    .FirstOrDefaultAsync(p => p.TransactionId == transactionId);
+
+                if (payment == null)
+                    throw new UserException($"Payment with transaction ID {transactionId} not found");
+
+                var userTicket = await _context.UserTickets
+                    .Include(ut => ut.MatchTicket)
+                    .ThenInclude(mt => mt.Match)
+                    .Include(ut => ut.MatchTicket.StadiumSector)
+                    .ThenInclude(ss => ss.StadiumSide)
+                    .FirstOrDefaultAsync(ut => ut.PaymentId == payment.Id);
+
+                if (userTicket == null)
+                    throw new UserException("User ticket not found for this payment");
+
+                // Mark the ticket as valid now that payment is confirmed
+                userTicket.IsValid = true;
+                _context.UserTickets.Update(userTicket);
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                // Return the confirmed ticket
+                return new UserTicketResponse
+                {
+                    Id = userTicket.Id,
+                    TotalPrice = userTicket.TotalPrice,
+                    PurchaseDate = userTicket.PurchaseDate,
+                    QRCodeData = userTicket.QRCode,
+                    IsValid = userTicket.IsValid,
+                    MatchId = userTicket.MatchTicket.Match.Id,
+                    OpponentName = userTicket.MatchTicket.Match.OpponentName,
+                    MatchDate = userTicket.MatchTicket.Match.MatchDate,
+                    Location = userTicket.MatchTicket.Match.Location,
+                    SectorCode = userTicket.MatchTicket.StadiumSector.Code,
+                    StadiumSide = userTicket.MatchTicket.StadiumSector.StadiumSide.Name
+                };
+            }
+            catch (Exception)
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+        }
         public async Task<MatchResponse> UpdateMatchResultAsync(int matchId, MatchResultRequest request)
         {
             using var transaction = await _context.Database.BeginTransactionAsync();
@@ -542,7 +567,6 @@ namespace MyClub.Services
                 throw;
             }
         }
-
         public override async Task<bool> DeleteAsync(int id)
         {
             using var transaction = await _context.Database.BeginTransactionAsync();
@@ -568,7 +592,6 @@ namespace MyClub.Services
                 throw;
             }
         }
-
         public async Task<MatchResponse> CreateOrUpdateMatchTicketAsync(int matchId, List<MatchTicketUpsertRequest> request)
         {
             using var transaction = await _context.Database.BeginTransactionAsync();
@@ -632,7 +655,6 @@ namespace MyClub.Services
                 throw;
             }
         }
-
         public async Task<PagedResult<MatchResponse>> GetPastMatchesAsync(BaseSearchObject search)
         {
             // Create query for matches with available tickets

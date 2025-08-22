@@ -41,6 +41,7 @@ builder.Services.AddTransient<IPositionService, PositionService>();
 builder.Services.AddTransient<IRecommendationService, RecommendationService>();
 
 builder.Services.AddTransient<BaseOrderState>();
+builder.Services.AddTransient<InitialOrderState>();
 builder.Services.AddTransient<ProcessingOrderState>();
 builder.Services.AddTransient<ConfirmedOrderState>();
 builder.Services.AddTransient<CancelledOrderState>();
