@@ -53,6 +53,7 @@ namespace MyClub.Services.OrderStateMachine
                 throw new Exception("Payment failed");
             }
 
+            
             var order = await _context.Orders
                                 .Include(x => x.Payment)
                                 .Include(x => x.OrderItems)
@@ -68,6 +69,7 @@ namespace MyClub.Services.OrderStateMachine
             var oldState = order.OrderState;
             order.OrderState = "Procesiranje";
             order.Payment.Status = "Completed";
+            order.Payment.CompletedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
             // Send message to RabbitMQ
             base.SendOrderStateChangeEmail(order, oldState);

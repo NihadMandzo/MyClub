@@ -504,6 +504,8 @@ namespace MyClub.Services
                 if (payment == null)
                     throw new UserException($"Payment with transaction ID {transactionId} not found");
 
+                payment.CompletedAt = DateTime.UtcNow;
+
                 var userTicket = await _context.UserTickets
                     .Include(ut => ut.MatchTicket)
                     .ThenInclude(mt => mt.Match)

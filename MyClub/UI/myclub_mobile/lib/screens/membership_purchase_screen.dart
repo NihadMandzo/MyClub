@@ -10,53 +10,12 @@ import '../models/responses/city_response.dart';
 import '../models/responses/payment_response.dart';
 import '../models/requests/membership_purchase_request.dart';
 import '../models/requests/shipping_request.dart';
-import '../providers/membership_provider.dart';
 import '../providers/city_provider.dart';
 import '../providers/auth_provider.dart';
 import '../utility/responsive_helper.dart';
 import '../utility/notification_helper.dart';
 import '../widgets/top_navbar.dart';
-
-// Custom input formatters for card fields (reused from checkout_screen)
-class CardNumberInputFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
-    var text = newValue.text.replaceAll(' ', '');
-    var newText = '';
-    
-    for (int i = 0; i < text.length; i++) {
-      if (i % 4 == 0 && i != 0) {
-        newText += ' ';
-      }
-      newText += text[i];
-    }
-    
-    return newValue.copyWith(
-      text: newText,
-      selection: TextSelection.collapsed(offset: newText.length),
-    );
-  }
-}
-
-class ExpiryDateInputFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
-    var text = newValue.text.replaceAll('/', '');
-    var newText = '';
-    
-    for (int i = 0; i < text.length && i < 4; i++) {
-      if (i == 2) {
-        newText += '/';
-      }
-      newText += text[i];
-    }
-    
-    return newValue.copyWith(
-      text: newText,
-      selection: TextSelection.collapsed(offset: newText.length),
-    );
-  }
-}
+import '../widgets/payment_section_widget.dart';
 
 /// Screen for purchasing membership cards
 class MembershipPurchaseScreen extends StatefulWidget {
@@ -672,158 +631,18 @@ class _MembershipPurchaseScreenState extends State<MembershipPurchaseScreen> {
   }
 
   Widget _buildPaymentSection() {
-    return Card(
-      elevation: ResponsiveHelper.cardElevation(context),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Način plaćanja',
-              style: TextStyle(
-                fontSize: ResponsiveHelper.font(context, base: 18),
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 16),
-            
-            // Stripe expandable option
-            ExpansionTile(
-              title: Row(
-                children: [
-                  const Icon(Icons.credit_card, color: Colors.blue),
-                  const SizedBox(width: 8),
-                  const Text('Stripe (Kreditna/Debitna kartica)'),
-                ],
-              ),
-              subtitle: _selectedPaymentMethod == 'Stripe' 
-                  ? const Text('Odabrano', style: TextStyle(color: Colors.green))
-                  : null,
-              leading: Radio<String>(
-                value: 'Stripe',
-                groupValue: _selectedPaymentMethod,
-                onChanged: (value) {
-                  setState(() {
-                    _selectedPaymentMethod = value!;
-                  });
-                },
-              ),
-              onExpansionChanged: (expanded) {
-                if (expanded) {
-                  setState(() {
-                    _selectedPaymentMethod = 'Stripe';
-                  });
-                }
-              },
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    children: [
-                      // Card number
-                      TextFormField(
-                        controller: _cardNumberController,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly,
-                          LengthLimitingTextInputFormatter(16),
-                          CardNumberInputFormatter(),
-                        ],
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          labelText: 'Broj kartice',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.credit_card),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      
-                      Row(
-                        children: [
-                          // Expiry date
-                          Expanded(
-                            child: TextFormField(
-                              controller: _cardExpiryController,
-                              inputFormatters: [
-                                FilteringTextInputFormatter.digitsOnly,
-                                LengthLimitingTextInputFormatter(4),
-                                ExpiryDateInputFormatter(),
-                              ],
-                              keyboardType: TextInputType.number,
-                              decoration: const InputDecoration(
-                                labelText: 'MM/YY',
-                                border: OutlineInputBorder(),
-                                prefixIcon: Icon(Icons.date_range),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          
-                          // CVC
-                          Expanded(
-                            child: TextFormField(
-                              controller: _cardCvcController,
-                              inputFormatters: [
-                                FilteringTextInputFormatter.digitsOnly,
-                                LengthLimitingTextInputFormatter(4),
-                              ],
-                              keyboardType: TextInputType.number,
-                              decoration: const InputDecoration(
-                                labelText: 'CVC',
-                                border: OutlineInputBorder(),
-                                prefixIcon: Icon(Icons.security),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      
-                      // Cardholder name
-                      TextFormField(
-                        controller: _cardHolderNameController,
-                        decoration: const InputDecoration(
-                          labelText: 'Ime vlasnika kartice',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.person),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            
-            const SizedBox(height: 8),
-            
-            // PayPal expandable option (disabled for now)
-            ExpansionTile(
-              title: Row(
-                children: [
-                  const Icon(Icons.account_balance_wallet, color: Colors.blue),
-                  const SizedBox(width: 8),
-                  const Text('PayPal'),
-                ],
-              ),
-              leading: Radio<String>(
-                value: 'PayPal',
-                groupValue: _selectedPaymentMethod,
-                onChanged: null, // Disabled for now
-              ),
-              onExpansionChanged: null, // Disabled for now
-              children: const [
-                Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Text('PayPal opcija će biti dostupna uskoro.'),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
+    return PaymentSectionWidget(
+      selectedPaymentMethod: _selectedPaymentMethod,
+      onPaymentMethodChanged: (String method) {
+        setState(() {
+          _selectedPaymentMethod = method;
+        });
+      },
+      cardNumberController: _cardNumberController,
+      cardExpiryController: _cardExpiryController,
+      cardCvcController: _cardCvcController,
+      cardHolderNameController: _cardHolderNameController,
+      isProcessing: _isLoading || _isProcessingPayment,
     );
   }
 
@@ -833,6 +652,8 @@ class _MembershipPurchaseScreenState extends State<MembershipPurchaseScreen> {
       child: ElevatedButton(
         onPressed: (_isLoading || _isProcessingPayment) ? null : _processPurchase,
         style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.blue.shade600,
+          foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 16),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -847,9 +668,7 @@ class _MembershipPurchaseScreenState extends State<MembershipPurchaseScreen> {
                     height: 20,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        Theme.of(context).colorScheme.onPrimary,
-                      ),
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -858,6 +677,7 @@ class _MembershipPurchaseScreenState extends State<MembershipPurchaseScreen> {
                     style: TextStyle(
                       fontSize: ResponsiveHelper.font(context, base: 16),
                       fontWeight: FontWeight.w600,
+                      color: Colors.white,
                     ),
                   ),
                 ],
@@ -865,13 +685,14 @@ class _MembershipPurchaseScreenState extends State<MembershipPurchaseScreen> {
             : Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.payment),
+                  const Icon(Icons.payment, color: Colors.white),
                   const SizedBox(width: 8),
                   Text(
                     'Kupi članstvo - ${totalAmount.toStringAsFixed(2)} KM',
                     style: TextStyle(
                       fontSize: ResponsiveHelper.font(context, base: 16),
                       fontWeight: FontWeight.w600,
+                      color: Colors.white,
                     ),
                   ),
                 ],

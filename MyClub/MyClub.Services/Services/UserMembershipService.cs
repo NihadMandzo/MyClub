@@ -119,7 +119,7 @@ namespace MyClub.Services.Services
             var query = _context.UserMemberships
                 .AsNoTracking()
                 .Include(um => um.User)
-                .Include(um => um.MembershipCard)
+                .Include(um => um.MembershipCard).ThenInclude(x=>x.Image)
                 .Where(um => um.UserId == userId)
                 .OrderByDescending(um => um.MembershipCard.Year)
                 .ThenByDescending(um => um.JoinDate);
@@ -296,15 +296,40 @@ namespace MyClub.Services.Services
 
         public async Task<UserMembershipCardResponse?> GetUserMembershipCardAsync(int membershipId)
         {
+            // Try a more explicit query approach
             var userMembership = await _context.UserMemberships
                 .Include(um => um.User)
                 .Include(um => um.MembershipCard)
-                .ThenInclude(mc => mc.Image)
                 .FirstOrDefaultAsync(um => um.Id == membershipId);
                 
             if (userMembership == null)
             {
                 return null;
+            }
+            
+            // Explicitly load the image if it's not already loaded
+            if (userMembership.MembershipCard != null && userMembership.MembershipCard.ImageId.HasValue)
+            {
+                var imageAsset = await _context.Assets
+                    .FirstOrDefaultAsync(a => a.Id == userMembership.MembershipCard.ImageId.Value);
+                if (imageAsset != null)
+                {
+                    userMembership.MembershipCard.Image = imageAsset;
+                }
+            }
+            
+            // Debug information - log what we actually got from the database
+            Console.WriteLine($"UserMembership ID: {userMembership.Id}");
+            Console.WriteLine($"MembershipCard ID: {userMembership.MembershipCardId}");
+            Console.WriteLine($"MembershipCard is null: {userMembership.MembershipCard == null}");
+            if (userMembership.MembershipCard != null)
+            {
+                Console.WriteLine($"MembershipCard ImageId: {userMembership.MembershipCard.ImageId}");
+                Console.WriteLine($"MembershipCard Image is null: {userMembership.MembershipCard.Image == null}");
+                if (userMembership.MembershipCard.Image != null)
+                {
+                    Console.WriteLine($"Image URL: '{userMembership.MembershipCard.Image.Url}'");
+                }
             }
             
             // Generate a unique membership number
@@ -413,8 +438,12 @@ namespace MyClub.Services.Services
                 var payment = await _context.Payments
                     .FirstOrDefaultAsync(p => p.TransactionId == transactionId);
 
+
+
                 if (payment == null)
                     throw new InvalidOperationException($"Payment with transaction ID {transactionId} not found");
+
+                payment.CompletedAt = DateTime.UtcNow;
 
                 // Find the user membership associated with this payment
                 var userMembership = await _context.UserMemberships

@@ -58,6 +58,7 @@ namespace MyClub.Services
                 throw new KeyNotFoundException($"Payment with ID {transactionId} not found");
             }
             paymentIntent.Status = "Completed";
+            paymentIntent.CompletedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
             return true;
         }

@@ -173,14 +173,16 @@ Future<PagedResult<MatchResponse>> getPastMatches() async {
 
   /// Confirm ticket purchase
   Future<void> confirmOrder(String transactionId) async {
-    var url = "${BaseProvider.baseUrl}$endpoint/confirm-ticket-purchase/$transactionId";
+    var url = "${BaseProvider.baseUrl}$endpoint/confirm";
     var uri = Uri.parse(url);
     var headers = createHeaders();
+
+    var requestBody = jsonEncode(transactionId);
 
     print("API POST Confirm Ticket Purchase Request URL: $url");
     print("API POST Confirm Ticket Purchase Request Headers: $headers");
 
-    var response = await http.post(uri, headers: headers);
+    var response = await http.post(uri, headers: headers, body: requestBody);
     print("API POST Confirm Ticket Purchase Response Status: ${response.statusCode}");
     print("API POST Confirm Ticket Purchase Response Body: ${response.body}");
 
