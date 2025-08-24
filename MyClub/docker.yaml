@@ -1,10 +1,7 @@
-version: "3.9"
-
 services:
   webapi:
     build:
       context: .
-      dockerfile: MyClub/Dockerfile
     env_file: [.env]
     environment:
       - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT}
@@ -30,7 +27,7 @@ services:
       - "${PORT}:8080"
     depends_on:
       - sql
-      - rabbit
+      - rabbitmq
       - azurite
 
   subscriber:
@@ -50,7 +47,7 @@ services:
       - SMTP_SENDER_NAME=${SMTP_SENDER_NAME}
       - MAIL_QUEUE_NAME=${MAIL_QUEUE_NAME}
     depends_on:
-      - rabbit
+      - rabbitmq
 
   sql:
     image: mcr.microsoft.com/mssql/server:2022-latest
@@ -62,7 +59,7 @@ services:
     volumes:
       - mssqldata:/var/opt/mssql
 
-  rabbit:
+  rabbitmq:
     image: rabbitmq:3-management
     environment:
       - RABBITMQ_DEFAULT_USER=${RABBITMQ_USERNAME}
