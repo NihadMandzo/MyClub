@@ -12,8 +12,12 @@ using MyClub.WebAPI.Filters;
 using MyClub.Services.Interfaces;
 using MyClub.Services.Services;
 using MyClub.Services.OrderStateMachine;
+using DotNetEnv;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Try loading environment variables from a .env file in development/local scenarios
+try { Env.TraversePath().Load(); } catch { /* ignore if .env not present */ }
 // Add services to the container.
 builder.Services.AddTransient<IProductService, ProductService>();
 builder.Services.AddTransient<IUserService, UserService>();
@@ -74,7 +78,7 @@ builder.Services.AddAuthentication(options =>
         ValidateIssuerSigningKey = true,
         ValidIssuer = builder.Configuration["JwtConfig:Issuer"],
         ValidAudience = builder.Configuration["JwtConfig:Audience"],
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JwtConfig:Key"])),
+    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JwtConfig:Key"] ?? string.Empty)),
         ClockSkew = TimeSpan.Zero
     };
     
@@ -154,11 +158,25 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
-// Ensure database creation
+// Ensure database creation with simple retry (useful when SQL starts slower in Docker)
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<MyClubContext>();
-    context.Database.EnsureCreated();
+    const int maxAttempts = 10;
+    var delay = TimeSpan.FromSeconds(2);
+    for (var attempt = 1; attempt <= maxAttempts; attempt++)
+    {
+        try
+        {
+            context.Database.EnsureCreated();
+            break;
+        }
+        catch
+        {
+            if (attempt == maxAttempts) throw;
+            await Task.Delay(delay);
+        }
+    }
 }
 
 // Configure the HTTP request pipeline.

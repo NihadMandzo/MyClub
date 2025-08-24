@@ -5,6 +5,7 @@ using RabbitMQ.Client;
 using RabbitMQ.Client.Exceptions;
 using Microsoft.Extensions.Logging;
 using MyClub.Services.Interfaces;
+using Microsoft.Extensions.Configuration;
 
 
 namespace MyClub.Services.Services
@@ -17,15 +18,30 @@ namespace MyClub.Services.Services
         private readonly int _port;
         private readonly string _username;
         private readonly string _password;
+        private readonly IConfiguration _configuration;
 
-        public RabbitMQService(ILogger<RabbitMQService> logger)
+        public RabbitMQService(ILogger<RabbitMQService> logger, IConfiguration configuration)
         {
             _logger = logger;
-            _hostname = "localhost";
-            _port = 5672;
-            _username = "guest";
-            _password = "guest";
+            _configuration = configuration;
+
+            // Prefer configuration/environment variables; fall back to sensible defaults for local dev
+            _hostname = _configuration["RabbitMQ:HostName"]
+                ?? Environment.GetEnvironmentVariable("RABBITMQ_HOST")
+                ?? "localhost";
+            _port = TryParseInt(
+                _configuration["RabbitMQ:Port"]
+                ?? Environment.GetEnvironmentVariable("RABBITMQ_PORT"), 5672);
+            _username = _configuration["RabbitMQ:UserName"]
+                ?? Environment.GetEnvironmentVariable("RABBITMQ_USERNAME")
+                ?? "guest";
+            _password = _configuration["RabbitMQ:Password"]
+                ?? Environment.GetEnvironmentVariable("RABBITMQ_PASSWORD")
+                ?? "guest";
         }
+
+        private static int TryParseInt(string? value, int fallback)
+            => int.TryParse(value, out var i) ? i : fallback;
 
         public void SendMessage<T>(string routingKey, T message)
         {

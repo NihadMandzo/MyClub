@@ -1,0 +1,16 @@
+# Solution-level ignores
+.env
+.env.*.local
+.env.local
+azurite/
+*/*.user
+**/bin/
+**/obj/
+**/.vs/
+**/.vscode/
+**/*.UserSecrets/
+**/*.pubxml
+**/*.pubxml.user
+**/appsettings.Development.json
+**/appsettings.Local.json
+**/appsettings.*.local.json

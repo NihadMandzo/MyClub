@@ -11,16 +11,16 @@ public static class UserSeeder
     {
         // Generate password hash and salt for admin
         string adminSalt;
-        string adminHash = HashPassword("admin123", out adminSalt);
+        string adminHash = HashPassword("test", out adminSalt);
 
         // Generate password hash and salt for user
         string userSalt;
-        string userHash = HashPassword("user123", out userSalt);
+        string userHash = HashPassword("test", out userSalt);
 
         // Generate password hash and salt for user1
         string user1Salt;
-        string user1Hash = HashPassword("nihad123", out user1Salt);
-       
+        string user1Hash = HashPassword("test", out user1Salt);
+
         entity.HasData(
             new User {  
                 Id = 1, 

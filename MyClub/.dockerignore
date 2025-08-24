@@ -15,7 +15,9 @@
 **/bin
 **/charts
 **/docker-compose*
-**/Dockerfile*
+# Keep Dockerfiles in context for builds
+!MyClub.WebAPI/Dockerfile
+!MyClub.Subscriber/Dockerfile
 **/node_modules
 **/npm-debug.log
 **/obj

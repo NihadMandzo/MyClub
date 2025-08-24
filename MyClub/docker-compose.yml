@@ -1,0 +1,85 @@
+services:
+  webapi:
+    build:
+      context: .
+      dockerfile: MyClub.WebAPI/Dockerfile
+    env_file: [.env]
+    environment:
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT}
+      - ASPNETCORE_URLS=${ASPNETCORE_URLS}
+      - ConnectionStrings__DefaultConnection=${CONNECTIONSTRINGS__DEFAULTCONNECTION}
+      - ConnectionStrings__AzureBlobStorage=${CONNECTIONSTRINGS__AZUREBLOBSTORAGE}
+      - JwtConfig__Key=${JWTCONFIG__KEY}
+      - JwtConfig__Issuer=${JWTCONFIG__ISSUER}
+      - JwtConfig__Audience=${JWTCONFIG__AUDIENCE}
+      - Stripe__SecretKey=${STRIPE__SECRETKEY}
+      - Stripe__PublishableKey=${STRIPE__PUBLISHABLEKEY}
+      - RabbitMQ__HostName=${RABBITMQ_HOST}
+      - RabbitMQ__Port=${RABBITMQ_PORT}
+      - RabbitMQ__UserName=${RABBITMQ_USERNAME}
+      - RabbitMQ__Password=${RABBITMQ_PASSWORD}
+      - PayPal__ClientId=${PAYPAL__CLIENTID}
+      - PayPal__Secret=${PAYPAL__SECRET}
+      - PayPal__Environment=${PAYPAL__ENVIRONMENT}
+      - PayPal__BrandName=${PAYPAL__BRANDNAME}
+      - PayPal__ReturnUrl=${PAYPAL__RETURNURL}
+      - PayPal__CancelUrl=${PAYPAL__CANCELURL}
+    ports:
+      - "${PORT}:8080"
+    depends_on:
+      - sql
+      - rabbitmq
+      - azurite
+
+  subscriber:
+    build:
+      context: .
+      dockerfile: MyClub.Subscriber/Dockerfile
+    env_file: [.env]
+    environment:
+      - RABBITMQ_HOST=${RABBITMQ_HOST}
+      - RABBITMQ_PORT=${RABBITMQ_PORT}
+      - RABBITMQ_USERNAME=${RABBITMQ_USERNAME}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
+      - SMTP_SERVER=${SMTP_SERVER}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USERNAME=${SMTP_USERNAME}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - SMTP_SENDER_NAME=${SMTP_SENDER_NAME}
+      - MAIL_QUEUE_NAME=${MAIL_QUEUE_NAME}
+    depends_on:
+      - rabbitmq
+
+  sql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=${SA_PASSWORD}
+    ports:
+      - "${MSSQL_PORT}:1433"
+    volumes:
+      - mssqldata:/var/opt/mssql
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USERNAME}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmqdata:/var/lib/rabbitmq
+
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite
+    command: azurite-blob --blobHost 0.0.0.0 --loose
+    ports:
+      - "10000:10000"
+    volumes:
+      - azuritedata:/data
+
+volumes:
+  mssqldata:
+  rabbitmqdata:
+  azuritedata:
