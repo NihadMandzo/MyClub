@@ -482,14 +482,6 @@ class _PlayersContentState extends State<_PlayersContent> {
             _selectedImageBytes = file.bytes;
             _selectedImageName = file.name;
             _keepPicture = false; // User is choosing a new image
-            
-            // This will trigger all form field validations to update
-            _formKey.currentState?.validate();
-            
-            NotificationUtility.showSuccess(
-              context,
-              message: 'Slika uspješno odabrana',
-            );
           });
         } else if (file.path != null) {
           // Desktop platforms
@@ -498,14 +490,6 @@ class _PlayersContentState extends State<_PlayersContent> {
             _selectedImageBytes = fileBytes;
             _selectedImageName = file.name;
             _keepPicture = false; // User is choosing a new image
-            
-            // This will trigger all form field validations to update
-            _formKey.currentState?.validate();
-            
-            NotificationUtility.showSuccess(
-              context,
-              message: 'Slika uspješno odabrana',
-            );
           });
         }
       }
@@ -937,6 +921,7 @@ class _PlayersContentState extends State<_PlayersContent> {
               padding: const EdgeInsets.all(16.0),
               child: Form(
                 key: _formKey,
+                autovalidateMode: AutovalidateMode.disabled,
                 child: SingleChildScrollView(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,

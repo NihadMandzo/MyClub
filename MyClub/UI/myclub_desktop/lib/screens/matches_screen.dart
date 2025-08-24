@@ -493,29 +493,6 @@ class _MatchesContentState extends State<_MatchesContent> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                // Add new match button
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          _clearForm();
-                        },
-                        icon: const Icon(Icons.add),
-                        label: const Text('Dodaj novi meč'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
                 // Search bar
                 Row(
                   children: [

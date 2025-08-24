@@ -21,13 +21,16 @@ class PlayerProvider extends BaseProvider<Player> {
     var request2 = http.MultipartRequest('POST', uri);
     request2.headers.addAll(headers);
     
-    // Ensure all required fields are properly cased
+    // Ensure all required fields are properly cased and IDs are sent
+
+    print(request['positionId']);
     final mappedRequest = {
       'FirstName': request['firstName'] ?? '',
       'LastName': request['lastName'] ?? '',
-      'Position': request['position'] ?? '',
+      'PositionId': request['positionId']?.toString() ?? '',
+      
+      'NationalityId': request['nationalityId']?.toString() ?? '',
       'Biography': request['biography'] ?? '',
-      'Nationality': request['nationality'] ?? '',
       'Number': request['number']?.toString() ?? '0',
       'DateOfBirth': request['dateOfBirth'] ?? DateTime.now().toIso8601String(),
       'Height': request['height']?.toString() ?? '0',
@@ -70,13 +73,15 @@ class PlayerProvider extends BaseProvider<Player> {
     var request2 = http.MultipartRequest('PUT', uri);
     request2.headers.addAll(headers);
     
-    // Ensure all required fields are properly cased
+
+    print(request['positionId']);
+    // Ensure all required fields are properly cased and IDs are sent
     final mappedRequest = {
       'FirstName': request['firstName'] ?? '',
       'LastName': request['lastName'] ?? '',
-      'Position': request['position'] ?? '',
+      'PositionId': request['positionId']?.toString() ?? '',
+      'NationalityId': request['nationalityId']?.toString() ?? '',
       'Biography': request['biography'] ?? '',
-      'Nationality': request['nationality'] ?? '',
       'Number': request['number']?.toString() ?? '0',
       'DateOfBirth': request['dateOfBirth'] ?? DateTime.now().toIso8601String(),
       'Height': request['height']?.toString() ?? '0',

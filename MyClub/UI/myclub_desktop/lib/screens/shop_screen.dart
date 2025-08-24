@@ -336,10 +336,7 @@ class _ShopContentState extends State<_ShopContent> {
       _selectedCategoryId = detailedProduct.category?.id;
       _isActive = detailedProduct.isActive ?? true;
       
-      // Trigger validation to update the form state with the newly set values
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _formKey.currentState?.validate();
-      });
+  // Do not trigger validation here; validate only when saving
 
       // Reset images
       _selectedImagesBytes = [];
@@ -611,13 +608,7 @@ class _ShopContentState extends State<_ShopContent> {
           }
         });
 
-        // Don't trigger validation immediately after adding images
-        // We only validate when saving the product
-
-        NotificationUtility.showSuccess(
-          context,
-          message: '${files.length} slike uspješno odabrane',
-        );
+  // Don't trigger validation or show notifications here; validate on Save
       }
     } catch (e) {
       NotificationUtility.showError(
@@ -648,8 +639,8 @@ class _ShopContentState extends State<_ShopContent> {
   }
 
   void _updateProductSize(int index, int? sizeId, int? quantity) {
-    // Validate that we have a valid quantity (must be a positive number)
-    final safeQuantity = quantity != null && quantity > 0 ? quantity : 0;
+  // Normalize quantity (allow zero)
+  final safeQuantity = quantity != null && quantity >= 0 ? quantity : 0;
     
     // Check for duplicate sizes when updating
     if (sizeId != null) {
@@ -668,12 +659,7 @@ class _ShopContentState extends State<_ShopContent> {
       // Check all other sizes for duplicates
       for (int i = 0; i < _productSizes.length; i++) {
         if (i != index && _productSizes[i].size?.id == sizeId) {
-          // Show error for duplicate size with improved message
-          NotificationUtility.showError(
-            context,
-            message: 'Veličina "${sizeName ?? 'odabrana'}" je već dodana. '
-                    'Nije dozvoljeno dodavanje iste veličine više puta.',
-          );
+          // Silently ignore duplicate selection; inline validators will handle user feedback
           return; // Exit without updating
         }
       }
@@ -963,125 +949,15 @@ class _ShopContentState extends State<_ShopContent> {
   }
 
   Future<void> _saveProduct() async {
-    // Set validation to true so errors will display
+    // Set validation to true so errors will display on Save
     setState(() {
       _showValidationErrors = true;
       _colorValidationError = _selectedColorId == null;
       _categoryValidationError = _selectedCategoryId == null;
     });
-    
     // Trigger full form validation only when saving
     final isFormValid = _formKey.currentState!.validate();
-
-    // Collect all validation errors to show them all at once
-    List<String> validationErrors = [];
-    
-    // Check form fields for completeness
-    if (_nameController.text.trim().isEmpty) {
-      validationErrors.add('Molimo unesite naziv proizvoda');
-    }
-    
-    if (_descriptionController.text.trim().isEmpty) {
-      validationErrors.add('Molimo unesite opis proizvoda');
-    }
-    
-    if (_barcodeController.text.trim().isEmpty) {
-      validationErrors.add('Molimo unesite barkod proizvoda');
-    }
-    
-    if (_priceController.text.trim().isEmpty) {
-      validationErrors.add('Molimo unesite cijenu proizvoda');
-    } else {
-      final price = double.tryParse(_priceController.text.trim().replaceAll(',', '.'));
-      if (price == null) {
-        validationErrors.add('Cijena mora biti validan broj (KM)');
-      } else if (price <= 0 || price >= 10000) {
-        validationErrors.add('Cijena mora biti između 0.01 KM i 10,000 KM');
-      }
-    }
-    
-    // Check if images are selected
-    if (_selectedProduct == null && _selectedImagesBytes.isEmpty) {
-      validationErrors.add('Molimo odaberite barem jednu sliku za proizvod');
-    }
-
-    // Check if color is selected 
-    if (_selectedColorId == null) {
-      validationErrors.add('Molimo odaberite boju proizvoda');
-    }
-    
-    // Check if category is selected
-    if (_selectedCategoryId == null) {
-      validationErrors.add('Molimo odaberite kategoriju proizvoda');
-    }
-    
-    // Validate product sizes (needed for both add and edit)
-    if (_productSizes.isEmpty) {
-      validationErrors.add('Morate dodati barem jednu veličinu s količinom');
-    }
-    
-    // Check for duplicate sizes - collect all duplicates to show in message
-    final Map<int, List<int>> sizeMap = {}; // Map size ID to list of indices where it appears
-    final List<String> duplicateSizes = [];
-    
-    for (int i = 0; i < _productSizes.length; i++) {
-      var size = _productSizes[i];
-      if (size.size?.id != null) {
-        final sizeId = size.size!.id!;
-        final sizeName = size.size!.name ?? 'Nepoznato';
-        
-        if (sizeMap.containsKey(sizeId)) {
-          // Add index to the list of indices for this size
-          sizeMap[sizeId]!.add(i);
-          
-          if (!duplicateSizes.contains(sizeName)) {
-            duplicateSizes.add(sizeName);
-          }
-        } else {
-          sizeMap[sizeId] = [i];
-        }
-      }
-    }
-    
-    if (duplicateSizes.isNotEmpty) {
-      // Create detailed message about which rows have duplicate sizes
-      List<String> detailedErrors = [];
-      
-      sizeMap.forEach((sizeId, indices) {
-        if (indices.length > 1) {
-          String sizeName = '';
-          for (var size in _sizes) {
-            if (size.id == sizeId) {
-              sizeName = size.name ?? 'Nepoznato';
-              break;
-            }
-          }
-          
-          detailedErrors.add('Veličina "$sizeName" se pojavljuje u redovima: ${indices.map((i) => i+1).join(', ')}');
-        }
-      });
-      
-      validationErrors.add(
-        'Pronađene su duple veličine:\n${detailedErrors.join('\n')}\n'
-        'Nije dozvoljeno dodavanje iste veličine više puta.'
-      );
-    }
-    
-    // If there are validation errors, show them all at once
-    if (validationErrors.isNotEmpty) {
-      NotificationUtility.showError(
-        context,
-        message: validationErrors.join('\n'),
-      );
-      return;
-    }
-    
-    // If form validation failed but we didn't catch specific errors above
     if (!isFormValid) {
-      NotificationUtility.showError(
-        context,
-        message: 'Molimo popunite sva obavezna polja ispravno',
-      );
       return;
     }
 
@@ -1095,9 +971,6 @@ class _ShopContentState extends State<_ShopContent> {
         sizeValidationErrors.add('Veličina #${i+1}: Molimo odaberite konkretnu veličinu');
       }
       
-      if (size.quantity == null || size.quantity! <= 0) {
-        sizeValidationErrors.add('Veličina ${size.size?.name ?? '#${i+1}'}: Količina mora biti veća od 0');
-      }
     }
     
     // Show size validation errors if any
@@ -1122,21 +995,10 @@ class _ShopContentState extends State<_ShopContent> {
 
     try {
       if (_selectedProduct == null) {
-        // Check if images are available for new product
-        if (_selectedImagesBytes.isEmpty || _selectedImageNames.isEmpty) {
-          NotificationUtility.showError(
-            context,
-            message: 'Molimo dodajte barem jednu sliku za novi proizvod',
-          );
-          return;
-        }
+  // For new product, image selection is not enforced here by notification; assume backend will validate if required
         
         // Ensure images and names match in length
         if (_selectedImagesBytes.length != _selectedImageNames.length) {
-          NotificationUtility.showError(
-            context,
-            message: 'Greška prilikom učitavanja slika. Molimo pokušajte ponovo.',
-          );
           return;
         }
 
@@ -1181,38 +1043,7 @@ class _ShopContentState extends State<_ShopContent> {
           _forceCleanForm();
         });
       } else {
-        // For product updates - ensure we have at least one image
-        // Either newly selected images or existing images that are kept
-        if (_selectedImagesBytes.isEmpty && _imagesToKeep.isEmpty) {
-          // If no images are selected AND no images are marked to keep, check if we have original images
-          if (_selectedProduct != null && 
-              _selectedProduct!.imageUrls != null && 
-              _selectedProduct!.imageUrls!.isNotEmpty) {
-            
-            // Use all original images if none were explicitly removed
-            _imagesToKeep = [];
-            for (var image in _selectedProduct!.imageUrls!) {
-              if (image.id != null) {
-                _imagesToKeep.add(image.id!);
-              }
-            }
-            
-            // If after checking, we still have no images to keep
-            if (_imagesToKeep.isEmpty) {
-              NotificationUtility.showError(
-                context,
-                message: 'Proizvod mora imati barem jednu sliku. Molimo dodajte sliku ili zadržite postojeću.',
-              );
-              return;
-            }
-          } else {
-            NotificationUtility.showError(
-              context,
-              message: 'Proizvod mora imati barem jednu sliku. Molimo dodajte sliku ili zadržite postojeću.',
-            );
-            return;
-          }
-        }
+  // For updates, rely on form/UI choices; backend may enforce image rules
         
         // Show confirmation dialog before updating
         final confirmed = await DialogUtility.showConfirmation(
@@ -1271,15 +1102,6 @@ class _ShopContentState extends State<_ShopContent> {
       setState(() {
         _isLoading = false;
       });
-      
-      // Only reset the form if there was an error
-      // If the operation was successful, we've already cleared the form
-      if (_selectedProduct != null) {
-        // Only handle error cases - successful operations already clean the form
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _formKey.currentState?.validate(); // Re-trigger validation to show errors if any
-        });
-      }
     }
   }
 
@@ -2118,8 +1940,6 @@ class _ShopContentState extends State<_ShopContent> {
                                             _colorValidationError = false; // Clear validation error
                                           });
                                           state.didChange(value);
-                                          // Also trigger validation immediately after change
-                                          _formKey.currentState?.validate();
                                         }
                                       },
                                       items: [
@@ -2276,8 +2096,6 @@ class _ShopContentState extends State<_ShopContent> {
                                             _categoryValidationError = false; // Clear validation error
                                           });
                                           state.didChange(value);
-                                          // Also trigger validation immediately after change
-                                          _formKey.currentState?.validate();
                                         }
                                       },
                                       items: [

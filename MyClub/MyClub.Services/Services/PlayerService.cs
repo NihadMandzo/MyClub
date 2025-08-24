@@ -83,6 +83,19 @@ namespace MyClub.Services.Services
         {
             await base.BeforeInsert(entity, request);
 
+            // Validate FK references
+            var countryId = request.NationalityId.HasValue && request.NationalityId.Value > 0
+                ? request.NationalityId.Value
+                : request.CountryId;
+            if (countryId <= 0 || !await _context.Countries.AnyAsync(c => c.Id == countryId))
+            {
+                throw new UserException("Selected country does not exist.");
+            }
+            if (request.PositionId <= 0 || !await _context.Positions.AnyAsync(p => p.Id == request.PositionId))
+            {
+                throw new UserException("Selected position does not exist.");
+            }
+
             // Handle image upload if provided
             if (request.ImageUrl != null)
             {
@@ -105,6 +118,24 @@ namespace MyClub.Services.Services
 
         protected override async Task BeforeUpdate(Player entity, PlayerUpdateRequest request)
         {
+            // Validate FK references
+                // Prefer CountryId; some clients may send NationalityId via form, mapped in client provider
+                var effectiveCountryId = request.CountryId;
+                if (effectiveCountryId.HasValue && effectiveCountryId.Value > 0)
+                {
+                    if (!await _context.Countries.AnyAsync(c => c.Id == effectiveCountryId.Value))
+                    {
+                        throw new UserException("Selected country does not exist.");
+                    }
+                }
+                if (request.PositionId.HasValue && request.PositionId.Value > 0)
+                {
+                    if (!await _context.Positions.AnyAsync(p => p.Id == request.PositionId.Value))
+                    {
+                        throw new UserException("Selected position does not exist.");
+                    }
+                }
+
             // Validate that if KeepPicture is false, a new image must be provided
             if (!request.KeepPicture && request.ImageUrl == null)
             {
@@ -127,7 +158,7 @@ namespace MyClub.Services.Services
                 var imageUrl = await _blobStorageService.UploadAsync(request.ImageUrl, _containerName);
 
                 // Update existing asset or create a new one
-                Asset asset = null;
+                Asset? asset = null;
                 if (entity.ImageId.HasValue)
                 {
                     asset = await _context.Assets.FindAsync(entity.ImageId.Value);
@@ -173,18 +204,35 @@ namespace MyClub.Services.Services
                 response.Age = age;
             }
             response.FullName = $"{entity.FirstName} {entity.LastName}";
-            response.Position = new PositionResponse
+            // Ensure navigation properties are loaded
+            if (entity.Position == null)
             {
-                Id = entity.Position.Id,
-                Name = entity.Position.Name,
-                IsPlayer = entity.Position.IsPlayer
-            };
-            response.Nationality = new CountryResponse
+                var pos = _context.Positions.AsNoTracking().FirstOrDefault(p => p.Id == entity.PositionId);
+                if (pos != null) entity.Position = pos;
+            }
+            if (entity.Country == null)
             {
-                Id = entity.Country.Id,
-                Name = entity.Country.Name,
-                Code = entity.Country.Code
-            };
+                var ctry = _context.Countries.AsNoTracking().FirstOrDefault(c => c.Id == entity.CountryId);
+                if (ctry != null) entity.Country = ctry;
+            }
+            if (entity.Position != null)
+            {
+                response.Position = new PositionResponse
+                {
+                    Id = entity.Position.Id,
+                    Name = entity.Position.Name,
+                    IsPlayer = entity.Position.IsPlayer
+                };
+            }
+            if (entity.Country != null)
+            {
+                response.Nationality = new CountryResponse
+                {
+                    Id = entity.Country.Id,
+                    Name = entity.Country.Name,
+                    Code = entity.Country.Code
+                };
+            }
 
             // Set image URL if available
             if (entity.Image != null)
@@ -197,33 +245,47 @@ namespace MyClub.Services.Services
 
         protected override Player MapUpdateToEntity(Player entity, PlayerUpdateRequest request)
         {
-            var player = base.MapUpdateToEntity(entity, request);
-            player.DateOfBirth = request.DateOfBirth;
-            player.Height = request.Height;
-            player.Weight = request.Weight;
-            player.Biography = request.Biography;
-            player.CountryId = request.CountryId;
-            player.PositionId = request.PositionId;
-            player.Number = request.Number;
-            player.FirstName = request.FirstName;
-            player.LastName = request.LastName;
+            var player = entity;
+            player.DateOfBirth = request.DateOfBirth ?? player.DateOfBirth;
+            player.Height = request.Height ?? player.Height;
+            player.Weight = request.Weight ?? player.Weight;
+            player.Biography = request.Biography ?? player.Biography;
+            // CountryId: accept either CountryId or NationalityId if provided (>0)
+            var effectiveCountryId = request.CountryId.HasValue && request.CountryId.Value > 0
+                ? request.CountryId.Value
+                : (request.NationalityId.HasValue && request.NationalityId.Value > 0 ? request.NationalityId.Value : (int?)null);
+            if (effectiveCountryId.HasValue)
+            {
+                player.CountryId = effectiveCountryId.Value;
+            }
+            if (request.PositionId.HasValue && request.PositionId.Value > 0)
+            {
+                player.PositionId = request.PositionId.Value;
+            }
+            if (request.Number.HasValue)
+            {
+                player.Number = request.Number.Value;
+            }
+            if (!string.IsNullOrWhiteSpace(request.FirstName)) player.FirstName = request.FirstName;
+            if (!string.IsNullOrWhiteSpace(request.LastName)) player.LastName = request.LastName;
             player.ClubId = 1;
-            player.ImageId = entity.ImageId;
-
+            // preserve image id; updates handled in BeforeUpdate
             return player;
         }
         protected override Player MapInsertToEntity(Player entity, PlayerInsertRequest request)
         {
-            var player = base.MapInsertToEntity(entity, request);
+            var player = entity;
+            player.FirstName = request.FirstName;
+            player.LastName = request.LastName;
+            player.Number = request.Number;
             player.DateOfBirth = request.DateOfBirth;
+            player.PositionId = request.PositionId;
             player.Height = request.Height;
             player.Weight = request.Weight;
             player.Biography = request.Biography;
-            player.CountryId = request.CountryId;
-            player.PositionId = request.PositionId;
-            player.Number = request.Number;
-            player.FirstName = request.FirstName;
-            player.LastName = request.LastName;
+            player.CountryId = request.NationalityId.HasValue && request.NationalityId.Value > 0
+                ? request.NationalityId.Value
+                : request.CountryId;
             player.ClubId = 1;
             return player;
         }
