@@ -22,9 +22,7 @@ namespace MyClub.Services.OrderStateMachine
     {
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly IPaymentService _paymentService;
-        private readonly MyClubContext _context;
 
-        private readonly IServiceProvider _serviceProvider;
         public InitialOrderState(IServiceProvider serviceProvider,
             IHttpContextAccessor httpContextAccessor,
             IPaymentService paymentService, MyClubContext context)
@@ -32,13 +30,10 @@ namespace MyClub.Services.OrderStateMachine
         {
             _httpContextAccessor = httpContextAccessor;
             _paymentService = paymentService;
-            _serviceProvider = serviceProvider;
-            _context = context;
         }
 
         public override async Task<OrderResponse> ConfirmOrder(ConfirmOrderRequest request)
         {
-
             var userId = JwtTokenManager.GetUserIdFromToken(_httpContextAccessor.HttpContext.Request.Headers["Authorization"].ToString());
             var user = await _context.Users.FindAsync(userId);
             if (user == null)
@@ -46,14 +41,7 @@ namespace MyClub.Services.OrderStateMachine
                 throw new KeyNotFoundException($"User with ID {userId} not found");
             }
 
-
-            var payment = await _paymentService.ConfirmStripePayment(request.TransactionId);
-            if (!payment)
-            {
-                throw new Exception("Payment failed");
-            }
-
-            
+            // Find the order first
             var order = await _context.Orders
                                 .Include(x => x.Payment)
                                 .Include(x => x.OrderItems)
@@ -61,16 +49,38 @@ namespace MyClub.Services.OrderStateMachine
                                 .ThenInclude(x => x.Product)
                                 .Include(x => x.User)
                                 .Include(x => x.ShippingDetails)
-                                .FirstOrDefaultAsync(x => x.Payment.TransactionId.Contains(request.TransactionId));
+                                .FirstOrDefaultAsync(x => x.Payment != null && x.Payment.TransactionId == request.TransactionId);
+            
             if (order == null)
             {
                 throw new KeyNotFoundException($"Order with TransactionId {request.TransactionId} not found");
             }
+
+            // Handle payment confirmation based on payment method
+            bool paymentConfirmed = false;
+            if (order.Payment?.Method == "Stripe")
+            {
+                paymentConfirmed = await _paymentService.ConfirmStripePayment(request.TransactionId);
+            }
+            else if (order.Payment?.Method == "PayPal")
+            {
+                paymentConfirmed = true;
+            }
+
+            if (!paymentConfirmed)
+            {
+                throw new Exception("Payment confirmation failed");
+            }
+
             var oldState = order.OrderState;
             order.OrderState = "Procesiranje";
-            order.Payment.Status = "Completed";
-            order.Payment.CompletedAt = DateTime.UtcNow;
+            if (order.Payment != null)
+            {
+                order.Payment.Status = "Completed";
+                order.Payment.CompletedAt = DateTime.UtcNow;
+            }
             await _context.SaveChangesAsync();
+            
             // Send message to RabbitMQ
             base.SendOrderStateChangeEmail(order, oldState);
             return await MapOrderToResponse(order);
@@ -119,7 +129,7 @@ namespace MyClub.Services.OrderStateMachine
                     OrderDate = DateTime.Now,
                     OrderState = "Iniciranje",
                     TotalAmount = request.Amount,
-                    Notes = request.Notes,
+                    Notes = request.Notes ?? string.Empty,
                     ShippingDetailsId = shippingDetails.Id
                 };
                 
@@ -128,11 +138,17 @@ namespace MyClub.Services.OrderStateMachine
                     .Include(c => c.Items)
                     .FirstOrDefaultAsync(c => c.UserId == request.UserId);
 
-                foreach (var cartItem in cart.Items)
+                if (cart != null)
                 {
-                    _context.CartItems.Remove(cartItem);
+                    if (cart.Items != null)
+                    {
+                        foreach (var cartItem in cart.Items)
+                        {
+                            _context.CartItems.Remove(cartItem);
+                        }
+                    }
+                    _context.Carts.Remove(cart);
                 }
-                _context.Carts.Remove(cart);
                 _context.Orders.Add(order);
                 await _context.SaveChangesAsync(); // Save to get Order ID
 
@@ -142,6 +158,9 @@ namespace MyClub.Services.OrderStateMachine
                     var productSize = await _context.ProductSizes
                         .Include(ps => ps.Product)
                         .FirstOrDefaultAsync(ps => ps.Id == itemRequest.ProductSizeId);
+
+                    if (productSize == null)
+                        throw new UserException("Product size not found");
 
                     var orderItem = new OrderItem
                     {
@@ -160,7 +179,7 @@ namespace MyClub.Services.OrderStateMachine
                 await _context.SaveChangesAsync();
 
                 // 5. Create payment based on type
-                PaymentResponse paymentResponse = null;
+                PaymentResponse paymentResponse;
 
                 if (request.Type.Equals("Stripe", StringComparison.OrdinalIgnoreCase))
                 {
@@ -169,13 +188,11 @@ namespace MyClub.Services.OrderStateMachine
                 }
                 else if (request.Type.Equals("PayPal", StringComparison.OrdinalIgnoreCase))
                 {
-                    // Create payment in PayPal (returns URL string, not PaymentResponse)
-                    var paypalUrl = await _paymentService.CreatePayPalPaymentAsync(request);
-                    paymentResponse = new PaymentResponse
-                    {
-                        transactionId = Guid.NewGuid().ToString(),
-                        clientSecret = paypalUrl
-                    };
+                    paymentResponse = await _paymentService.CreatePayPalPaymentAsync(request);
+                }
+                else
+                {
+                    throw new ArgumentException("Invalid payment type. Use 'Stripe' or 'PayPal'.");
                 }
 
                 // 6. Create payment record in database
@@ -184,7 +201,7 @@ namespace MyClub.Services.OrderStateMachine
                     OrderId = order.Id,
                     Amount = request.Amount,
                     Method = request.Type,
-                    TransactionId = paymentResponse.transactionId,
+                    TransactionId = paymentResponse.transactionId ?? string.Empty,
                     Status = "Pending",
                     CreatedAt = DateTime.Now
                 };

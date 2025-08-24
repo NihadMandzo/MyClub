@@ -72,8 +72,9 @@ class NavbarLayout extends StatelessWidget {
                   buildNavButton(context, 'Vijesti', 3),
                   buildNavButton(context, 'Ulaznice', 4),
                   buildNavButton(context, 'Članstvo', 5),
-                  buildNavButton(context, 'Igrači', 6),
-                  buildNavButton(context, 'Utakmice', 7),
+                  buildNavButton(context, 'Korisnička članstva', 6),
+                  buildNavButton(context, 'Igrači', 7),
+                  buildNavButton(context, 'Utakmice', 8),
                 ],
               ),
             ),
@@ -91,7 +92,7 @@ class NavbarLayout extends StatelessWidget {
                   );
                 } else if (value == 'settings') {
                   if (onNavSelected != null) {
-                    onNavSelected!(8); // 8 is the index for Settings in the screens list
+                    onNavSelected!(9); // 9 is the index for Settings in the screens list after adding UserMemberships
                   }
                 }
               },

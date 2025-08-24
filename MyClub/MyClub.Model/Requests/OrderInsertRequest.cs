@@ -14,7 +14,7 @@ namespace MyClub.Model.Requests
         [Required]
         public ShippingRequest Shipping { get; set; }
 
-        public string Notes { get; set; }
+        public string? Notes { get; set; }
         
         [Required]
         public List<OrderItemInsertRequest> Items { get; set; }

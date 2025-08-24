@@ -4,6 +4,7 @@ import 'package:myclub_mobile/providers/match_provider.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../utility/auth_helper.dart';
+import '../utility/notification_helper.dart';
 
 class AdminQRScannerScreen extends StatefulWidget {
   const AdminQRScannerScreen({Key? key}) : super(key: key);
@@ -317,17 +318,11 @@ class _AdminQRScannerScreenState extends State<AdminQRScannerScreen> {
       setState(() {
         isLoading = false;
         isValid = false;
-        validationMessage = 'Greška: ${e.toString()}';
+  validationMessage = NotificationHelper.extractErrorMessage(e);
       });
       
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Greška validacije: ${e.toString()}'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 2),
-          ),
-        );
+  NotificationHelper.showApiError(context, e);
       }
     }
   }

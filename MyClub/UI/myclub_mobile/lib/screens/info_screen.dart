@@ -82,10 +82,7 @@ class _InfoScreenState extends State<InfoScreen> with TickerProviderStateMixin {
         setState(() {
           _isLoading = false;
         });
-        NotificationHelper.showError(
-          context,
-          'Greška pri učitavanju igrača: $e',
-        );
+  NotificationHelper.showApiError(context, e);
       }
     }
   }
@@ -115,10 +112,7 @@ class _InfoScreenState extends State<InfoScreen> with TickerProviderStateMixin {
         setState(() {
           _isMembershipLoading = false;
         });
-        NotificationHelper.showError(
-          context,
-          'Greška pri učitavanju članstva: $e',
-        );
+  NotificationHelper.showApiError(context, e);
       }
     }
   }

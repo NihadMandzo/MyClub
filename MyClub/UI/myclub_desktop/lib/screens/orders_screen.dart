@@ -30,13 +30,13 @@ class _OrdersContentState extends State<_OrdersContent> {
   List<Order> _orders = [];
   bool _isLoading = true;
   String? _errorMessage;
-  int _currentPage = 1;
+  int _currentPage = 1; // 1-based for UI
   int _totalPages = 0;
   int _pageSize = 10;
   String? _searchText;
 
   BaseSearchObject _searchObject = BaseSearchObject(
-    page: 1,
+  page: 0, // 0-based for API
     pageSize: 10,
   );
   final TextEditingController _searchController = TextEditingController();
@@ -75,6 +75,16 @@ class _OrdersContentState extends State<_OrdersContent> {
         _totalPages = (result.totalCount / _pageSize).ceil();
         _isLoading = false;
       });
+      // If we somehow landed on an out-of-range page, snap to last available
+      if (_totalPages > 0 && _currentPage > _totalPages) {
+        setState(() {
+          _currentPage = _totalPages;
+          _searchObject.page = _currentPage - 1; // 0-based
+        });
+        // Re-fetch data for the corrected page
+        await _initData();
+        return;
+      }
     } catch (e) {
       setState(() {
         _errorMessage = e.toString();
@@ -87,7 +97,7 @@ class _OrdersContentState extends State<_OrdersContent> {
     if (page != _currentPage) {
       setState(() {
         _currentPage = page;
-        _searchObject.page = page;
+  _searchObject.page = page - 1; // convert to 0-based for API
       });
       _initData();
     }
@@ -97,8 +107,8 @@ class _OrdersContentState extends State<_OrdersContent> {
     final searchText = _searchController.text.trim();
     setState(() {
       _searchText = searchText;
-      _currentPage = 1;
-      _searchObject.page = 1;
+  _currentPage = 1;
+  _searchObject.page = 0; // reset to first (0-based)
       _searchObject.fts = searchText.isNotEmpty ? searchText : null;
     });
     _initData();
@@ -108,8 +118,8 @@ class _OrdersContentState extends State<_OrdersContent> {
     _searchController.clear();
     setState(() {
       _searchText = null;
-      _currentPage = 1;
-      _searchObject.page = 1;
+  _currentPage = 1;
+  _searchObject.page = 0; // reset to first (0-based)
       _searchObject.fts = null;
     });
     _initData();
@@ -143,7 +153,7 @@ class _OrdersContentState extends State<_OrdersContent> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Orders',
+              'Narudžbe',
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
@@ -207,15 +217,11 @@ class _OrdersContentState extends State<_OrdersContent> {
                       child: CircularProgressIndicator(),
                     )
                   : _errorMessage != null
-                      ? Center(
+          ? Center(
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Text(
-                                'Error: $_errorMessage',
-                                style: const TextStyle(color: Colors.red),
-                                textAlign: TextAlign.center,
-                              ),
+            Text('Greška: $_errorMessage', style: const TextStyle(color: Colors.red), textAlign: TextAlign.center),
                               const SizedBox(height: 16),
                               ElevatedButton(
                                 onPressed: _initData,
@@ -364,7 +370,7 @@ class _OrdersContentState extends State<_OrdersContent> {
             ),
             
             // Pagination
-            if (_totalPages > 0)
+            if (_orders.isNotEmpty && _totalPages > 1)
               Container(
                 margin: const EdgeInsets.only(top: 16),
                 child: Row(

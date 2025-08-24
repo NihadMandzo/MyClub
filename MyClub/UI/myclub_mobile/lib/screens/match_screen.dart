@@ -55,8 +55,8 @@ class _MatchScreenState extends State<MatchScreen> with TickerProviderStateMixin
       setState(() {
         _isLoading = false;
       });
-      if (mounted) {
-        NotificationHelper.showError(context, e.toString());
+        if (mounted) {
+          NotificationHelper.showApiError(context, e);
       }
     }
   }

@@ -162,17 +162,29 @@ namespace MyClub.Services
 
                 var userId = JwtTokenManager.GetUserIdFromToken(authHeader);
 
-                // Create Stripe payment intent using PaymentService
-                var paymentResponse = await _paymentService.CreateStripePaymentAsync(request);
+                // Create payment based on type
+                PaymentResponse paymentResponse;
+                if (request.Type == "Stripe")
+                {
+                    paymentResponse = await _paymentService.CreateStripePaymentAsync(request);
+                }
+                else if (request.Type == "PayPal")
+                {
+                    paymentResponse = await _paymentService.CreatePayPalPaymentAsync(request);
+                }
+                else
+                {
+                    throw new ArgumentException("Invalid payment type. Use 'Stripe' or 'PayPal'.");
+                }
 
                 // Create a payment record with pending status
                 var payment = new Payment
                 {
                     Amount = request.Amount,
-                    Method = "Card",
+                    Method = request.Type,
                     Status = "Pending", // Initially pending until confirmed
                     CreatedAt = DateTime.UtcNow,
-                    TransactionId = paymentResponse.transactionId
+                    TransactionId = paymentResponse.transactionId ?? string.Empty
                 };
 
                 _context.Payments.Add(payment);
@@ -206,7 +218,9 @@ namespace MyClub.Services
                 return new PaymentResponse
                 {
                     transactionId = paymentResponse.transactionId,
-                    clientSecret = paymentResponse.clientSecret
+                    clientSecret = paymentResponse.clientSecret,
+                    approvalUrl = paymentResponse.approvalUrl,
+                    
                 };
             }
             catch (Exception)
@@ -224,7 +238,7 @@ namespace MyClub.Services
                 .ThenInclude(mt => mt.Match)
                 .Include(ut => ut.MatchTicket.StadiumSector)
                 .ThenInclude(ss => ss.StadiumSide)
-                .Where(ut => ut.UserId == userId)
+                .Where(ut => ut.UserId == userId && ut.Payment.Status == "Completed")
                 .AsQueryable();
 
             // Filter for upcoming matches only if requested
@@ -491,18 +505,26 @@ namespace MyClub.Services
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
-                // Confirm payment with PaymentService
-                var paymentConfirmed = await _paymentService.ConfirmStripePayment(transactionId);
-
-                if (!paymentConfirmed)
-                    throw new UserException("Payment confirmation failed");
-
-                // Find the user ticket associated with this transaction
+                // Find the payment first to determine the method
                 var payment = await _context.Payments
                     .FirstOrDefaultAsync(p => p.TransactionId == transactionId);
 
                 if (payment == null)
                     throw new UserException($"Payment with transaction ID {transactionId} not found");
+
+                // Confirm payment based on method
+                bool paymentConfirmed = false;
+                if (payment.Method == "Stripe")
+                {
+                    paymentConfirmed = await _paymentService.ConfirmStripePayment(transactionId);
+                }
+                else if (payment.Method == "PayPal")
+                {
+                    paymentConfirmed = true;
+                }
+
+                if (!paymentConfirmed)
+                    throw new UserException("Payment confirmation failed");
 
                 payment.CompletedAt = DateTime.UtcNow;
 

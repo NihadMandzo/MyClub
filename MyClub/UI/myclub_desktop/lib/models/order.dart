@@ -1,5 +1,6 @@
 import 'package:myclub_desktop/models/order_item.dart';
 import 'package:myclub_desktop/models/city.dart';
+import 'package:myclub_desktop/models/country.dart';
 
 class Order {
   final int id;
@@ -14,7 +15,7 @@ class Order {
   final bool hasMembershipDiscount;
   final String? shippingAddress;
   final City? shippingCity;
-  final String paymentMethod;
+  final String? paymentMethod;
   final DateTime? shippedDate;
   final DateTime? deliveredDate;
   final String? notes;
@@ -33,7 +34,7 @@ class Order {
     required this.hasMembershipDiscount,
     this.shippingAddress,
     this.shippingCity,
-    required this.paymentMethod,
+  this.paymentMethod,
     this.shippedDate,
     this.deliveredDate,
     this.notes,
@@ -53,10 +54,21 @@ class Order {
       discountAmount: (json['discountAmount'] as num).toDouble(),
       hasMembershipDiscount: json['hasMembershipDiscount'] as bool,
       shippingAddress: json['shippingAddress'] as String?,
-      shippingCity: json['shippingCity'] != null 
-          ? City.fromJson(json['shippingCity'] as Map<String, dynamic>) 
-          : null,
-      paymentMethod: json['paymentMethod'] as String,
+      shippingCity: (() {
+        final sc = json['shippingCity'] as Map<String, dynamic>?;
+        if (sc == null) return null;
+        final countryJson = sc['country'] as Map<String, dynamic>?;
+        final country = countryJson != null
+            ? Country.fromJson(countryJson)
+            : Country(id: 0, name: '', code: '');
+        return City(
+          id: (sc['id'] as int?) ?? 0,
+          name: (sc['name'] as String?) ?? '',
+          postalCode: (sc['postalCode'] as String?) ?? '',
+          country: country,
+        );
+      })(),
+      paymentMethod: json['paymentMethod'] as String?,
       shippedDate: json['shippedDate'] != null 
           ? DateTime.parse(json['shippedDate'] as String) 
           : null,
@@ -84,7 +96,7 @@ class Order {
       'hasMembershipDiscount': hasMembershipDiscount,
       'shippingAddress': shippingAddress,
       'shippingCity': shippingCity?.toJson(),
-      'paymentMethod': paymentMethod,
+  'paymentMethod': paymentMethod,
       'shippedDate': shippedDate?.toIso8601String(),
       'deliveredDate': deliveredDate?.toIso8601String(),
       'notes': notes,

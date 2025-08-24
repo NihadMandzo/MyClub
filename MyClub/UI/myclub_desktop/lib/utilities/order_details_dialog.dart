@@ -276,7 +276,7 @@ class _OrderDetailsDialogState extends State<OrderDetailsDialog> {
                                   if (widget.order.deliveredDate != null)
                                     buildInfoItem('Datum isporuke',
                                         DateFormat('MMM dd, yyyy').format(widget.order.deliveredDate!)),
-                                  buildInfoItem('Metoda Plačanja', widget.order.paymentMethod),
+                                  buildInfoItem('Metoda Plačanja', widget.order.paymentMethod ?? 'Nije dostupno'),
                                 ],
                               ),
                             ),

@@ -11,6 +11,7 @@ import '../utility/responsive_helper.dart';
 import '../widgets/pagination_widget.dart';
 import '../screens/news_detail_screen.dart';
 import '../screens/membership_purchase_screen.dart';
+import '../utility/notification_helper.dart';
 
 /// Home screen with responsive layout and example content
 class HomeScreen extends StatefulWidget {
@@ -110,12 +111,7 @@ class _HomeScreenState extends State<HomeScreen> {
         setState(() {
           _isLoadingNews = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Greška prilikom učitavanja vijesti: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        NotificationHelper.showApiError(context, e);
       }
     }
   }

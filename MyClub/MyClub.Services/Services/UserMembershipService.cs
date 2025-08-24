@@ -56,17 +56,29 @@ namespace MyClub.Services.Services
                 query = query.Where(x => x.IsPaid == search.IsPaid.Value);
             }
 
+            if (!string.IsNullOrEmpty(search.FTS))
+            {
+                query = query.Where(x => x.User.Username.Contains(search.FTS) || x.User.FirstName.Contains(search.FTS) || x.User.LastName.Contains(search.FTS));
+            }
+
             return query.OrderByDescending(x => x.JoinDate);
         }
 
         public override async Task<PagedResult<UserMembershipResponse>> GetAsync(UserMembershipSearchObject search)
         {
+            // Suppress nullable warnings for EF navigation includes; EF safely handles null navigations in Include chains
+            #pragma warning disable CS8602
             var query = _context.UserMemberships
                 .AsNoTracking()
                 .Include(um => um.User)
                 .Include(um => um.MembershipCard)
+                .Include(um => um.Payment)
+                .Include(um => um.ShippingDetails)
+                    .ThenInclude(sd => sd.City!)
+                        .ThenInclude(c => c.Country)
                 .OrderByDescending(x => x.JoinDate)
                 .AsQueryable();
+            #pragma warning restore CS8602
                 
             query = ApplyFilter(query, search);
 
@@ -100,11 +112,17 @@ namespace MyClub.Services.Services
 
         public override async Task<UserMembershipResponse?> GetByIdAsync(int id)
         {
+            #pragma warning disable CS8602
             var entity = await _context.UserMemberships
                 .AsNoTracking()
                 .Include(um => um.User)
                 .Include(um => um.MembershipCard)
+                .Include(um => um.Payment)
+                .Include(um => um.ShippingDetails)
+                    .ThenInclude(sd => sd.City!)
+                        .ThenInclude(c => c.Country)
                 .FirstOrDefaultAsync(um => um.Id == id);
+            #pragma warning restore CS8602
 
             if (entity == null)
             {
@@ -119,10 +137,12 @@ namespace MyClub.Services.Services
             var query = _context.UserMemberships
                 .AsNoTracking()
                 .Include(um => um.User)
-                .Include(um => um.MembershipCard).ThenInclude(x=>x.Image)
-                .Where(um => um.UserId == userId)
+                .Include(um => um.MembershipCard).ThenInclude(x => x.Image)
+                .Where(um => um.UserId == userId && um.IsPaid)
                 .OrderByDescending(um => um.MembershipCard.Year)
                 .ThenByDescending(um => um.JoinDate);
+
+            
                 
             var totalCount = await query.CountAsync();
             var memberships = await query.ToListAsync();
@@ -217,12 +237,7 @@ namespace MyClub.Services.Services
                 }
                 else if (request.Type == "PayPal")
                 {
-                    var paypalUrl = await _paymentService.CreatePayPalPaymentAsync(request);
-                    paymentResponse = new PaymentResponse
-                    {
-                        transactionId = Guid.NewGuid().ToString(),
-                        clientSecret = paypalUrl
-                    };
+                    paymentResponse = await _paymentService.CreatePayPalPaymentAsync(request);
                 }
                 else
                 {
@@ -236,7 +251,7 @@ namespace MyClub.Services.Services
                     Method = request.Type,
                     Status = "Pending", // Initially pending until confirmed
                     CreatedAt = DateTime.UtcNow,
-                    TransactionId = paymentResponse.transactionId
+                    TransactionId = paymentResponse.transactionId ?? string.Empty
                 };
 
                 _context.Payments.Add(payment);
@@ -380,6 +395,7 @@ namespace MyClub.Services.Services
             var response = new UserMembershipResponse
             {
                 Id = entity.Id,
+                UserId = entity.UserId,
                 UserFullName = $"{entity.User?.FirstName} {entity.User?.LastName}",
                 MembershipCardId = entity.MembershipCardId,
                 MembershipName = entity.MembershipCard?.Name ?? string.Empty,
@@ -389,16 +405,26 @@ namespace MyClub.Services.Services
                 RecipientFullName = !string.IsNullOrEmpty(entity.RecipientFirstName) 
                     ? $"{entity.RecipientFirstName} {entity.RecipientLastName}" 
                     : string.Empty,
+                RecipientEmail = entity.User?.Email ?? string.Empty,
                 ShippingAddress = entity.ShippingDetails?.ShippingAddress ?? string.Empty,
-                ShippingCity = new CityResponse
+                ShippingCity = entity.ShippingDetails?.City != null ? new CityResponse
                 {
-                    Id = entity.ShippingDetails?.City?.Id ?? 0,
-                    Name = entity.ShippingDetails?.City?.Name ?? string.Empty,
-                    PostalCode = entity.ShippingDetails?.City?.PostalCode ?? string.Empty
-                },
+                    Id = entity.ShippingDetails.City.Id,
+                    Name = entity.ShippingDetails.City.Name,
+                    PostalCode = entity.ShippingDetails.City.PostalCode,
+                    Country = entity.ShippingDetails.City.Country != null ? new CountryResponse
+                    {
+                        Id = entity.ShippingDetails.City.Country.Id,
+                        Name = entity.ShippingDetails.City.Country.Name,
+                        Code = entity.ShippingDetails.City.Country.Code
+                    } : null
+                } : null,
                 IsShipped = entity.IsShipped,
                 ShippedDate = entity.ShippedDate,
-                PaymentAmount = entity.Payment?.Amount ?? 0,
+                // Ensure non-null, non-zero when paid; fallback to card price if payment record isn't linked
+                PaymentAmount = entity.Payment?.Amount 
+                                ?? (entity.IsPaid ? (entity.MembershipCard?.Price ?? 0) : 0),
+                PaymentMethod = entity.Payment?.Method ?? (entity.IsPaid ? "Unknown" : string.Empty),
                 IsPaid = entity.IsPaid,
                 PaymentDate = entity.PaymentDate
             };
@@ -428,20 +454,26 @@ namespace MyClub.Services.Services
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
-                // Confirm payment with PaymentService
-                var paymentConfirmed = await _paymentService.ConfirmStripePayment(transactionId);
-
-                if (!paymentConfirmed)
-                    throw new InvalidOperationException("Payment confirmation failed");
-
-                // Find the payment associated with this transaction
+                // Find the payment associated with this transaction first
                 var payment = await _context.Payments
                     .FirstOrDefaultAsync(p => p.TransactionId == transactionId);
 
-
-
                 if (payment == null)
                     throw new InvalidOperationException($"Payment with transaction ID {transactionId} not found");
+
+                // Confirm payment based on method
+                bool paymentConfirmed = false;
+                if (payment.Method == "Stripe")
+                {
+                    paymentConfirmed = await _paymentService.ConfirmStripePayment(transactionId);
+                }
+                else if (payment.Method == "PayPal")
+                {
+                    paymentConfirmed = true;
+                }
+
+                if (!paymentConfirmed)
+                    throw new InvalidOperationException("Payment confirmation failed");
 
                 payment.CompletedAt = DateTime.UtcNow;
 

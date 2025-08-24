@@ -7,6 +7,7 @@ import 'package:myclub_desktop/screens/players_screen.dart';
 import 'package:myclub_desktop/screens/settings_screen.dart';
 import 'package:myclub_desktop/screens/shop_screen.dart';
 import 'package:myclub_desktop/screens/tickets_screen.dart';
+import 'package:myclub_desktop/screens/user_memberships_screen.dart';
 import 'navbar_layout.dart';
 import 'dashboard_screen.dart';
 
@@ -28,21 +29,23 @@ class _MainLayoutState extends State<MainLayout> {
     const NewsScreen(),
     const TicketsScreen(),
     const MembershipScreen(),
+  const UserMembershipsScreen(),
     const PlayersScreen(),
     const MatchesScreen(),
     const SettingsScreen()
   ];
   
   final List<String> titles = [
-    'Dashboard',
-    'Orders',
-    'Shop',
-    'News',
-    'Tickets',
-    'Membership',
-    'Players',
-    'Matches',
-    'Settings',
+  'Analitika',
+  'Narudžbe',
+  'Fan Shop',
+  'Vijesti',
+  'Ulaznice',
+  'Članstvo',
+  'Korisnička članstva',
+  'Igrači',
+  'Utakmice',
+  'Postavke',
   ];
 
   @override

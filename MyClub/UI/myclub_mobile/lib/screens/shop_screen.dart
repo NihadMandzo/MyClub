@@ -11,6 +11,7 @@ import '../providers/color_provider.dart';
 import '../providers/size_provider.dart';
 import '../widgets/pagination_widget.dart';
 import '../utility/responsive_helper.dart';
+import '../utility/notification_helper.dart';
 import 'product_detail_screen.dart';
 
 class ShopScreen extends StatefulWidget {
@@ -77,7 +78,7 @@ class _ShopScreenState extends State<ShopScreen> {
       // Load products and recommended products
       await Future.wait([_loadProducts(), _loadRecommendedProducts()]);
     } catch (e) {
-      _showErrorSnackBar('Greška pri učitavanju podataka: $e');
+  NotificationHelper.showApiError(context, e);
     } finally {
       setState(() {
         _isLoading = false;
@@ -163,18 +164,12 @@ class _ShopScreenState extends State<ShopScreen> {
         _totalPages = result.totalPages ?? 0;
       });
     } catch (e) {
-      _showErrorSnackBar('Greška pri učitavanju proizvoda: $e');
+  NotificationHelper.showApiError(context, e);
     } finally {
       setState(() {
         _isLoading = false;
       });
     }
-  }
-
-  void _showErrorSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.red),
-    );
   }
 
   void _applyFilters() {

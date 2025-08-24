@@ -256,8 +256,8 @@ class _LoginScreenState extends State<LoginScreen> {
         NotificationHelper.showError(context, errorMessage);
       }
     } catch (e) {
-      if (mounted) {
-        NotificationHelper.showError(context, 'Greška: $e');
+        if (mounted) {
+          NotificationHelper.showApiError(context, e);
       }
     }
   }

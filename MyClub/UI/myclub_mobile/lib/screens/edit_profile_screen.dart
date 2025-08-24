@@ -350,7 +350,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     } catch (e) {
       print('Error updating profile: $e');
       if (mounted) {
-        NotificationHelper.showError(context, 'Greška pri ažuriranju profila: $e');
+        NotificationHelper.showApiError(context, e);
       }
     } finally {
       if (mounted) {

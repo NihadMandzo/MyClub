@@ -4,6 +4,8 @@ import 'package:myclub_mobile/models/responses/paged_result.dart';
 import 'package:myclub_mobile/models/search_objects/base_search_object.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_stripe/flutter_stripe.dart' as stripe;
+import 'package:url_launcher/url_launcher.dart';
+import 'dart:async';
 import '../models/responses/cart_response.dart';
 import '../models/responses/city_response.dart';
 import '../models/responses/payment_response.dart';
@@ -14,6 +16,7 @@ import '../models/requests/confirm_order_request.dart';
 import '../providers/order_provider.dart';
 import '../providers/city_provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/paypal_provider.dart';
 import '../utility/responsive_helper.dart';
 import '../utility/notification_helper.dart';
 import '../widgets/top_navbar.dart';
@@ -37,6 +40,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   late OrderProvider _orderProvider;
   late CityProvider _cityProvider;
   late AuthProvider _authProvider;
+  late PayPalProvider _paypalProvider;
 
   // Form controllers
   final _shippingAddressController = TextEditingController();
@@ -60,6 +64,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   // Payment data
   PaymentResponse? _paymentResponse;
   String? _stripePaymentMethodId;
+  Timer? _paypalResultTimer;
+  bool _isPayPalWaitingDialogOpen = false;
 
   @override
   void initState() {
@@ -67,13 +73,17 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     _orderProvider = context.read<OrderProvider>();
     _cityProvider = context.read<CityProvider>();
     _authProvider = context.read<AuthProvider>();
+    _paypalProvider = context.read<PayPalProvider>();
     _orderProvider.setContext(context);
     _cityProvider.setContext(context);
+    _paypalProvider.setContext(context);
     _loadCities();
   }
 
   @override
   void dispose() {
+    _paypalResultTimer?.cancel();
+  _paypalProvider.stopPaymentCheck(notify: false); // Stop PayPal checking when leaving screen
     _shippingAddressController.dispose();
     _postalCodeController.dispose();
     _notesController.dispose();
@@ -98,10 +108,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       setState(() {
         _cities = cities;
       });
-    } catch (e) {
+  } catch (e) {
       print('Error loading cities: $e');
       if (mounted) {
-        NotificationHelper.showError(context, 'Greška pri učitavanju gradova: $e');
+    NotificationHelper.showApiError(context, e);
       }
     } finally {
       setState(() {
@@ -111,14 +121,27 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   Future<void> _processCheckout() async {
-    if (!_formKey.currentState!.validate()) return;
+    print('=== CHECKOUT BUTTON PRESSED ===');
+    print('Selected payment method: $_selectedPaymentMethod');
+    print('Form validation: ${_formKey.currentState?.validate()}');
+    print('Selected city ID: $_selectedCityId');
+    
+    if (!_formKey.currentState!.validate()) {
+      print('Form validation failed - check required fields');
+      NotificationHelper.showError(context, 'Molimo popunite sva obavezna polja');
+      return;
+    }
     if (_selectedCityId == null) {
-      NotificationHelper.showError(context, 'Molimo odaberite grad');
+      print('No city selected');
+      NotificationHelper.showError(context, 'Molimo odaberite grad za dostavu');
       return;
     }
 
+    print('✅ Form validation passed - continuing with payment...');
+
     // For Stripe payments, we need the payment method first
     if (_selectedPaymentMethod == 'Stripe') {
+      print('Validating Stripe card inputs...');
       if (!_validateCardInputs()) {
         NotificationHelper.showError(context, 'Molimo unesite sve podatke kartice');
         return;
@@ -130,6 +153,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         return; // Error already shown
       }
     }
+    
+    // PayPal doesn't need card validation - it will redirect to PayPal
+    print('Processing payment with method: $_selectedPaymentMethod');
 
     setState(() {
       _isLoading = true;
@@ -162,11 +188,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       String? paymentMethodValue;
       if (_selectedPaymentMethod == 'Stripe' && _stripePaymentMethodId != null) {
         paymentMethodValue = _stripePaymentMethodId; // Use Stripe payment method ID
+      } else if (_selectedPaymentMethod == 'PayPal') {
+        paymentMethodValue = 'PayPal'; // For PayPal, just use the method name
       } else {
-        paymentMethodValue = _selectedPaymentMethod; // Use "PayPal" for PayPal
+        paymentMethodValue = _selectedPaymentMethod;
       }
 
-      // Create order request
+      // Create order request with PayPal URLs if needed
       final orderRequest = OrderInsertRequest(
         userId: userId,
         shipping: shippingRequest,
@@ -175,6 +203,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         type: _selectedPaymentMethod, // This tells backend if it's Stripe or PayPal
         amount: widget.cart.finalAmount,
         paymentMethod: paymentMethodValue, // This contains the actual payment method ID from Stripe
+        returnUrl: _selectedPaymentMethod == 'PayPal' ? 'myclub://payment/success' : null,
+        cancelUrl: _selectedPaymentMethod == 'PayPal' ? 'myclub://payment/cancel' : null,
       );
 
       // Place order and get payment response
@@ -188,16 +218,22 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
       if (mounted) {
         if (_selectedPaymentMethod == 'Stripe') {
-          // Now process the Stripe payment
+          print('Processing Stripe payment...');
+          // Process the Stripe payment
           await _processStripePayment();
+        } else if (_selectedPaymentMethod == 'PayPal') {
+          print('Processing PayPal payment...');
+          // Process PayPal payment
+          await _processPayPalPayment();
         } else {
+          print('Unknown payment method: $_selectedPaymentMethod');
           NotificationHelper.showSuccess(context, 'Narudžba je kreirana uspješno!');
         }
       }
-    } catch (e) {
+  } catch (e) {
       print('Error in _processCheckout: $e');
       if (mounted) {
-        NotificationHelper.showError(context, 'Greška pri kreiranju narudžbe: $e');
+    NotificationHelper.showApiError(context, e);
       }
     } finally {
       setState(() {
@@ -237,10 +273,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       _stripePaymentMethodId = 'pm_test_card_visa'; // Unique test ID
 
       print('Mock payment method created: $_stripePaymentMethodId');
-    } catch (e) {
+  } catch (e) {
       print('Error creating payment method: $e');
       if (mounted) {
-        NotificationHelper.showError(context, 'Greška pri kreiranju načina plaćanja: $e');
+    NotificationHelper.showApiError(context, e);
       }
     }
   }
@@ -261,12 +297,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     });
 
     try {
-      // For the mock implementation, we'll simulate the payment confirmation
-      print('Simulating Stripe payment confirmation...');
-      print('Payment Method ID: $_stripePaymentMethodId');
-      print('Client Secret: ${_paymentResponse!.clientSecret}');
-
-      // Simulate payment processing delay
+      // Simulate processing delay
       await Future.delayed(const Duration(seconds: 2));
 
       // Confirm order on backend
@@ -274,25 +305,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         transactionId: _paymentResponse!.transactionId,
       );
 
-      print('Confirming order on backend...');
       await _orderProvider.confirmOrder(confirmRequest);
 
       if (mounted) {
-        NotificationHelper.showSuccess(context, 'Plaćanje uspješno! Narudžba je potvrđena.');
-        // Navigate back to main screen or orders
-        Navigator.of(context).popUntil((route) => route.isFirst);
+        await _showThankYouDialogAndExit();
       }
     } catch (e) {
-      print('Error processing Stripe payment: $e');
       if (mounted) {
-        String errorMessage = 'Greška pri plaćanju: $e';
-        
-        // Handle specific Stripe errors
         if (e is stripe.StripeException) {
           final errorMessage = e.error.localizedMessage ?? e.error.message;
           NotificationHelper.showError(context, 'Greška pri plaćanju: $errorMessage');
         } else {
-          NotificationHelper.showError(context, errorMessage);
+          NotificationHelper.showApiError(context, e);
         }
       }
     } finally {
@@ -300,6 +324,288 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         _isProcessingPayment = false;
       });
     }
+  }
+
+  Future<void> _processPayPalPayment() async {
+    print('Starting PayPal payment process...');
+    
+    if (_paymentResponse == null) {
+      print('ERROR: PaymentResponse is null');
+      NotificationHelper.showError(context, 'Greška: Narudžba nije kreirana');
+      return;
+    }
+
+    print('PaymentResponse received: ${_paymentResponse!.toJson()}');
+
+    // Check if we have a valid approval URL from the backend
+    if (_paymentResponse!.approvalUrl == null || _paymentResponse!.approvalUrl!.isEmpty) {
+      print('ERROR: No PayPal approval URL provided by backend');
+      NotificationHelper.showError(context, 'Greška: PayPal approval URL nije dostupan. Molimo kontaktirajte podršku.');
+      return;
+    }
+
+    setState(() {
+      _isProcessingPayment = true;
+    });
+
+    try {
+      final approvalUrl = _paymentResponse!.approvalUrl!;
+      print('Using PayPal approval URL: $approvalUrl');
+      
+      // Launch PayPal URL in external browser
+      print('Launching PayPal URL: $approvalUrl');
+      
+      final Uri paypalUri = Uri.parse(approvalUrl);
+      if (await canLaunchUrl(paypalUri)) {
+        final launched = await launchUrl(
+          paypalUri,
+          mode: LaunchMode.externalApplication, // Open in external browser
+        );
+        
+        if (launched) {
+          print('✅ PayPal URL launched successfully');
+          
+          // Extract PayPal order ID from transaction ID or use transaction ID directly
+          final paypalOrderId = _paymentResponse!.transactionId;
+          print('Starting PayPal payment monitoring for order: $paypalOrderId');
+          
+          // Start PayPal payment checking using the new provider
+          _paypalProvider.startPaymentCheck(
+            checkController: 'PayPalTest',
+            orderIdForCheck: paypalOrderId,
+            transactionIdForConfirm: _paymentResponse!.transactionId,
+            confirmFn: (txId) async {
+              await _orderProvider.confirmOrder(ConfirmOrderRequest(transactionId: txId));
+            },
+            onComplete: (success, message) async {
+              if (!mounted) return;
+              // Close waiting dialog if still open
+              if (_isPayPalWaitingDialogOpen && Navigator.of(context).canPop()) {
+                Navigator.of(context).pop();
+                _isPayPalWaitingDialogOpen = false;
+              }
+              if (success) {
+                print('✅ PayPal payment completed successfully!');
+                await _showThankYouDialogAndExit();
+              } else {
+                print('❌ PayPal payment failed: $message');
+                NotificationHelper.showError(context, 'PayPal plaćanje neuspješno: $message');
+              }
+            },
+          );
+          
+          // Show waiting dialog while user completes PayPal payment
+          await _showPayPalWaitingDialog();
+          
+        } else {
+          throw Exception('Ne mogu otvoriti PayPal URL');
+        }
+      } else {
+        throw Exception('PayPal URL nije valjan ili se ne može otvoriti');
+      }
+
+  } catch (e) {
+      print('Error processing PayPal payment: $e');
+      if (mounted) {
+    NotificationHelper.showApiError(context, e);
+      }
+    } finally {
+      setState(() {
+        _isProcessingPayment = false;
+      });
+    }
+  }
+
+  Future<void> _showPayPalWaitingDialog() async {
+    _isPayPalWaitingDialogOpen = true;
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return WillPopScope(
+          onWillPop: () async => false,
+          child: Consumer<PayPalProvider>(
+            builder: (context, paypalProvider, child) {
+              return AlertDialog(
+                title: Row(
+                  children: [
+                    SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.blue.shade600),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Text(
+                        'Čekanje PayPal plaćanja',
+                        style: TextStyle(fontSize: 25),
+                        overflow: TextOverflow.ellipsis,
+                        softWrap: false,
+                      ),
+                    ),
+                  ],
+                ),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.account_balance_wallet_outlined,
+                      size: 64,
+                      color: Colors.blue.shade300,
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Molimo završite plaćanje u PayPal-u',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Aplikacija će automatski nastaviti kada završite plaćanje ili ga otkažete.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.info, color: Colors.orange.shade700, size: 20),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                            child: Text(
+                              'Ne zatvarajte aplikaciju tokom plaćanja',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    if (paypalProvider.isChecking)
+                      Text(
+                        'Provjeravam status plaćanja...',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.blue.shade600,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                  ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      _paypalProvider.stopPaymentCheck();
+                      Navigator.of(context).pop();
+                      _isPayPalWaitingDialogOpen = false;
+                      _showPayPalTimeoutDialog();
+                    },
+                    child: const Text('Prekini čekanje'),
+                  ),
+                ],
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  
+
+  Future<void> _showThankYouDialogAndExit() async {
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Row(
+            children: const [
+              Icon(Icons.check_circle, color: Colors.green),
+              SizedBox(width: 8),
+              Text('Kupovina uspješna'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 8),
+              const Text(
+                'Hvala na kupovini! Vaša narudžba je potvrđena.',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.shopping_bag, color: Colors.green),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Iznos: ${widget.cart.finalAmount.toStringAsFixed(2)} KM',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.green.shade700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).popUntil((route) => route.isFirst);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Početna'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showPayPalTimeoutDialog() {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('PayPal plaćanje'),
+          content: const Text(
+            'Čekanje na potvrdu plaćanja je zaustavljeno. Ako ste završili plaćanje u pregledniku, status narudžbe će uskoro biti ažuriran.',
+            textAlign: TextAlign.center,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('U redu'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -522,9 +828,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     return PaymentSectionWidget(
       selectedPaymentMethod: _selectedPaymentMethod,
       onPaymentMethodChanged: (String method) {
+        print('Payment method changed to: $method');
         setState(() {
           _selectedPaymentMethod = method;
         });
+        print('Payment method updated in state: $_selectedPaymentMethod');
       },
       cardNumberController: _cardNumberController,
       cardExpiryController: _cardExpiryController,
@@ -598,7 +906,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   const Icon(Icons.payment, size: 20),
                   const SizedBox(width: 8),
                   Text(
-                    'Završi narudžbu (${widget.cart.finalAmount.toStringAsFixed(2)} KM)',
+                    _selectedPaymentMethod == 'PayPal' 
+                      ? 'Plati preko PayPal-a (${widget.cart.finalAmount.toStringAsFixed(2)} KM)'
+                      : 'Završi narudžbu (${widget.cart.finalAmount.toStringAsFixed(2)} KM)',
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,

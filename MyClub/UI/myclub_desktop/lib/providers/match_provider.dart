@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:myclub_desktop/models/match.dart';
 import 'package:myclub_desktop/models/match_ticket.dart';
+import 'package:myclub_desktop/models/search_objects/base_search_object.dart';
 import 'package:myclub_desktop/providers/base_provider.dart';
 
 class MatchProvider extends BaseProvider<Match> {
@@ -29,7 +30,12 @@ class MatchProvider extends BaseProvider<Match> {
   }
 
   Future<List<Match>> getUpcomingMatches() async {
+
     var url = "${BaseProvider.baseUrl}$endpoint/upcoming";
+    BaseSearchObject searchObject = BaseSearchObject(retrieveAll:true);
+    var queryString = getQueryString(searchObject.toJson());
+
+    url += "?$queryString";
     var headers = createHeaders();
 
     var response = await http.get(Uri.parse(url), headers: headers);

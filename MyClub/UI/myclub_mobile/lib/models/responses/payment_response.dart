@@ -2,12 +2,12 @@
 class PaymentResponse {
   final String transactionId;
   final String? clientSecret;
-  final String? paymentUrl;
+  final String? approvalUrl; // For PayPal approval redirect
 
   PaymentResponse({
     required this.transactionId,
     this.clientSecret,
-    this.paymentUrl,
+    this.approvalUrl,
   });
 
   /// Create from JSON response
@@ -15,7 +15,7 @@ class PaymentResponse {
     return PaymentResponse(
       transactionId: json['transactionId'] ?? '',
       clientSecret: json['clientSecret'],
-      paymentUrl: json['paymentUrl'],
+      approvalUrl: json['approvalUrl'],
     );
   }
 
@@ -24,7 +24,7 @@ class PaymentResponse {
     return {
       'transactionId': transactionId,
       'clientSecret': clientSecret,
-      'paymentUrl': paymentUrl,
+      'approvalUrl': approvalUrl,
     };
   }
 }

@@ -319,13 +319,13 @@ class _PaymentSectionWidgetState extends State<PaymentSectionWidget> {
         children: [
           Icon(
             Icons.payment,
-            color: Colors.grey.shade400,
+            color: Colors.blue.shade600,
           ),
           const SizedBox(width: 8),
           Flexible(
             child: Text(
-              'PayPal (Uskoro dostupno)',
-              style: TextStyle(color: Colors.grey.shade500),
+              'PayPal',
+              style: TextStyle(color: Colors.blue.shade700),
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -334,16 +334,22 @@ class _PaymentSectionWidgetState extends State<PaymentSectionWidget> {
       leading: Radio<String>(
         value: 'PayPal',
         groupValue: widget.selectedPaymentMethod,
-        onChanged: null, // Disabled for now
+        onChanged: widget.isProcessing ? null : (value) {
+          widget.onPaymentMethodChanged(value!);
+        },
       ),
-      onExpansionChanged: null, // Disabled for now
+      onExpansionChanged: widget.isProcessing ? null : (expanded) {
+        if (expanded) {
+          widget.onPaymentMethodChanged('PayPal');
+        }
+      },
       children: [
         Padding(
           padding: const EdgeInsets.all(8),
           child: Column(
             children: [
               Text(
-                'PayPal integracija će biti dostupna uskoro',
+                'Plaćanje preko PayPal platforme',
                 style: TextStyle(
                   color: Colors.grey.shade600,
                   fontSize: 14,
@@ -352,20 +358,69 @@ class _PaymentSectionWidgetState extends State<PaymentSectionWidget> {
               const SizedBox(height: 16),
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
+                  color: Colors.blue.shade50,
                   borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue.shade200),
                 ),
-                child: Text(
-                  'Uskoro dostupno',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontWeight: FontWeight.w500,
-                  ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.security,
+                      color: Colors.blue.shade600,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'Sigurno plaćanje preko PayPal-a',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
+              const SizedBox(height: 16),
+              if (widget.selectedPaymentMethod == 'PayPal') ...[
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.account_balance_wallet,
+                        color: Colors.blue.shade700,
+                        size: 32,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'PayPal plaćanje',
+                        style: TextStyle(
+                          color: Colors.blue.shade700,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Preusmjerit ćete se na PayPal za završetak plaćanja',
+                        style: TextStyle(
+                          color: Colors.blue.shade600,
+                          fontSize: 12,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ],
           ),
         ),

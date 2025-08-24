@@ -146,18 +146,41 @@ class AuthProvider with ChangeNotifier {
         notifyListeners();
         return true;
       } else {
-        // Try to parse error message from response
+        // Try to parse error message from response (ProblemDetails / ModelState)
         try {
-          var errorResponse = json.decode(response.body);
-          if (errorResponse is Map && errorResponse.containsKey('message')) {
-            errorMessage = errorResponse['message'];
-          } else if (errorResponse is Map && errorResponse.containsKey('errors')) {
-            errorMessage = errorResponse['errors'].toString();
-          } else {
-            errorMessage = "Greška prilikom registracije";
+          final dynamic errorResponse = json.decode(response.body);
+          String? parsed;
+          if (errorResponse is Map<String, dynamic>) {
+            // message field
+            if (errorResponse['message'] is String) {
+              parsed = errorResponse['message'] as String;
+            }
+            // errors map
+            if (parsed == null && errorResponse['errors'] is Map) {
+              final errorsMap = Map<String, dynamic>.from(errorResponse['errors'] as Map);
+              final messages = <String>[];
+              errorsMap.forEach((key, value) {
+                if (value is List) {
+                  messages.addAll(value.map((e) => e.toString()));
+                } else if (value is String) {
+                  messages.add(value);
+                }
+              });
+              if (messages.isNotEmpty) {
+                parsed = messages.join('\n');
+              }
+            }
+            // title/detail fallback
+            if (parsed == null && errorResponse['detail'] is String) {
+              parsed = errorResponse['detail'] as String;
+            }
+            if (parsed == null && errorResponse['title'] is String) {
+              parsed = errorResponse['title'] as String;
+            }
           }
+          errorMessage = parsed ?? "Greška prilikom registracije";
         } catch (e) {
-          errorMessage = "Greška prilikom registracije: ${response.body}";
+          errorMessage = "Greška prilikom registracije";
         }
         
         isLoading = false;

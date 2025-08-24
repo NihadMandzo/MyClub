@@ -5,6 +5,8 @@ import 'package:myclub_mobile/models/search_objects/base_search_object.dart';
 import 'package:myclub_mobile/providers/user_membership_card_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_stripe/flutter_stripe.dart' as stripe;
+import 'package:url_launcher/url_launcher.dart';
+import '../providers/paypal_provider.dart';
 import '../models/responses/membership_card.dart';
 import '../models/responses/city_response.dart';
 import '../models/responses/payment_response.dart';
@@ -35,6 +37,7 @@ class _MembershipPurchaseScreenState extends State<MembershipPurchaseScreen> {
   late UserMembershipCardProvider _userMembershipCardProvider;
   late CityProvider _cityProvider;
   late AuthProvider _authProvider;
+  late PayPalProvider _paypalProvider;
 
   // Form controllers
   final _recipientFirstNameController = TextEditingController();
@@ -57,6 +60,7 @@ class _MembershipPurchaseScreenState extends State<MembershipPurchaseScreen> {
   bool _isLoading = false;
   bool _isLoadingCities = false;
   bool _isProcessingPayment = false;
+  bool _isPayPalWaitingDialogOpen = false;
   
   // Payment data
   PaymentResponse? _paymentResponse;
@@ -68,8 +72,10 @@ class _MembershipPurchaseScreenState extends State<MembershipPurchaseScreen> {
     _userMembershipCardProvider = context.read<UserMembershipCardProvider>();
     _cityProvider = context.read<CityProvider>();
     _authProvider = context.read<AuthProvider>();
+  _paypalProvider = context.read<PayPalProvider>();
     _userMembershipCardProvider.setContext(context);
     _cityProvider.setContext(context);
+  _paypalProvider.setContext(context);
     _loadCities();
   }
 
@@ -83,6 +89,7 @@ class _MembershipPurchaseScreenState extends State<MembershipPurchaseScreen> {
     _cardExpiryController.dispose();
     _cardCvcController.dispose();
     _cardHolderNameController.dispose();
+  _paypalProvider.stopPaymentCheck(notify: false);
     super.dispose();
   }
 
@@ -101,7 +108,7 @@ class _MembershipPurchaseScreenState extends State<MembershipPurchaseScreen> {
     } catch (e) {
       print('Error loading cities: $e');
       if (mounted) {
-        NotificationHelper.showError(context, 'Greška pri učitavanju gradova: $e');
+        NotificationHelper.showApiError(context, e);
       }
     } finally {
       setState(() {
@@ -183,18 +190,19 @@ class _MembershipPurchaseScreenState extends State<MembershipPurchaseScreen> {
         _paymentResponse = paymentResponse;
       });
 
-      if (mounted) {
-        if (_selectedPaymentMethod == 'Stripe') {
-          // Now process the Stripe payment
-          await _processStripePayment();
-        } else {
-          NotificationHelper.showSuccess(context, 'Članstvo je rezervisano uspješno!');
-        }
+      if (!mounted) return;
+      if (_selectedPaymentMethod == 'Stripe') {
+        // Now process the Stripe payment
+        await _processStripePayment();
+      } else if (_selectedPaymentMethod == 'PayPal') {
+        await _processPayPalPayment();
+      } else {
+        NotificationHelper.showSuccess(context, 'Članstvo je rezervisano uspješno!');
       }
     } catch (e) {
       print('Error in _processPurchase: $e');
       if (mounted) {
-        NotificationHelper.showError(context, 'Greška pri kupovini članstva: $e');
+        NotificationHelper.showApiError(context, e);
       }
     } finally {
       setState(() {
@@ -237,7 +245,7 @@ class _MembershipPurchaseScreenState extends State<MembershipPurchaseScreen> {
     } catch (e) {
       print('Error creating payment method: $e');
       if (mounted) {
-        NotificationHelper.showError(context, 'Greška pri kreiranju načina plaćanja: $e');
+        NotificationHelper.showApiError(context, e);
       }
     }
   }
@@ -278,14 +286,12 @@ class _MembershipPurchaseScreenState extends State<MembershipPurchaseScreen> {
     } catch (e) {
       print('Error processing Stripe payment: $e');
       if (mounted) {
-        String errorMessage = 'Greška pri plaćanju: $e';
-        
         // Handle specific Stripe errors
         if (e is stripe.StripeException) {
           final errorMessage = e.error.localizedMessage ?? e.error.message;
           NotificationHelper.showError(context, 'Greška pri plaćanju: $errorMessage');
         } else {
-          NotificationHelper.showError(context, errorMessage);
+          NotificationHelper.showApiError(context, e);
         }
       }
     } finally {
@@ -293,6 +299,114 @@ class _MembershipPurchaseScreenState extends State<MembershipPurchaseScreen> {
         _isProcessingPayment = false;
       });
     }
+  }
+
+  Future<void> _processPayPalPayment() async {
+    if (_paymentResponse == null) {
+      NotificationHelper.showError(context, 'Greška: Rezervacija nije kreirana');
+      return;
+    }
+
+    final approvalUrl = _paymentResponse!.approvalUrl;
+    if (approvalUrl == null || approvalUrl.isEmpty) {
+      NotificationHelper.showError(context, 'Greška: PayPal approval URL nije dostupan');
+      return;
+    }
+
+    try {
+      final Uri paypalUri = Uri.parse(approvalUrl);
+      final launched = await launchUrl(paypalUri, mode: LaunchMode.externalApplication);
+      if (!launched) throw Exception('Ne mogu otvoriti PayPal URL');
+
+      // Start polling using the unified PayPalTest check endpoint
+      _paypalProvider.startPaymentCheck(
+        checkController: 'PayPalTest',
+        orderIdForCheck: _paymentResponse!.transactionId,
+        transactionIdForConfirm: _paymentResponse!.transactionId,
+        confirmFn: (txId) async {
+          await _userMembershipCardProvider.confirmMembershipPurchase(txId);
+        },
+        onComplete: (success, message) async {
+          if (!mounted) return;
+          if (_isPayPalWaitingDialogOpen && Navigator.of(context).canPop()) {
+            Navigator.of(context).pop();
+            _isPayPalWaitingDialogOpen = false;
+          }
+          if (success) {
+            await _showThankYouAndExit();
+          } else {
+            NotificationHelper.showError(context, message ?? 'Plaćanje nije uspjelo');
+          }
+        },
+      );
+
+      await _showPayPalWaitingDialog();
+    } catch (e) {
+      NotificationHelper.showApiError(context, e);
+    }
+  }
+
+  Future<void> _showPayPalWaitingDialog() async {
+    _isPayPalWaitingDialogOpen = true;
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return WillPopScope(
+          onWillPop: () async => false,
+          child: Consumer<PayPalProvider>(
+            builder: (context, paypalProvider, child) {
+              return AlertDialog(
+                title: Row(
+                  children: const [
+                    SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    SizedBox(width: 12),
+                    Expanded(child: Text('Čekanje PayPal plaćanja', overflow: TextOverflow.ellipsis)),
+                  ],
+                ),
+                content: const Text('Molimo završite plaćanje u PayPal-u'),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      _paypalProvider.stopPaymentCheck();
+                      Navigator.of(context).pop();
+                      _isPayPalWaitingDialogOpen = false;
+                    },
+                    child: const Text('Prekini čekanje'),
+                  ),
+                ],
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showThankYouAndExit() async {
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Row(children: const [Icon(Icons.check_circle, color: Colors.green), SizedBox(width: 8), Text('Kupovina uspješna')]),
+          content: const Text('Hvala! Članstvo je aktivirano.'),
+          actions: [
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).popUntil((route) => route.isFirst);
+              },
+              child: const Text('Početna'),
+            )
+          ],
+        );
+      },
+    );
   }
 
   double get totalAmount => widget.membershipCard.price;

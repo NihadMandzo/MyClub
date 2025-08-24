@@ -140,55 +140,112 @@ abstract class BaseProvider<T> with ChangeNotifier {
     } else if (response.statusCode == 401 || response.statusCode == 403) {
       // Handle unauthorized/forbidden access
       print("Unauthorized access detected (${response.statusCode}). Triggering logout...");
-      _handleUnauthorized();
+      
+      // Only trigger global logout if not during PayPal confirmation
+      // PayPal confirmations might fail due to expired tokens during long payment processes
+      String requestUrl = response.request?.url.toString() ?? '';
+      if (!requestUrl.contains('/confirm')) {
+        _handleUnauthorized();
+      }
+      
       throw Exception("Unauthorized - Please log in again");
     } else {
       print("Processing error response with status ${response.statusCode}");
-
-      // Handle specific cases first
-      if (response.statusCode == 400) {
-        // Direct hardcoded fix for the specific error we're seeing
-        if (response.body.contains("Cannot delete this color") || 
-            response.body.contains("cannot delete this color")) {
-          throw Exception("Cannot delete this color as it's currently used by products");
-        }
-      }
-      
-      // Try to extract user-friendly error message from JSON response
+      // Try to extract a user-friendly error message from JSON response
+      // Covers ASP.NET Core ProblemDetails and custom ModelState error shapes
       try {
-        final Map<String, dynamic> errorData = jsonDecode(response.body);
-        if (errorData.containsKey('errors')) {
-          // Handle userError field if it exists
-          if (errorData['errors'] is Map && errorData['errors'].containsKey('userError')) {
-            final userErrors = errorData['errors']['userError'];
-            if (userErrors is List && userErrors.isNotEmpty) {
-              // Get the error message directly, no string manipulation needed
-              var errorMsg = userErrors[0];
-              
-              // Special case for error we know contains an apostrophe
-              if (errorMsg.toString().contains("it\\u0027s")) {
-                throw Exception("Cannot delete this item as it's currently used by products");
-              } else {
-                throw Exception(errorMsg);
-              }
-            }
+        final dynamic decoded = jsonDecode(response.body);
+        if (decoded is Map<String, dynamic>) {
+          final msg = _extractMessageFromErrorMap(decoded);
+          if (msg != null && msg.trim().isNotEmpty) {
+            throw Exception(msg.trim());
           }
-          // Try other possible error formats
-          else if (errorData['errors'] is List && (errorData['errors'] as List).isNotEmpty) {
-            throw Exception((errorData['errors'] as List).first.toString());
-          }
-          else if (errorData['errors'] is String) {
-            throw Exception(errorData['errors'].toString());
+        } else if (decoded is List) {
+          // Sometimes APIs return a list of error strings
+          if (decoded.isNotEmpty) {
+            throw Exception(decoded.first.toString());
           }
         }
       } catch (jsonError) {
         print("Error parsing JSON response: $jsonError");
-        // JSON parsing failed, continue with default error
+        // JSON parsing failed, continue with default handling below
+      }
+
+      // Handle specific legacy texts if present (fallback)
+      if (response.statusCode == 400) {
+        if (response.body.contains("Cannot delete this color") ||
+            response.body.contains("cannot delete this color")) {
+          throw Exception("Cannot delete this color as it's currently used by products");
+        }
       }
 
       // Default error message if we couldn't parse a specific one
-      throw Exception("API Error (${response.statusCode}): ${response.body}");
+      throw Exception("Došlo je do greške (${response.statusCode}). Pokušajte ponovo.");
     }
+  }
+
+  /// Extracts a user-friendly message from common error response shapes.
+  /// Supports:
+  /// - ASP.NET Core ProblemDetails with `errors` dictionary
+  /// - Custom `{ errors: { key: [messages] } }` shapes
+  /// - `{ message: "..." }`, `{ title/detail: "..." }`
+  String? _extractMessageFromErrorMap(Map<String, dynamic> map) {
+    // If there is a top-level message field
+    if (map['message'] is String && (map['message'] as String).trim().isNotEmpty) {
+      return map['message'] as String;
+    }
+
+    // ProblemDetails style
+    final title = map['title'];
+    final detail = map['detail'];
+
+    // Handle `errors` as Map<String, dynamic>
+    if (map['errors'] is Map) {
+      final errorsMap = Map<String, dynamic>.from(map['errors'] as Map);
+      final List<String> messages = [];
+
+      // Prioritize known keys like userError
+      if (errorsMap['userError'] != null) {
+        final val = errorsMap['userError'];
+        if (val is List && val.isNotEmpty) messages.addAll(val.map((e) => e.toString()));
+        if (val is String) messages.add(val);
+      }
+
+      // Collect from all keys
+      if (messages.isEmpty) {
+        errorsMap.forEach((key, value) {
+          if (value is List) {
+            messages.addAll(value.map((e) => e.toString()));
+          } else if (value is String) {
+            messages.add(value);
+          }
+        });
+      }
+
+      if (messages.isNotEmpty) {
+        // Join multiple messages with newlines for readability
+        return messages.join('\n');
+      }
+    }
+
+    // If there is a single `errors` string/list
+    final errorsField = map['errors'];
+    if (errorsField is String && errorsField.trim().isNotEmpty) {
+      return errorsField;
+    }
+    if (errorsField is List && errorsField.isNotEmpty) {
+      return errorsField.first.toString();
+    }
+
+    // Fall back to detail/title if present
+    if (detail is String && detail.trim().isNotEmpty) {
+      return detail;
+    }
+    if (title is String && title.trim().isNotEmpty) {
+      return title;
+    }
+
+    return null;
   }
 
   Map<String, String> createHeaders() {

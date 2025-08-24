@@ -17,10 +17,14 @@ class OrderInsertRequest extends PaymentRequest {
     required String type,
     required double amount,
     String? paymentMethod,
+    String? returnUrl,
+    String? cancelUrl,
   }) : super(
           type: type,
           amount: amount,
           paymentMethod: paymentMethod,
+          returnUrl: returnUrl,
+          cancelUrl: cancelUrl,
         );
 
   /// Convert to JSON for API requests
@@ -49,6 +53,8 @@ class OrderInsertRequest extends PaymentRequest {
       type: json['type'] ?? 'Stripe',
       amount: (json['amount'] ?? 0.0).toDouble(),
       paymentMethod: json['paymentMethod'],
+      returnUrl: json['returnUrl'],
+      cancelUrl: json['cancelUrl'],
     );
   }
 }

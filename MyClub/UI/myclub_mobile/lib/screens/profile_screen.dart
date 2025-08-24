@@ -103,7 +103,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       });
       
       if (mounted) {
-        NotificationHelper.showError(context, 'Greška pri učitavanju ulaznica: $e');
+  NotificationHelper.showApiError(context, e);
       }
     }
   }
@@ -131,7 +131,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       });
       
       if (mounted) {
-        NotificationHelper.showError(context, 'Greška pri učitavanju članskih karata: $e');
+  NotificationHelper.showApiError(context, e);
       }
     }
   }
@@ -159,7 +159,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       });
       
       if (mounted) {
-        NotificationHelper.showError(context, 'Greška pri učitavanju narudžbi: $e');
+  NotificationHelper.showApiError(context, e);
       }
     }
   }
@@ -1208,9 +1208,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
       
       // Show success message using ScaffoldMessenger instead of NotificationHelper
       scaffoldMessenger.showSnackBar(
-        const SnackBar(
-          content: Text('Profil je uspješno deaktiviran'),
+        SnackBar(
+          content: const Text('Profil je uspješno deaktiviran'),
           backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+          margin: EdgeInsets.only(
+            bottom: MediaQuery.of(context).padding.bottom + 80,
+            left: 16,
+            right: 16,
+          ),
         ),
       );
       
@@ -1233,13 +1239,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         print('Navigation error while closing dialog: $navError');
       }
       
-      // Show error message using ScaffoldMessenger
-      scaffoldMessenger.showSnackBar(
-        SnackBar(
-          content: Text('Greška pri deaktivaciji profila: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+  NotificationHelper.showApiError(context, e);
     }
   }
 }

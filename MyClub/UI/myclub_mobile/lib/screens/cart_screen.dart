@@ -43,7 +43,7 @@ class _CartScreenState extends State<CartScreen> {
       });
     } catch (e) {
       if (mounted) {
-        NotificationHelper.showError(context, 'Greška pri učitavanju korpe: $e');
+    NotificationHelper.showApiError(context, e);
       }
     } finally {
       setState(() {
@@ -76,7 +76,7 @@ class _CartScreenState extends State<CartScreen> {
       }
     } catch (e) {
       if (mounted) {
-        NotificationHelper.showError(context, 'Greška pri ažuriranju količine: $e');
+          NotificationHelper.showApiError(context, e);
       }
     } finally {
       setState(() {
@@ -110,7 +110,7 @@ class _CartScreenState extends State<CartScreen> {
       }
     } catch (e) {
       if (mounted) {
-        NotificationHelper.showError(context, 'Greška pri uklanjanju stavke: $e');
+          NotificationHelper.showApiError(context, e);
       }
     } finally {
       setState(() {
@@ -144,7 +144,7 @@ class _CartScreenState extends State<CartScreen> {
       }
     } catch (e) {
       if (mounted) {
-        NotificationHelper.showError(context, 'Greška pri brisanju korpe: $e');
+          NotificationHelper.showApiError(context, e);
       }
     } finally {
       setState(() {

@@ -9,9 +9,7 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace MyClub.WebAPI
 {
-    [ApiController]
-    [Route("api/[controller]")]
-    //[Authorize]
+    // Note: Route and ApiController attributes are applied on concrete controllers to avoid duplicates.
     public class BaseController<T, TSearch> : ControllerBase where T : class where TSearch : BaseSearchObject, new()
     {
         private readonly IService<T, TSearch> _service;

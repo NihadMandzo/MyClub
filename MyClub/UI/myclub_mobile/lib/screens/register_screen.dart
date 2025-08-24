@@ -409,7 +409,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       }
     } catch (e) {
       if (mounted) {
-        NotificationHelper.showError(context, 'Greška: $e');
+    NotificationHelper.showApiError(context, e);
       }
     }
   }

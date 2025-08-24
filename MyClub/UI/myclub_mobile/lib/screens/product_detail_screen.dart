@@ -55,7 +55,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       });
     } catch (e) {
       if (mounted) {
-        NotificationHelper.showError(context, 'Greška pri učitavanju proizvoda: $e');
+        NotificationHelper.showApiError(context, e);
       }
     } finally {
       setState(() {
@@ -110,7 +110,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       }
     } catch (e) {
       if (mounted) {
-        NotificationHelper.showError(context, 'Greška pri dodavanju u korpu: $e');
+        NotificationHelper.showApiError(context, e);
       }
     } finally {
       setState(() {

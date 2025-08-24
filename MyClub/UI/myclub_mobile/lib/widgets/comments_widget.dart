@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../models/responses/comment_response.dart';
 import '../providers/auth_provider.dart';
 import '../utility/responsive_helper.dart';
+import '../utility/notification_helper.dart';
 
 class CommentsWidget extends StatefulWidget {
   final List<CommentResponse> comments;
@@ -370,7 +371,15 @@ class _CommentsWidgetState extends State<CommentsWidget> {
               Navigator.of(context).pop();
               widget.onCommentDeleted(comment);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Komentar je obrisan')),
+                SnackBar(
+                  content: const Text('Komentar je obrisan'),
+                  behavior: SnackBarBehavior.floating,
+                  margin: EdgeInsets.only(
+                    bottom: MediaQuery.of(context).padding.bottom + 80,
+                    left: 16,
+                    right: 16,
+                  ),
+                ),
               );
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
@@ -408,7 +417,15 @@ class _CommentsWidgetState extends State<CommentsWidget> {
         });
         
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Komentar je ažuriran')),
+          SnackBar(
+            content: const Text('Komentar je ažuriran'),
+            behavior: SnackBarBehavior.floating,
+            margin: EdgeInsets.only(
+              bottom: MediaQuery.of(context).padding.bottom + 80,
+              left: 16,
+              right: 16,
+            ),
+          ),
         );
       } else {
         // Add new comment
@@ -423,13 +440,19 @@ class _CommentsWidgetState extends State<CommentsWidget> {
         _commentController.clear();
         
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Komentar je dodan')),
+          SnackBar(
+            content: const Text('Komentar je dodan'),
+            behavior: SnackBarBehavior.floating,
+            margin: EdgeInsets.only(
+              bottom: MediaQuery.of(context).padding.bottom + 80,
+              left: 16,
+              right: 16,
+            ),
+          ),
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Greška: $e')),
-      );
+      NotificationHelper.showApiError(context, e);
     } finally {
       setState(() {
         _isSubmitting = false;
