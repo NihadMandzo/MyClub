@@ -24,7 +24,7 @@ class AuthProvider with ChangeNotifier {
 
     try {
       var url = const String.fromEnvironment("baseUrl", 
-          defaultValue: "http://localhost:5206/api/Users/") + "login";
+          defaultValue: "http://localhost:8080/api/Users/") + "login";
       var uri = Uri.parse(url);
 
       print("Login URL: $uri");

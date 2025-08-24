@@ -15,7 +15,7 @@ abstract class BaseProvider<T> with ChangeNotifier {
   BaseProvider(String endpoint) {
     this.endpoint = endpoint;
     baseUrl = const String.fromEnvironment("baseUrl",
-        defaultValue: "http://localhost:5206/api/");
+        defaultValue: "http://localhost:8080/api/");
   }
   
   void setContext(BuildContext context) {
