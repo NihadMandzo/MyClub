@@ -98,7 +98,7 @@ class TopNavBar extends StatelessWidget implements PreferredSizeWidget {
         ),
         SizedBox(width: ResponsiveHelper.deviceSize(context) == DeviceSize.small ? 4 : 8),
         Text(
-          'MyClub',
+          'FK Foča',
           style: TextStyle(
             fontSize: ResponsiveHelper.font(context, base: 18),
             fontWeight: FontWeight.bold,

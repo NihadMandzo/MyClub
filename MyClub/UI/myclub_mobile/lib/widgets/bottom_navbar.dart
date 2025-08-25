@@ -16,9 +16,9 @@ class BottomNavBar extends StatelessWidget {
       onDestinationSelected: onTap,
       labelTextStyle: WidgetStateProperty.all(TextStyle(color: Color(0xFFFFFFFF))),
       destinations: const [
-        NavigationDestination(icon: Icon(Icons.home_outlined, color: Color(0xFFFFFFFF)), label: 'Home'),
-        NavigationDestination(icon: Icon(Icons.sports_soccer_outlined, color: Color(0xFFFFFFFF)), label: 'Match'),
-        NavigationDestination(icon: Icon(Icons.storefront_outlined, color: Color(0xFFFFFFFF)), label: 'Shop'),
+        NavigationDestination(icon: Icon(Icons.home_outlined, color: Color(0xFFFFFFFF)), label: 'Početna'),
+        NavigationDestination(icon: Icon(Icons.sports_soccer_outlined, color: Color(0xFFFFFFFF)), label: 'Utakmice'),
+        NavigationDestination(icon: Icon(Icons.storefront_outlined, color: Color(0xFFFFFFFF)), label: 'Fan shop'),
         NavigationDestination(icon: Icon(Icons.menu, color: Color(0xFFFFFFFF)), label: 'Info'),
       ],
     );
