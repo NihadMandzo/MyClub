@@ -44,6 +44,10 @@ namespace MyClub.Services.Database
         
         public DateTime? LastLogin { get; set; }
 
+        // Forgot password fields
+        public string? ForgotPasswordCode { get; set; }
+        public DateTime? ForgotPasswordCodeExpiry { get; set; }
+
         // Role relationship
         public int RoleId { get; set; }
         [ForeignKey("RoleId")]

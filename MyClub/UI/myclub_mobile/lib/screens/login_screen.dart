@@ -5,6 +5,7 @@ import '../utility/responsive_helper.dart';
 import '../utility/notification_helper.dart';
 import '../utility/auth_helper.dart';
 import 'register_screen.dart';
+import 'forgot_password_screen.dart';
 
 /// Login screen with username/password form and JWT authentication
 class LoginScreen extends StatefulWidget {
@@ -158,6 +159,25 @@ class _LoginScreenState extends State<LoginScreen> {
             textInputAction: TextInputAction.done,
             onFieldSubmitted: (_) => _handleLogin(),
           ),
+          
+          // Forgot password link
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: _handleForgotPassword,
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                foregroundColor: Theme.of(context).primaryColor,
+              ),
+              child: Text(
+                'Zaboravili ste lozinku?',
+                style: TextStyle(
+                  fontSize: ResponsiveHelper.font(context, base: 14),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -278,5 +298,13 @@ class _LoginScreenState extends State<LoginScreen> {
         'Možete se prijaviti sa novim korisničkim imenom.'
       );
     }
+  }
+  
+  /// Handle forgot password action
+  Future<void> _handleForgotPassword() async {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const ForgotPasswordScreen()),
+    );
   }
 }

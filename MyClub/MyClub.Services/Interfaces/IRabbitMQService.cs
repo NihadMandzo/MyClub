@@ -2,6 +2,6 @@ namespace MyClub.Services.Interfaces
 {
     public interface IRabbitMQService
     {
-        void SendMessage<T>(string queueName, T message);
+        void SendMessage<T>(string routingKey, T message);
     }
 }

@@ -76,7 +76,7 @@ class MyClubApp extends StatelessWidget {
           });
 
           return MaterialApp(
-            title: 'MyClub Mobile',
+            title: 'FK Foča',
             theme: ThemeData(
               colorScheme: ColorScheme.fromSeed(
                 seedColor: Colors.blue.shade700,

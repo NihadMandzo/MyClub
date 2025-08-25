@@ -4,7 +4,6 @@ services:
   webapi:
     build:
       context: .
-      dockerfile: MyClub/Dockerfile
     env_file: [.env]
     environment:
       - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT}

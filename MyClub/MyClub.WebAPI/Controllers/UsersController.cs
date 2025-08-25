@@ -65,6 +65,22 @@ namespace MyClub.WebAPI.Controllers
         }
 
         [AllowAnonymous]
+        [HttpPost("forgot-password")]
+        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
+        {
+            var result = await _userService.ForgotPasswordAsync(request);
+            return Ok(new { success = result, message = "Ako korisnik postoji, kod za resetovanje je poslat na email" });
+        }
+
+        [AllowAnonymous]
+        [HttpPost("reset-password")]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
+        {
+            var result = await _userService.ResetPasswordAsync(request);
+            return Ok(new { success = result, message = "Lozinka je uspešno resetovana" });
+        }
+
+        [AllowAnonymous]
         [HttpPost("login")]
         public async Task<IActionResult> Authenticate([FromBody] LoginRequest request)
         {

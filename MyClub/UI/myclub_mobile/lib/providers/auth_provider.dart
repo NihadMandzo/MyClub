@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:myclub_mobile/models/responses/auth_response.dart';
 import 'package:myclub_mobile/models/requests/user_upsert_request.dart';
+import 'package:myclub_mobile/models/requests/forgot_password_request.dart';
+import 'package:myclub_mobile/models/requests/reset_password_request.dart';
 import '../utility/auth_helper.dart';
 import '../utility/api_config.dart';
 
@@ -192,6 +194,118 @@ class AuthProvider with ChangeNotifier {
       isLoading = false;
       notifyListeners();
       print("Register error: $e");
+      return false;
+    }
+  }
+
+  /// Request password reset (first step)
+  Future<bool> forgotPassword(String username) async {
+    errorMessage = null;
+    isLoading = true;
+    notifyListeners();
+
+    try {
+      var url = '${ApiConfig.usersUrl}forgot-password';
+      var uri = Uri.parse(url);
+
+      print("Forgot Password URL: $uri");
+      
+      final request = ForgotPasswordRequest(username: username);
+      
+      var response = await http.post(
+        uri,
+        headers: {"Content-Type": "application/json"},
+        body: json.encode(request.toJson()),
+      );
+
+      print("Forgot Password response code: ${response.statusCode}");
+
+      if (response.statusCode == 200) {
+        isLoading = false;
+        notifyListeners();
+        return true;
+      } else {
+        try {
+          final dynamic errorResponse = json.decode(response.body);
+          String? parsed;
+          if (errorResponse is Map<String, dynamic>) {
+            if (errorResponse['message'] is String) {
+              parsed = errorResponse['message'] as String;
+            } else if (errorResponse['detail'] is String) {
+              parsed = errorResponse['detail'] as String;
+            } else if (errorResponse['title'] is String) {
+              parsed = errorResponse['title'] as String;
+            }
+          }
+          errorMessage = parsed ?? "Greška prilikom slanja zahtjeva za resetovanje lozinke";
+        } catch (e) {
+          errorMessage = "Greška prilikom slanja zahtjeva za resetovanje lozinke";
+        }
+        
+        isLoading = false;
+        notifyListeners();
+        return false;
+      }
+    } catch (e) {
+      errorMessage = "Greška povezivanja: $e";
+      isLoading = false;
+      notifyListeners();
+      print("Forgot Password error: $e");
+      return false;
+    }
+  }
+
+  /// Reset password using code from email (second step)
+  Future<bool> resetPassword(ResetPasswordRequest request) async {
+    errorMessage = null;
+    isLoading = true;
+    notifyListeners();
+
+    try {
+      var url = '${ApiConfig.usersUrl}reset-password';
+      var uri = Uri.parse(url);
+
+      print("Reset Password URL: $uri");
+
+      var response = await http.post(
+        uri,
+        headers: {"Content-Type": "application/json"},
+        body: json.encode(request.toJson()),
+      );
+
+      print("Reset Password response code: ${response.statusCode}");
+
+      if (response.statusCode == 200) {
+        isLoading = false;
+        notifyListeners();
+        return true;
+      } else {
+        try {
+          final dynamic errorResponse = json.decode(response.body);
+          String? parsed;
+          if (errorResponse is Map<String, dynamic>) {
+            if (errorResponse['message'] is String) {
+              parsed = errorResponse['message'] as String;
+            } else if (errorResponse['detail'] is String) {
+              parsed = errorResponse['detail'] as String;
+            } else if (errorResponse['title'] is String) {
+              parsed = errorResponse['title'] as String;
+            }
+          }
+          errorMessage = parsed ?? "Greška prilikom resetovanja lozinke";
+        } catch (e) {
+          errorMessage = "Greška prilikom resetovanja lozinke";
+        }
+        
+        isLoading = false;
+        notifyListeners();
+        return false;
+      }
+    } catch (e) {
+      errorMessage = "Greška povezivanja: $e";
+      isLoading = false;
+      notifyListeners();
+      print("Reset Password error: $e");
       return false;
     }
   }

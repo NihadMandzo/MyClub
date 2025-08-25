@@ -16,23 +16,26 @@ using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using MyClub.Services.Helpers;
 using Microsoft.AspNetCore.Http;
-using MyClub.Services.Helpers;
+using MyClub.Model;
+using MyClub.Services.Interfaces;
 
 namespace MyClub.Services
 {
     public class UserService : BaseCRUDService<UserResponse, UserSearchObject, UserUpsertRequest, UserUpsertRequest, User>, IUserService  
     {
         private readonly MyClubContext _context;
-        private readonly IMapper _mapper;
+        private new readonly IMapper _mapper;
         private readonly IConfiguration _config;
         private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly IRabbitMQService _rabbitMQService;
 
-        public UserService(MyClubContext context, IMapper mapper, IConfiguration config, IHttpContextAccessor httpContextAccessor) : base(context, mapper)
+        public UserService(MyClubContext context, IMapper mapper, IConfiguration config, IHttpContextAccessor httpContextAccessor, IRabbitMQService rabbitMQService) : base(context, mapper)
         {
             _context = context;
             _mapper = mapper;
             _config = config;
             _httpContextAccessor = httpContextAccessor;
+            _rabbitMQService = rabbitMQService;
         }
 
 
@@ -465,6 +468,139 @@ namespace MyClub.Services
             user.LastLogin = DateTime.UtcNow; // or null; adjust policy
             await _context.SaveChangesAsync();
             return true;
+        }
+
+        public async Task<bool> ForgotPasswordAsync(ForgotPasswordRequest request)
+        {
+            if (request == null || string.IsNullOrEmpty(request.Username))
+                throw new UserException("Korisničko ime je obavezno");
+
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Username == request.Username);
+            if (user == null)
+            {
+                // Don't reveal that user doesn't exist for security reasons
+                // But still return true to not give away information
+                return true;
+            }
+
+            if (!user.IsActive)
+            {
+                // Don't send reset code to inactive users
+                return true;
+            }
+
+            // Generate 6-digit reset code
+            var resetCode = GenerateResetCode();
+            
+            // Set expiry time (15 minutes from now)
+            var expiryTime = DateTime.UtcNow.AddMinutes(15);
+            
+            // Update user with reset code
+            user.ForgotPasswordCode = resetCode;
+            user.ForgotPasswordCodeExpiry = expiryTime;
+            
+            await _context.SaveChangesAsync();
+
+            // Send email with reset code
+            try
+            {
+                await SendResetPasswordEmail(user.Email, user.FirstName, user.LastName, resetCode);
+            }
+            catch (Exception ex)
+            {
+                // Log the error but don't expose it to the user
+                Console.WriteLine($"Failed to send reset email: {ex.Message}");
+                // Consider logging to a proper logging system
+            }
+
+            return true;
+        }
+
+        public async Task<bool> ResetPasswordAsync(ResetPasswordRequest request)
+        {
+            if (request == null)
+                throw new UserException("Nevažeći zahtev");
+
+            if (string.IsNullOrEmpty(request.Username))
+                throw new UserException("Korisničko ime je obavezno");
+
+            if (string.IsNullOrEmpty(request.ResetCode))
+                throw new UserException("Kod za resetovanje je obavezan");
+
+            if (string.IsNullOrEmpty(request.NewPassword))
+                throw new UserException("Nova lozinka je obavezna");
+
+            if (request.NewPassword.Length < 6)
+                throw new UserException("Lozinka mora imati najmanje 6 karaktera");
+
+            if (request.NewPassword != request.ConfirmPassword)
+                throw new UserException("Nova lozinka i potvrda se ne podudaraju");
+
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Username == request.Username);
+            if (user == null)
+                throw new UserException("Nevažeći korisnik ili kod", 400);
+
+            if (!user.IsActive)
+                throw new UserException("Korisnički nalog je deaktiviran", 403);
+
+            // Check if reset code exists and is valid
+            if (string.IsNullOrEmpty(user.ForgotPasswordCode) || 
+                user.ForgotPasswordCode != request.ResetCode)
+                throw new UserException("Nevažeći kod za resetovanje", 400);
+
+            // Check if code is expired
+            if (user.ForgotPasswordCodeExpiry == null || 
+                user.ForgotPasswordCodeExpiry < DateTime.UtcNow)
+                throw new UserException("Kod za resetovanje je istekao", 400);
+
+            // Update password
+            string salt;
+            user.PasswordHash = HashPassword(request.NewPassword, out salt);
+            user.PasswordSalt = salt;
+            
+            // Clear reset code data
+            user.ForgotPasswordCode = null;
+            user.ForgotPasswordCodeExpiry = null;
+
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+        private string GenerateResetCode()
+        {
+            var random = new Random();
+            return random.Next(100000, 999999).ToString();
+        }
+
+        private async Task SendResetPasswordEmail(string email, string firstName, string lastName, string resetCode)
+        {
+            // Create EmailMessage
+            var emailMessage = new EmailMessage
+            {
+                To = email,
+                Subject = "FK Foča - Resetovanje lozinke",
+                Body = $"Poštovani {firstName} {lastName},\n\n" +
+                       $"Vaš kod za resetovanje lozinke je: {resetCode}\n\n" +
+                       $"Kod je važeći 15 minuta.\n\n" +
+                       $"Ako niste zatražili resetovanje lozinke, molimo vas da ignorišete ovu poruku.\n\n" +
+                       $"MyClub Tim",
+                OrderId = 0, // Not applicable for reset password emails
+                OrderState = "ResetPassword" // Custom state to identify reset password emails
+            };
+
+            try
+            {
+                // Send message via RabbitMQ with reset_password routing key
+                _rabbitMQService.SendMessage("reset_password", emailMessage);
+                Console.WriteLine($"Reset password email message sent to RabbitMQ for: {email}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to send reset password email message to RabbitMQ: {ex.Message}");
+                throw; // Re-throw to be caught by the calling method
+            }
+
+            await Task.CompletedTask;
         }
 
         private int GetCurrentUserId()

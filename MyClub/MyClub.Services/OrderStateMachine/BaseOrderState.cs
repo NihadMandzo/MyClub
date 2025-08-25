@@ -238,7 +238,7 @@ namespace MyClub.Services.OrderStateMachine
                     break;
             }
             
-            body += "Hvala na povjerenju,\nMyClub tim";
+            body += "Hvala na povjerenju,\n FK Foča tim";
             
             var emailMessage = new EmailMessage
             {

@@ -14,6 +14,8 @@ namespace MyClub.Services
         Task<UserResponse> GetMeAsync();
         Task<bool> HasActiveUserMembership();
         Task<bool> DeactivateSelfAsync();
+        Task<bool> ForgotPasswordAsync(ForgotPasswordRequest request);
+        Task<bool> ResetPasswordAsync(ResetPasswordRequest request);
 
     }
 } 
