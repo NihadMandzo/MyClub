@@ -1,74 +1,60 @@
-# MyClub Database Seeders
+# MyClub - Aplikacija za upravljanje sportskim klubom
 
-This repository contains database seeders for the MyClub application. The seeders populate the database with initial data for colors, categories, sizes, and roles.
+MyClub je aplikacija za upravljanje sportskim klubom koja omogućava korisnicima da pregledaju i kupuju proizvode, prate utakmice, kupuju karte i upravljaju svojim članstvima. Aplikacija je izgrađena koristeći .NET Web API za backend, sa desktop i mobile aplikacijama rađenim u Flutteru.
 
-## Seeded Data
+## Kako pokrenuti projekat
 
-### Colors
-- Red (#FF0000)
-- Blue (#0000FF)
-- Green (#00FF00)
-- Yellow (#FFFF00)
-- Black (#000000)
-- White (#FFFFFF)
-- Purple (#800080)
-- Orange (#FFA500)
-- Grey (#808080)
-- Brown (#A52A2A)
+### Priprema okruženja
 
-### Categories
-- Jerseys - Official team jerseys
-- T-Shirts - Casual t-shirts with club logos
-- Hoodies - Sweatshirts and hoodies
-- Pants - Training and casual pants
-- Shorts - Sports and casual shorts
-- Jackets - Outdoor and training jackets
-- Accessories - Scarves, hats, and other accessories
-- Footwear - Shoes and boots
-- Equipment - Balls, bags, and training equipment
-- Memorabilia - Collectibles and souvenirs
+1. **Raspakujte MyClub_env.zip**
+   - Raspakujte fajl `env_file.zip` (šifra:fit)
+   - Kopirajte `.env` fajl u root MyClub folder (na istom nivou kao docker-compose.yml)
 
-### Sizes
-- XS
-- S
-- M
-- L
-- XL
-- XXL
-- XXXL
-- One Size
-- 36
-- 38
-- 40
-- 42
-- 44
+2. **Pokretanje backend servisa**
+   ```bash
+   docker compose up
+   ```
 
-### Roles
-- Administrator
-- User
+3. **Raspakovanje desktop i mobile aplikacija**
+   - Raspakujte `fit-build-2025-25-08.zip`
+   - Navigirajte do `.apk` fajla za Android mobilnu aplikaciju
+   - Navigirajte do `.exe` fajla za desktop Windows aplikaciju
 
-## How It Works
+### Instaliranje aplikacija
 
-The database seeders are automatically applied during the Entity Framework model creation process. The data is seeded using the `HasData` method, which ensures that data is only added if it doesn't already exist in the database.
+- **Desktop aplikacija**: Pokrenite `.exe` fajl
+- **Mobile aplikacija**: Instalirajte `.apk` fajl na Android uređaj
 
-## Implementation
+## Kredencijali za prijavljivanje
 
-The seeders are organized in the following structure:
+### Desktop aplikacija
+- **Korisničko ime**: admin
+- **Lozinka**: test
 
-```
-MyClub.Services
-└── Database
-    ├── DatabaseSeeder.cs (Extension method for ModelBuilder that calls all seeders)
-    └── Seeders
-        ├── RoleSeeder.cs
-        ├── ColorSeeder.cs
-        ├── SizeSeeder.cs
-        └── CategorySeeder.cs
-```
+### Mobile aplikacija (Administrator)
+- **Korisničko ime**: admin
+- **Lozinka**: test
 
-Each seeder follows the same pattern:
-1. A static class with an extension method for EntityTypeBuilder
-2. The extension method uses HasData to seed predefined entities
-3. Each entity has a predefined ID to ensure consistency
+### Mobile aplikacija (Obični korisnici)
+- **Korisničko ime**: user
+- **Lozinka**: test
 
-The main DatabaseSeeder is called from the OnModelCreating method in MyClubContext.cs, ensuring that all seed data is applied when the database is created or migrated. 
+ili
+
+- **Korisničko ime**: nihad123
+- **Lozinka**: test
+
+## Test kredencijali za plaćanje
+
+### PayPal test nalog
+Za testiranje kupovine karata, članstava i narudžbi koristite:
+- **Email**: sb-43ieux45361356@personal.example.com
+- **Lozinka**: Test1234
+
+### Stripe test kartice
+Za testiranje Stripe plaćanja posjetite: https://docs.stripe.com/testing
+Na ovoj stranici možete pronaći različite test kartice za različite scenarije testiranja.
+
+## RabbitMQ
+
+Projekat koristi RabbitMQ za slanje informacija o narudžbama i za funkcionalnost zaboravljene lozinke.
