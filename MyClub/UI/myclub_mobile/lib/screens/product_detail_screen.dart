@@ -55,7 +55,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       });
     } catch (e) {
       if (mounted) {
-        NotificationHelper.showApiError(context, e);
+        NotificationHelper.showApiError(context, e, 'učitavanju proizvoda');
       }
     } finally {
       setState(() {
@@ -81,7 +81,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     // Use the tracked product size ID
     int productSizeId = _selectedProductSizeId;
     if (productSizeId == 0 && _product!.sizes.isNotEmpty) {
-      NotificationHelper.showError(context, 'Greška pri određivanju veličine proizvoda');
+      NotificationHelper.showError(context, 'Greška pri određivanju veličine');
       return;
     }
 
@@ -110,7 +110,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       }
     } catch (e) {
       if (mounted) {
-        NotificationHelper.showApiError(context, e);
+        NotificationHelper.showApiError(context, e, 'dodavanju u korpu');
       }
     } finally {
       setState(() {

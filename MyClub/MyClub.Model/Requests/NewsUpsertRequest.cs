@@ -7,15 +7,15 @@ namespace MyClub.Model.Requests
 {
     public class NewsUpsertRequest
     {
-        [Required(ErrorMessage = "Title is required")]
-        [StringLength(200, MinimumLength = 3, ErrorMessage = "Title must be between 3 and 200 characters")]
+        [Required(ErrorMessage = "Naslov je obavezan")]
+        [StringLength(200, MinimumLength = 3, ErrorMessage = "Naslov mora biti između 3 i 200 karaktera")]
         public string Title { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "Content is required")]
-        [MinLength(10, ErrorMessage = "Content must be at least 10 characters long")]
+        [Required(ErrorMessage = "Sadržaj je obavezan")]
+        [MinLength(10, ErrorMessage = "Sadržaj mora imati najmanje 10 karaktera")]
         public string Content { get; set; } = string.Empty;
 
-        [Url(ErrorMessage = "Invalid video URL format")]
+        [Url(ErrorMessage = "Neispravan format video URL-a")]
         public string? VideoUrl { get; set; } = string.Empty;
 
         public List<IFormFile>? Images { get; set; } = new List<IFormFile>();

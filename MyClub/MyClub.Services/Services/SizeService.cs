@@ -24,7 +24,7 @@ namespace MyClub.Services
 
             if (isSizeInUse)
             {
-                throw new UserException($"Cannot delete this size as it's currently used by one or more products.");
+                throw new UserException($"Veličina se ne može obrisati jer je trenutno korišćena od strane jednog ili više proizvoda.");
             }
 
             // Proceed with deletion if the size is not in use

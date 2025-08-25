@@ -159,7 +159,7 @@ namespace MyClub.Services
                 .FirstOrDefaultAsync(p => p.Id == id);
 
             if (entity == null)
-                throw new UserException($"Product with ID {id} not found");
+                throw new UserException($"Proizvod sa ID {id} nije pronađen");
 
             // Check if the product has related order items
             var hasOrderItems = await _context.OrderItems
@@ -248,7 +248,7 @@ namespace MyClub.Services
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                throw new UserException($"Error deleting product: {ex.Message}");
+                throw new UserException($"Greška prilikom brisanja proizvoda: {ex.Message}");
             }
         }
 
@@ -331,7 +331,7 @@ namespace MyClub.Services
                     .FirstOrDefaultAsync(x => x.Id == id);
 
                 if (entity == null)
-                    throw new UserException($"Product with ID {id} not found");
+                    throw new UserException($"Greška sa ID {id} nije pronađena");
 
                 await BeforeUpdate(entity, request);
                 var updatedEntity = MapUpdateToEntity(entity, request);
@@ -491,13 +491,13 @@ namespace MyClub.Services
             var categoryExists = await _context.Categories.FindAsync(request.CategoryId);
             if (categoryExists == null)
             {
-                throw new UserException($"Category with ID {request.CategoryId} does not exist");
+                throw new UserException($"Kategorija sa ID {request.CategoryId} ne postoji");
             }
 
             // Validate color exists
             var colorExists = await _context.Colors.FindAsync(request.ColorId);
             if (colorExists == null)
-                throw new UserException($"Color with ID {request.ColorId} does not exist");
+                throw new UserException($"Boja sa ID {request.ColorId} ne postoji");
 
             // Validate sizes exist
             if (request.ProductSizes != null && request.ProductSizes.Count > 0)
@@ -506,7 +506,7 @@ namespace MyClub.Services
                 {
                     var sizeExists = await _context.Sizes.AnyAsync(s => s.Id == sizeRequest.SizeId);
                     if (!sizeExists)
-                        throw new UserException($"Size with ID {sizeRequest.SizeId} does not exist");
+                        throw new UserException($"Veličina sa ID {sizeRequest.SizeId} ne postoji");
                 }
             }
 
@@ -517,7 +517,7 @@ namespace MyClub.Services
                 {
                     var imageExists = await _context.Assets.AnyAsync(a => a.Id == imageId && a.ProductAssets.Any(pi => pi.ProductId == id));
                     if (!imageExists)
-                        throw new UserException($"Image with ID {imageId} does not exist or does not belong to this product");
+                        throw new UserException($"Slika sa ID {imageId} ne postoji ili ne pripada ovom proizvodu");
                 }
             }
 
@@ -526,7 +526,7 @@ namespace MyClub.Services
                 .AnyAsync(p => p.Name == request.Name && (id == null || p.Id != id));
 
             if (nameExists)
-                throw new UserException($"Product with name '{request.Name}' already exists");
+                throw new UserException($"Proizvod sa imenom '{request.Name}' već postoji");
 
             // Validate barcode is unique if provided
             if (!string.IsNullOrWhiteSpace(request.BarCode))
@@ -535,7 +535,7 @@ namespace MyClub.Services
                     .AnyAsync(p => p.BarCode == request.BarCode && (id == null || p.Id != id));
 
                 if (barcodeExists)
-                    throw new UserException($"Product with barcode '{request.BarCode}' already exists");
+                    throw new UserException($"Proizvod sa barkodom '{request.BarCode}' već postoji");
             }
 
             return true;

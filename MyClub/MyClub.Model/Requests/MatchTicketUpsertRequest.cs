@@ -5,16 +5,16 @@ namespace MyClub.Model.Requests
 {
     public class MatchTicketUpsertRequest
     {
-        
-        [Required(ErrorMessage = "Released quantity is required")]
-        [Range(0, int.MaxValue, ErrorMessage = "Released quantity cannot be negative")]
+
+        [Required(ErrorMessage = "Količina je obaveznad")]
+        [Range(0, int.MaxValue, ErrorMessage = "Količina ne može biti negativna")]
         public int ReleasedQuantity { get; set; }
         
-        [Required(ErrorMessage = "Price is required")]
-        [Range(0.01, double.MaxValue, ErrorMessage = "Price must be greater than 0")]
+        [Required(ErrorMessage = "Cijena je obavezna")]
+        [Range(0.01, double.MaxValue, ErrorMessage = "Cijena mora biti veća od 0")]
         public decimal Price { get; set; }
-        
-        [Required(ErrorMessage = "Stadium sector is required")]
+
+        [Required(ErrorMessage = "Sektor stadiona je obavezan")]
         public int StadiumSectorId { get; set; }
         
         public bool IsActive { get; set; } = true;

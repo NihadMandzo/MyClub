@@ -43,7 +43,7 @@ class _CartScreenState extends State<CartScreen> {
       });
     } catch (e) {
       if (mounted) {
-    NotificationHelper.showApiError(context, e);
+        NotificationHelper.showApiError(context, e, 'učitavanju korpe');
       }
     } finally {
       setState(() {
@@ -76,7 +76,7 @@ class _CartScreenState extends State<CartScreen> {
       }
     } catch (e) {
       if (mounted) {
-          NotificationHelper.showApiError(context, e);
+        NotificationHelper.showApiError(context, e, 'ažuriranju količine');
       }
     } finally {
       setState(() {
@@ -110,7 +110,7 @@ class _CartScreenState extends State<CartScreen> {
       }
     } catch (e) {
       if (mounted) {
-          NotificationHelper.showApiError(context, e);
+        NotificationHelper.showApiError(context, e, 'uklanjanju stavke');
       }
     } finally {
       setState(() {
@@ -144,7 +144,7 @@ class _CartScreenState extends State<CartScreen> {
       }
     } catch (e) {
       if (mounted) {
-          NotificationHelper.showApiError(context, e);
+        NotificationHelper.showApiError(context, e, 'brisanju korpe');
       }
     } finally {
       setState(() {

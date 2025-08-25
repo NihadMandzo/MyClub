@@ -59,7 +59,7 @@ namespace MyClub.Services.Services
             var userId = JwtTokenManager.GetUserIdFromToken(authHeader);
             if (entity.UserId != userId && !JwtTokenManager.IsAdmin(authHeader))
             {
-                throw new UnauthorizedAccessException("You are not authorized to delete this comment.");
+                throw new UserException("Niste ovlašćeni da obrišete ovaj komentar.", 403);
             }
             await Task.CompletedTask;
         }
@@ -92,7 +92,7 @@ namespace MyClub.Services.Services
             var userId = JwtTokenManager.GetUserIdFromToken(authHeader);
             if (entity.UserId != userId)
             {
-                throw new UnauthorizedAccessException("You are not authorized to update this comment.");
+                throw new UserException("Niste ovlašćeni da ažurirate ovaj komentar.", 403);
             }
             await Task.CompletedTask;
         }

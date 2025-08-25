@@ -24,7 +24,7 @@ namespace MyClub.Services.Services
 
             if (isSideInUse)
             {
-                throw new UserException($"Cannot delete this stadium side as it's currently used by one or more stadium sectors.");
+                throw new UserException($"Strana se ne može obrisati jer je trenutno korišćena od strane jednog ili više sektora.");
             }
 
             // Proceed with deletion if the stadium side is not in use

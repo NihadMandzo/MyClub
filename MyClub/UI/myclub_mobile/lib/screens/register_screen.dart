@@ -404,12 +404,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
         // Go back to login screen and auto-fill username
         Navigator.pop(context, _usernameController.text.trim());
       } else if (mounted) {
-        final errorMessage = authProvider.errorMessage ?? 'Greška prilikom registracije';
+        final errorMessage = authProvider.errorMessage ?? 'Greška pri registraciji';
         NotificationHelper.showError(context, errorMessage);
       }
     } catch (e) {
       if (mounted) {
-    NotificationHelper.showApiError(context, e);
+        NotificationHelper.showApiError(context, e, 'registraciji');
       }
     }
   }

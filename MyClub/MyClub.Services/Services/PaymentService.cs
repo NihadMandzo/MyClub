@@ -117,7 +117,7 @@ namespace MyClub.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to create PayPal payment");
-                throw new InvalidOperationException($"PayPal payment creation failed: {ex.Message}", ex);
+                throw new InvalidOperationException($"Greška prilikom kreiranja PayPal plaćanja: {ex.Message}", ex);
             }
         }
 
@@ -126,7 +126,7 @@ namespace MyClub.Services
             var paymentIntent = await _context.Payments.FirstOrDefaultAsync(x => x.TransactionId == transactionId);
             if (paymentIntent == null)
             {
-                throw new KeyNotFoundException($"Payment with ID {transactionId} not found");
+                throw new KeyNotFoundException($"Plaćanje sa ID {transactionId} nije pronađeno");
             }
             paymentIntent.Status = "Completed";
             paymentIntent.CompletedAt = DateTime.UtcNow;
@@ -142,12 +142,12 @@ namespace MyClub.Services
 
             if (string.IsNullOrEmpty(clientId))
             {
-                throw new InvalidOperationException("PayPal ClientId is not configured");
+                throw new InvalidOperationException("Greška na serveru");
             }
 
             if (string.IsNullOrEmpty(secret))
             {
-                throw new InvalidOperationException("PayPal Secret is not configured");
+                throw new InvalidOperationException("Greška na serveru");
             }
 
             _logger.LogInformation($"Creating PayPal client for environment: {env}");

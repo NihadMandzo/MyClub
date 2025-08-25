@@ -371,14 +371,10 @@ class _CommentsWidgetState extends State<CommentsWidget> {
               Navigator.of(context).pop();
               widget.onCommentDeleted(comment);
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Text('Komentar je obrisan'),
-                  behavior: SnackBarBehavior.floating,
-                  margin: EdgeInsets.only(
-                    bottom: MediaQuery.of(context).padding.bottom + 80,
-                    left: 16,
-                    right: 16,
-                  ),
+                NotificationHelper.createSnackBar(
+                  context: context,
+                  message: 'Komentar je obrisan',
+                  backgroundColor: Colors.green,
                 ),
               );
             },
@@ -417,14 +413,10 @@ class _CommentsWidgetState extends State<CommentsWidget> {
         });
         
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Komentar je ažuriran'),
-            behavior: SnackBarBehavior.floating,
-            margin: EdgeInsets.only(
-              bottom: MediaQuery.of(context).padding.bottom + 80,
-              left: 16,
-              right: 16,
-            ),
+          NotificationHelper.createSnackBar(
+            context: context,
+            message: 'Komentar je ažuriran',
+            backgroundColor: Colors.green,
           ),
         );
       } else {
@@ -440,19 +432,15 @@ class _CommentsWidgetState extends State<CommentsWidget> {
         _commentController.clear();
         
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Komentar je dodan'),
-            behavior: SnackBarBehavior.floating,
-            margin: EdgeInsets.only(
-              bottom: MediaQuery.of(context).padding.bottom + 80,
-              left: 16,
-              right: 16,
-            ),
+          NotificationHelper.createSnackBar(
+            context: context,
+            message: 'Komentar je dodan',
+            backgroundColor: Colors.green,
           ),
         );
       }
     } catch (e) {
-      NotificationHelper.showApiError(context, e);
+      NotificationHelper.showApiError(context, e, 'radu sa komentarima');
     } finally {
       setState(() {
         _isSubmitting = false;

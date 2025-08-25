@@ -156,13 +156,13 @@ namespace MyClub.Services.Services
             var httpContext = _httpContextAccessor.HttpContext;
             if (httpContext == null)
             {
-                throw new UserException("No HTTP context available");
+                throw new UserException("Greška");
             }
 
             string? authHeader = httpContext.Request.Headers["Authorization"].ToString();
             if (string.IsNullOrEmpty(authHeader))
             {
-                throw new UserException("No authorization header found");
+                throw new UserException("Greška");
             }
 
             entity.UserId = JwtTokenManager.GetUserIdFromToken(authHeader);

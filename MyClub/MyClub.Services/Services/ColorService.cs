@@ -22,7 +22,7 @@ namespace MyClub.Services
 
             if (isColorInUse)
             {
-                throw new UserException($"Cannot delete this color as it's currently used by one or more products.");
+                throw new UserException($"Boja se ne može obrisati jer je trenutno korišćena od strane jednog ili više proizvoda.");
             }
 
             // Proceed with deletion if the color is not in use

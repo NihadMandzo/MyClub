@@ -103,7 +103,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       });
       
       if (mounted) {
-  NotificationHelper.showApiError(context, e);
+        NotificationHelper.showApiError(context, e, 'učitavanju karata');
       }
     }
   }
@@ -131,7 +131,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       });
       
       if (mounted) {
-  NotificationHelper.showApiError(context, e);
+        NotificationHelper.showApiError(context, e, 'učitavanju članskih karata');
       }
     }
   }
@@ -159,7 +159,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       });
       
       if (mounted) {
-  NotificationHelper.showApiError(context, e);
+        NotificationHelper.showApiError(context, e, 'učitavanju narudžbi');
       }
     }
   }
@@ -1239,7 +1239,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         print('Navigation error while closing dialog: $navError');
       }
       
-  NotificationHelper.showApiError(context, e);
+      NotificationHelper.showApiError(context, e, 'brisanju korisničkog računa');
     }
   }
 }

@@ -46,11 +46,11 @@ namespace MyClub.Services.OrderStateMachine
                     .FirstOrDefaultAsync(o => o.Id == orderId);
                     
                 if (order == null)
-                    throw new KeyNotFoundException($"Order with ID {orderId} not found");
+                    throw new KeyNotFoundException($"Narudžba sa ID {orderId} nije pronađena");
 
                 // Only allow transitions to Confirmed or Cancelled
                 if (request.NewStatus != "Potvrđeno" && request.NewStatus != "Otkazano")
-                    throw new UserException($"Cannot change order from 'Procesiranje' to '{request.NewStatus}'");
+                    throw new UserException($"Ne možete promeniti fazu iz 'Procesiranje' u '{request.NewStatus}'");
 
                 var oldState = order.OrderState;
                 order.OrderState = request.NewStatus;
@@ -64,7 +64,7 @@ namespace MyClub.Services.OrderStateMachine
             }
             catch (Exception ex)
             {
-                throw new UserException($"Error changing order state: {ex.Message}", 500);
+                throw new UserException($"Greška prilikom promene faze narudžbe: {ex.Message}", 500);
             }
         }
 

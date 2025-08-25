@@ -38,7 +38,7 @@ namespace MyClub.Services.OrderStateMachine
             var user = await _context.Users.FindAsync(userId);
             if (user == null)
             {
-                throw new KeyNotFoundException($"User with ID {userId} not found");
+                throw new KeyNotFoundException($"Korisnik sa ID {userId} nije pronađen");
             }
 
             // Find the order first
@@ -53,7 +53,7 @@ namespace MyClub.Services.OrderStateMachine
             
             if (order == null)
             {
-                throw new KeyNotFoundException($"Order with TransactionId {request.TransactionId} not found");
+                throw new KeyNotFoundException($"Narudžba sa TransactionId {request.TransactionId} nije pronađena");
             }
 
             // Handle payment confirmation based on payment method
@@ -69,7 +69,7 @@ namespace MyClub.Services.OrderStateMachine
 
             if (!paymentConfirmed)
             {
-                throw new Exception("Payment confirmation failed");
+                throw new UserException("Potvrda plaćanja nije uspela");
             }
 
             var oldState = order.OrderState;
@@ -98,7 +98,7 @@ namespace MyClub.Services.OrderStateMachine
 
                     if (productSize == null || productSize.Quantity < item.Quantity)
                     {
-                        throw new UserException("Product is out of stock");
+                        throw new UserException("Proizvod nije dostupan");
                     }
                 }
 
@@ -110,7 +110,7 @@ namespace MyClub.Services.OrderStateMachine
                     
                 if (city == null)
                 {
-                    throw new UserException($"City '{request.Shipping.CityId}' not found.");
+                    throw new UserException($"Grad '{request.Shipping.CityId}' nije pronađen.");
                 }
 
                 var shippingDetails = new ShippingDetails
@@ -160,7 +160,7 @@ namespace MyClub.Services.OrderStateMachine
                         .FirstOrDefaultAsync(ps => ps.Id == itemRequest.ProductSizeId);
 
                     if (productSize == null)
-                        throw new UserException("Product size not found");
+                        throw new UserException("Veličina proizvoda nije pronađena");
 
                     var orderItem = new OrderItem
                     {
@@ -192,7 +192,7 @@ namespace MyClub.Services.OrderStateMachine
                 }
                 else
                 {
-                    throw new ArgumentException("Invalid payment type. Use 'Stripe' or 'PayPal'.");
+                    throw new ArgumentException("Nevažeći tip plaćanja. Koristite 'Stripe' ili 'PayPal'.");
                 }
 
                 // 6. Create payment record in database
@@ -217,7 +217,7 @@ namespace MyClub.Services.OrderStateMachine
             }
             catch (Exception ex)
             {
-                throw new UserException($"Error placing order: {ex.Message}", 500);
+                throw new UserException($"Greška prilikom kreiranja narudžbe: {ex.Message}", 500);
             }
         }
   }

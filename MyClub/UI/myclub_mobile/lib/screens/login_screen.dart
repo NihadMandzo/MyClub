@@ -252,12 +252,12 @@ class _LoginScreenState extends State<LoginScreen> {
         NotificationHelper.showSuccess(context, 'Uspješno ste se prijavili!');
         // Navigation will be handled automatically by AuthWrapper
       } else if (mounted) {
-        final errorMessage = authProvider.errorMessage ?? 'Greška prilikom prijave';
+        final errorMessage = authProvider.errorMessage ?? 'Greška pri prijavi';
         NotificationHelper.showError(context, errorMessage);
       }
     } catch (e) {
         if (mounted) {
-          NotificationHelper.showApiError(context, e);
+          NotificationHelper.showApiError(context, e, 'prijavi');
       }
     }
   }

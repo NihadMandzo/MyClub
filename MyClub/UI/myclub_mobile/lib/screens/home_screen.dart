@@ -111,7 +111,7 @@ class _HomeScreenState extends State<HomeScreen> {
         setState(() {
           _isLoadingNews = false;
         });
-        NotificationHelper.showApiError(context, e);
+        NotificationHelper.showApiError(context, e, 'učitavanju vijesti');
       }
     }
   }

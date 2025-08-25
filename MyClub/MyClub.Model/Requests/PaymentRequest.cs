@@ -4,12 +4,12 @@ namespace MyClub.Model.Requests
 {
     public class PaymentRequest
     {
-        [Required(ErrorMessage = "Payment method is required")]
-        [RegularExpression("^(Stripe|PayPal)$", ErrorMessage = "Payment method must be either 'Stripe' or 'PayPal'")]
+        [Required(ErrorMessage = "Metoda plaćanja je obavezna")]
+        [RegularExpression("^(Stripe|PayPal)$", ErrorMessage = "Metoda plaćanja mora biti 'Stripe' ili 'PayPal'")]
         public string Type { get; set; }
 
-        [Required(ErrorMessage = "Amount is required")]
-        [Range(0.01, double.MaxValue, ErrorMessage = "Amount must be greater than 0")]
+        [Required(ErrorMessage = "Iznos je obavezan")]
+        [Range(0.01, double.MaxValue, ErrorMessage = "Iznos mora biti veći od 0")]
         public decimal Amount { get; set; }
         public string? PaymentMethod { get; set; }
 

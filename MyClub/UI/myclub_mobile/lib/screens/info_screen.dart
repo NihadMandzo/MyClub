@@ -82,7 +82,7 @@ class _InfoScreenState extends State<InfoScreen> with TickerProviderStateMixin {
         setState(() {
           _isLoading = false;
         });
-  NotificationHelper.showApiError(context, e);
+        NotificationHelper.showApiError(context, e, 'učitavanju tima');
       }
     }
   }
@@ -112,7 +112,7 @@ class _InfoScreenState extends State<InfoScreen> with TickerProviderStateMixin {
         setState(() {
           _isMembershipLoading = false;
         });
-  NotificationHelper.showApiError(context, e);
+        NotificationHelper.showApiError(context, e, 'učitavanju članstva');
       }
     }
   }

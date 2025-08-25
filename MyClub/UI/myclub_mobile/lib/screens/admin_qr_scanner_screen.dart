@@ -318,11 +318,11 @@ class _AdminQRScannerScreenState extends State<AdminQRScannerScreen> {
       setState(() {
         isLoading = false;
         isValid = false;
-  validationMessage = NotificationHelper.extractErrorMessage(e);
+        validationMessage = NotificationHelper.extractErrorMessage(e, 'validaciji koda');
       });
       
       if (mounted) {
-  NotificationHelper.showApiError(context, e);
+        NotificationHelper.showApiError(context, e, 'validaciji koda');
       }
     }
   }

@@ -54,7 +54,7 @@ class _MembershipPurchaseScreenState extends State<MembershipPurchaseScreen> {
   // Form data
   PagedResult<CityResponse> _cities = PagedResult<CityResponse>();
   int? _selectedCityId;
-  String _selectedPaymentMethod = 'Stripe';
+  String _selectedPaymentMethod = '';
   bool _isGiftPurchase = false;
   bool _physicalCardRequested = false;
   bool _isLoading = false;
@@ -108,7 +108,7 @@ class _MembershipPurchaseScreenState extends State<MembershipPurchaseScreen> {
     } catch (e) {
       print('Error loading cities: $e');
       if (mounted) {
-        NotificationHelper.showApiError(context, e);
+        NotificationHelper.showApiError(context, e, 'učitavanju gradova');
       }
     } finally {
       setState(() {
@@ -118,25 +118,39 @@ class _MembershipPurchaseScreenState extends State<MembershipPurchaseScreen> {
   }
 
   Future<void> _processPurchase() async {
-    if (!_formKey.currentState!.validate()) return;
+    print('=== MEMBERSHIP PURCHASE BUTTON PRESSED ===');
+    print('Form validation: ${_formKey.currentState?.validate()}');
+    print('Selected payment method: $_selectedPaymentMethod');
+    
+    if (!_formKey.currentState!.validate()) {
+      print('Form validation failed');
+      return;
+    }
     
     // Validate shipping if physical card is requested
     if (_physicalCardRequested && _selectedCityId == null) {
+      print('Physical card requested but no city selected');
       NotificationHelper.showError(context, 'Molimo odaberite grad za dostavu fizičke kartice');
       return;
     }
 
-    // For Stripe payments, we need the payment method first
+    // Ensure payment method selected
+    if (_selectedPaymentMethod.isEmpty) {
+      print('No payment method selected');
+      NotificationHelper.showError(context, 'Molimo odaberite način plaćanja');
+      return;
+    }
+
+    print('✅ Validation passed, proceeding with payment method: $_selectedPaymentMethod');    // For Stripe payments, we need the payment method first
     if (_selectedPaymentMethod == 'Stripe') {
-      if (!_validateCardInputs()) {
-        NotificationHelper.showError(context, 'Molimo unesite sve podatke kartice');
-        return;
-      }
+      // Re-run validation to show inline field errors for card inputs
+      final valid = _formKey.currentState!.validate();
+      if (!valid) return;
 
       // Create Stripe payment method first
       await _createStripePaymentMethod();
       if (_stripePaymentMethodId == null) {
-        return; // Error already shown
+        return; // creation failed; error already surfaced
       }
     }
 
@@ -202,7 +216,7 @@ class _MembershipPurchaseScreenState extends State<MembershipPurchaseScreen> {
     } catch (e) {
       print('Error in _processPurchase: $e');
       if (mounted) {
-        NotificationHelper.showApiError(context, e);
+        NotificationHelper.showApiError(context, e, 'obradi rezervacije');
       }
     } finally {
       setState(() {
@@ -211,53 +225,56 @@ class _MembershipPurchaseScreenState extends State<MembershipPurchaseScreen> {
     }
   }
 
-  bool _validateCardInputs() {
-    return _cardNumberController.text.isNotEmpty &&
-           _cardExpiryController.text.isNotEmpty &&
-           _cardCvcController.text.isNotEmpty &&
-           _cardHolderNameController.text.isNotEmpty;
-  }
+  // Card inputs are validated via Form validators in PaymentSectionWidget
 
   Future<void> _createStripePaymentMethod() async {
     try {
-      // Parse expiry date (MM/YY format)
+      // Prepare card details from custom fields
+      final number = _cardNumberController.text.replaceAll(' ', '');
       final expiryParts = _cardExpiryController.text.split('/');
-      if (expiryParts.length != 2) {
-        throw Exception('Format datuma isteka mora biti MM/YY');
-      }
-      
-      final expMonth = int.tryParse(expiryParts[0].trim());
-      final expYear = int.tryParse('20${expiryParts[1].trim()}');
-      
-      if (expMonth == null || expYear == null || expMonth < 1 || expMonth > 12) {
-        throw Exception('Nepravilan datum isteka kartice');
-      }
+      final expMonth = int.parse(expiryParts[0].trim());
+      final expYear = int.parse('20${expiryParts[1].trim()}');
+      final cvc = _cardCvcController.text.trim();
+      final holder = _cardHolderNameController.text.trim();
 
-      // For now, we'll create a simple payment method without the native card input
-      // This is a workaround until the native Stripe components are properly configured
-      print('Creating mock payment method for testing...');
-      
-      // Create a mock payment method ID that we can send to the backend
-      // The backend will handle the actual Stripe processing
-      _stripePaymentMethodId = 'pm_test_membership_${widget.membershipCard.id}'; // Unique test ID for membership
+      await stripe.Stripe.instance.dangerouslyUpdateCardDetails(
+        stripe.CardDetails(
+          number: number,
+          expirationMonth: expMonth,
+          expirationYear: expYear,
+          cvc: cvc,
+        ),
+      );
 
-      print('Mock payment method created: $_stripePaymentMethodId');
+      final pm = await stripe.Stripe.instance.createPaymentMethod(
+        params: stripe.PaymentMethodParams.card(
+          paymentMethodData: stripe.PaymentMethodData(
+            billingDetails: stripe.BillingDetails(
+              name: holder.isNotEmpty ? holder : null,
+            ),
+          ),
+        ),
+      );
+      _stripePaymentMethodId = pm.id;
+      print('Stripe PaymentMethod created (membership): $_stripePaymentMethodId');
+    } on stripe.StripeException catch (e) {
+      final msg = e.error.localizedMessage ?? e.error.message ?? 'Greška pri kreiranju načina plaćanja';
+      if (mounted) NotificationHelper.showError(context, msg);
+      _stripePaymentMethodId = null;
     } catch (e) {
-      print('Error creating payment method: $e');
-      if (mounted) {
-        NotificationHelper.showApiError(context, e);
-      }
+      // Parsing/validation should be handled by field validators
+      _stripePaymentMethodId = null;
     }
   }
 
   Future<void> _processStripePayment() async {
     if (_paymentResponse == null) {
-      NotificationHelper.showError(context, 'Greška: Rezervacija nije kreirana');
+      NotificationHelper.showError(context, 'Greška pri kreiranju rezervacije');
       return;
     }
 
     if (_stripePaymentMethodId == null) {
-      NotificationHelper.showError(context, 'Greška: Način plaćanja nije kreiran');
+      NotificationHelper.showError(context, 'Greška pri kreiranju načina plaćanja');
       return;
     }
 
@@ -266,22 +283,30 @@ class _MembershipPurchaseScreenState extends State<MembershipPurchaseScreen> {
     });
 
     try {
-      // For the mock implementation, we'll simulate the payment confirmation
-      print('Simulating Stripe payment confirmation for membership...');
-      print('Payment Method ID: $_stripePaymentMethodId');
-      print('Client Secret: ${_paymentResponse!.clientSecret}');
+      final clientSecret = _paymentResponse!.clientSecret;
+      if (clientSecret == null || clientSecret.isEmpty) {
+        throw Exception('Nedostaje Stripe client secret za potvrdu plaćanja');
+      }
 
-      // Simulate payment processing delay
-      await Future.delayed(const Duration(seconds: 2));
+      final intent = await stripe.Stripe.instance.confirmPayment(
+        paymentIntentClientSecret: clientSecret,
+        data: stripe.PaymentMethodParams.cardFromMethodId(
+          paymentMethodData: stripe.PaymentMethodDataCardFromMethod(
+            paymentMethodId: _stripePaymentMethodId!,
+          ),
+        ),
+      );
 
-      // Confirm membership purchase on backend
-      print('Confirming membership purchase on backend...');
-      await _userMembershipCardProvider.confirmMembershipPurchase(_paymentResponse!.transactionId);
-
-      if (mounted) {
-        NotificationHelper.showSuccess(context, 'Plaćanje uspješno! Članstvo je aktivirano.');
-        // Navigate back to main screen
-        Navigator.of(context).popUntil((route) => route.isFirst);
+      print('Membership PaymentIntent status: ${intent.status}');
+      if (intent.status == stripe.PaymentIntentsStatus.Succeeded) {
+        // Confirm on backend only after success
+        await _userMembershipCardProvider.confirmMembershipPurchase(_paymentResponse!.transactionId);
+        if (mounted) {
+          NotificationHelper.showSuccess(context, 'Plaćanje uspješno! Članstvo je aktivirano.');
+          Navigator.of(context).popUntil((route) => route.isFirst);
+        }
+      } else {
+        throw Exception('Plaćanje nije uspjelo. Status: ${intent.status}');
       }
     } catch (e) {
       print('Error processing Stripe payment: $e');
@@ -291,7 +316,7 @@ class _MembershipPurchaseScreenState extends State<MembershipPurchaseScreen> {
           final errorMessage = e.error.localizedMessage ?? e.error.message;
           NotificationHelper.showError(context, 'Greška pri plaćanju: $errorMessage');
         } else {
-          NotificationHelper.showApiError(context, e);
+          NotificationHelper.showApiError(context, e, 'Stripe plaćanju');
         }
       }
     } finally {
@@ -303,13 +328,13 @@ class _MembershipPurchaseScreenState extends State<MembershipPurchaseScreen> {
 
   Future<void> _processPayPalPayment() async {
     if (_paymentResponse == null) {
-      NotificationHelper.showError(context, 'Greška: Rezervacija nije kreirana');
+      NotificationHelper.showError(context, 'Greška pri kreiranju rezervacije');
       return;
     }
 
     final approvalUrl = _paymentResponse!.approvalUrl;
     if (approvalUrl == null || approvalUrl.isEmpty) {
-      NotificationHelper.showError(context, 'Greška: PayPal approval URL nije dostupan');
+      NotificationHelper.showError(context, 'Greška pri kreiranju PayPal plaćanja');
       return;
     }
 
@@ -342,7 +367,7 @@ class _MembershipPurchaseScreenState extends State<MembershipPurchaseScreen> {
 
       await _showPayPalWaitingDialog();
     } catch (e) {
-      NotificationHelper.showApiError(context, e);
+      NotificationHelper.showApiError(context, e, 'PayPal plaćanju');
     }
   }
 

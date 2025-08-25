@@ -41,7 +41,7 @@ namespace MyClub.Services.Services
                 .FirstOrDefaultAsync(c => c.Id == id);
                 
             if (entity == null)
-                throw new UserException($"Club with id {id} not found");
+                throw new UserException($"Klub sa id {id} nije pronađen");
 
             return MapToResponse(entity);
         }
@@ -138,7 +138,7 @@ namespace MyClub.Services.Services
             // Check if the club has any players or matches before deletion
             if (entity.Players.Count > 0 || entity.Matches.Count > 0)
             {
-                throw new Exception("Cannot delete club with associated players or matches.");
+                throw new Exception("Klub sa povezanim igračima ili utakmicama ne može biti obrisan.");
             }
             return await Task.FromResult(true);
         }
@@ -193,7 +193,7 @@ namespace MyClub.Services.Services
                 .FirstOrDefaultAsync(c => c.Id == id);
                 
             if (entity == null)
-                throw new Exception($"Club with id {id} not found");
+                throw new Exception($"Klub sa id {id} nije pronađen");
 
             entity = MapUpdateToEntity(entity, request);
             await BeforeUpdate(entity, request);
@@ -210,7 +210,7 @@ namespace MyClub.Services.Services
                 .FirstOrDefaultAsync(c => c.Id == id);
                 
             if (entity == null)
-                throw new Exception($"Club with id {id} not found");
+                throw new Exception($"Klub sa id {id} nije pronađen");
 
             await BeforeDelete(entity);
             _context.Clubs.Remove(entity);

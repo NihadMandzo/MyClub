@@ -78,7 +78,7 @@ class _ShopScreenState extends State<ShopScreen> {
       // Load products and recommended products
       await Future.wait([_loadProducts(), _loadRecommendedProducts()]);
     } catch (e) {
-  NotificationHelper.showApiError(context, e);
+      NotificationHelper.showApiError(context, e, 'učitavanju proizvoda');
     } finally {
       setState(() {
         _isLoading = false;
@@ -164,7 +164,7 @@ class _ShopScreenState extends State<ShopScreen> {
         _totalPages = result.totalPages ?? 0;
       });
     } catch (e) {
-  NotificationHelper.showApiError(context, e);
+      NotificationHelper.showApiError(context, e, 'učitavanju proizvoda');
     } finally {
       setState(() {
         _isLoading = false;

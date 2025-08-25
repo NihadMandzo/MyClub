@@ -74,22 +74,6 @@ namespace MyClub.Services
 
         protected override IQueryable<User> ApplyFilter(IQueryable<User> query, UserSearchObject search)
         {
-            // Apply filters based on search parameters
-            if (!string.IsNullOrWhiteSpace(search?.Username))
-                query = query.Where(u => u.Username.Contains(search.Username));
-
-            if (!string.IsNullOrWhiteSpace(search?.Email))
-                query = query.Where(u => u.Email.Contains(search.Email));
-
-            if (!string.IsNullOrWhiteSpace(search?.FirstName))
-                query = query.Where(u => u.FirstName.Contains(search.FirstName));
-
-            if (!string.IsNullOrWhiteSpace(search?.LastName))
-                query = query.Where(u => u.LastName.Contains(search.LastName));
-
-            if (search?.IsActive.HasValue == true)
-                query = query.Where(u => u.IsActive == search.IsActive.Value);
-
             // Full-Text Search across multiple fields
             if (!string.IsNullOrWhiteSpace(search?.FTS))
             {
@@ -134,10 +118,10 @@ namespace MyClub.Services
 
             // Check for duplicate email and username
             if (await _context.Users.AnyAsync(u => u.Email == request.Email))
-                throw new UserException("Email is already in use");
+                throw new UserException("Email je već u upotrebi");
 
             if (await _context.Users.AnyAsync(u => u.Username == request.Username))
-                throw new UserException("Username is already taken");
+                throw new UserException("Korisničko ime je već zauzeto");
 
             // Set default values
             entity.CreatedAt = DateTime.UtcNow;
@@ -152,7 +136,7 @@ namespace MyClub.Services
             }
             else
             {
-                throw new UserException("Password is required");
+                throw new UserException("Lozinka je obavezna");
             }
         }
 
@@ -173,7 +157,7 @@ namespace MyClub.Services
             var existingUser = await _context.Users.FindAsync(id);
             
             if (existingUser == null)
-                throw new UserException("User not found");
+                throw new UserException("Korisnik nije pronađen");
 
             existingUser = MapUpdateToEntity(existingUser, request);
             await BeforeUpdate(existingUser, request);
@@ -189,11 +173,11 @@ namespace MyClub.Services
 
             // Check for duplicate email and username, excluding the current user
             if (await _context.Users.AnyAsync(u => u.Email == request.Email && u.Id != entity.Id))
-                throw new UserException("Email is already in use");
+                throw new UserException("Email je već u upotrebi");
 
             if (await _context.Users.AnyAsync(u => u.Username == request.Username && u.Id != entity.Id))
-                throw new UserException("Username is already taken");
-                
+                throw new UserException("Korisničko ime je već zauzeto");
+
             // Update password if provided
             if (!string.IsNullOrEmpty(request.Password))
             {
@@ -220,7 +204,7 @@ namespace MyClub.Services
         {
             var user = await _context.Users.FindAsync(id);
             if (user == null)
-                throw new UserException("User not found");
+                throw new UserException("Korisnik nije pronađen");
 
             await BeforeDelete(user);
             _context.Users.Remove(user);
@@ -236,7 +220,7 @@ namespace MyClub.Services
                 int adminCount = await _context.Users.CountAsync(u => u.RoleId == 1);
                 if (adminCount <= 1)
                 {
-                    throw new UserException("Cannot delete the last administrator account");
+                    throw new UserException("Ne možete obrisati posljednji administratorski nalog");
                 }
             }
 
@@ -248,31 +232,31 @@ namespace MyClub.Services
         {
             // Validate request
             if (request == null)
-                throw new UserException("Invalid request");
+                throw new UserException("Nevažeći zahtev");
 
             if (string.IsNullOrEmpty(request.OldPassword))
-                throw new UserException("Old password is required");
+                throw new UserException("Stara lozinka je obavezna");
 
             if (string.IsNullOrEmpty(request.NewPassword))
-                throw new UserException("New password is required");
+                throw new UserException("Nova lozinka je obavezna");
 
             if (request.NewPassword.Length < 6)
-                throw new UserException("Password must be at least 6 characters long");
+                throw new UserException("Lozinka mora imati najmanje 6 karaktera");
 
             if (request.NewPassword != request.ConfirmPassword)
-                throw new UserException("New password and confirmation do not match");
+                throw new UserException("Nova lozinka i potvrda se ne podudaraju");
 
             // Get authenticated user ID from token
             var httpContext = _httpContextAccessor.HttpContext;
             if (httpContext == null)
             {
-                throw new UserException("No HTTP context available");
+                throw new UserException("Greška");
             }
 
             string? authHeader = httpContext.Request.Headers["Authorization"].ToString();
             if (string.IsNullOrEmpty(authHeader))
             {
-                throw new UserException("User is not authenticated", 401);
+                throw new UserException("Niste prijavljeni", 401);
             }
 
             int userId = JwtTokenManager.GetUserIdFromToken(authHeader);
@@ -280,11 +264,11 @@ namespace MyClub.Services
             // Get user from database
             var user = await _context.Users.FindAsync(userId);
             if (user == null)
-                throw new UserException("User not found", 404);
+                throw new UserException("Korisnik nije pronađen", 404);
 
             // Verify old password
             if (!VerifyPassword(request.OldPassword, user.PasswordSalt, user.PasswordHash))
-                throw new UserException("Current password is incorrect");
+                throw new UserException("Stara lozinka je netačna");
 
             // Update password
             string salt;
@@ -331,13 +315,13 @@ namespace MyClub.Services
             
             
             if (user == null)
-                throw new UserException("Invalid username or password", 401);
-            
+                throw new UserException("Nevažeće korisničko ime ili lozinka", 401);
+
             if(!user.IsActive)
-                throw new UserException("User account is deactivated", 403);
-            
+                throw new UserException("Korisnički nalog je deaktiviran", 403);
+
             if (!VerifyPassword(request.Password, user.PasswordSalt, user.PasswordHash))
-                throw new UserException("Invalid username or password", 401);
+                throw new UserException("Nevažeće korisničko ime ili lozinka", 401);
 
             // Update last login time
             user.LastLogin = DateTime.UtcNow;
@@ -345,8 +329,8 @@ namespace MyClub.Services
             
             var token = GenerateToken(user);
             if(token == null)
-                throw new UserException("Failed to generate token", 500);
-            
+                throw new UserException("Greška prilikom generisanja tokena", 500);
+
             var response = new AuthResponse{    
                 UserId = user.Id,
                 Token = token,
@@ -388,57 +372,57 @@ namespace MyClub.Services
         {
             // Username validation
             if (string.IsNullOrWhiteSpace(request.Username))
-                throw new UserException("Username is required");
+                throw new UserException("Korisničko ime je obavezno");
                 
             if (request.Username.Length < 3)
-                throw new UserException("Username must be at least 3 characters long");
+                throw new UserException("Korisničko ime mora imati najmanje 3 karaktera");
                 
             if (request.Username.Length > 50)
-                throw new UserException("Username cannot exceed 50 characters");
+                throw new UserException("Username ne može imati više od 50 karaktera");
 
             // Email validation
             if (string.IsNullOrWhiteSpace(request.Email))
-                throw new UserException("Email is required");
-                
+                throw new UserException("Email je obavezan");
+
             if (request.Email.Length > 100)
-                throw new UserException("Email cannot exceed 100 characters");
-                
+                throw new UserException("Email ne može imati više od 100 karaktera");
+
             // Basic email format validation
             if (!request.Email.Contains("@") || !request.Email.Contains("."))
-                throw new UserException("Invalid email format");
+                throw new UserException("Neispravan format email adrese");
 
             // Name validation
             if (string.IsNullOrWhiteSpace(request.FirstName))
-                throw new UserException("First name is required");
-                
+                throw new UserException("Ime je obavezno");
+
             if (request.FirstName.Length > 50)
-                throw new UserException("First name cannot exceed 50 characters");
+                throw new UserException("Ime ne može imati više od 50 karaktera");
 
             if (string.IsNullOrWhiteSpace(request.LastName))
-                throw new UserException("Last name is required");
+                throw new UserException("Prezime je obavezno");
                 
             if (request.LastName.Length > 50)
-                throw new UserException("Last name cannot exceed 50 characters");
+                throw new UserException("Prezime ne može imati više od 50 karaktera");
 
             // Phone validation
             if (request.PhoneNumber != null && request.PhoneNumber.Length > 20)
-                throw new UserException("Phone number cannot exceed 20 characters");
+                throw new UserException("Broj telefona ne može imati više od 20 karaktera");
         }
 
         public async Task<UserResponse> GetMeAsync()
         {
             var httpContext = _httpContextAccessor.HttpContext;
             if (httpContext == null)
-                throw new UserException("No HTTP context available");
+                throw new UserException("Greška");
 
             string? authHeader = httpContext.Request.Headers["Authorization"].ToString();
             if (string.IsNullOrEmpty(authHeader))
-                throw new UserException("User is not authenticated", 401);
+                throw new UserException("Niste prijavljeni", 401);
 
             int userId = JwtTokenManager.GetUserIdFromToken(authHeader);
             var user = await _context.Users.FindAsync(userId);
             if (user == null)
-                throw new UserException("User not found", 404);
+                throw new UserException("Korisnik nije pronađen", 404);
 
             return _mapper.Map<UserResponse>(user);
         }
@@ -447,17 +431,17 @@ namespace MyClub.Services
         {
             var httpContext = _httpContextAccessor.HttpContext;
             if (httpContext == null)
-                throw new UserException("No HTTP context available");
+                throw new UserException("Greška");
 
             string? authHeader = httpContext.Request.Headers["Authorization"].ToString();
             if (string.IsNullOrEmpty(authHeader))
-                throw new UserException("User is not authenticated", 401);
+                throw new UserException("Niste prijavljeni", 401);
 
             int userId = JwtTokenManager.GetUserIdFromToken(authHeader);
 
             var user = await _context.Users.FindAsync(userId);
             if (user == null)
-                throw new UserException("User not found", 404);
+                throw new UserException("Korisnik nije pronađen", 404);
 
             return await _context.UserMemberships.AnyAsync(um => um.UserId == userId && um.MembershipCard.IsActive && um.MembershipCard.StartDate <= DateTime.UtcNow && um.MembershipCard.EndDate >= DateTime.UtcNow);
         }
@@ -467,14 +451,14 @@ namespace MyClub.Services
             int userId = GetCurrentUserId();
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
             if (user == null)
-                throw new UserException("User not found");
+                throw new UserException("Korisnik nije pronađen");
 
             // Prevent deactivating last admin
             if (user.RoleId == 1)
             {
                 int adminCount = await _context.Users.CountAsync(u => u.RoleId == 1 && u.IsActive);
                 if (adminCount <= 1)
-                    throw new UserException("Cannot deactivate the last administrator account");
+                    throw new UserException("Ne možete deaktivirati poslednji administratorski nalog");
             }
 
             user.IsActive = false;
@@ -485,9 +469,9 @@ namespace MyClub.Services
 
         private int GetCurrentUserId()
         {
-            var httpContext = _httpContextAccessor.HttpContext ?? throw new Exception("No HTTP context");
+            var httpContext = _httpContextAccessor.HttpContext ?? throw new Exception("Greška");
             var auth = httpContext.Request.Headers["Authorization"].ToString();
-            if (string.IsNullOrEmpty(auth)) throw new Exception("No authorization header");
+            if (string.IsNullOrEmpty(auth)) throw new Exception("Greška");
             return JwtTokenManager.GetUserIdFromToken(auth);
         }
     }

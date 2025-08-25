@@ -28,11 +28,11 @@ namespace MyClub.Services.OrderStateMachine
                     .FirstOrDefaultAsync(o => o.Id == orderId);
                     
                 if (order == null)
-                    throw new KeyNotFoundException($"Order with ID {orderId} not found");
-                    
+                    throw new KeyNotFoundException($"Narudžba sa ID {orderId} nije pronađena");
+
                 // Only allow transition to Finished
                 if (request.NewStatus != "Završeno")
-                    throw new UserException($"Cannot change order from 'Dostava' to '{request.NewStatus}'");
+                    throw new UserException($"Ne možete promeniti fazu narudžbe iz 'Dostava' u '{request.NewStatus}'");
                 var oldState = order.OrderState;
                 order.OrderState = request.NewStatus;
                 order.DeliveredDate = DateTime.Now;
@@ -46,7 +46,7 @@ namespace MyClub.Services.OrderStateMachine
             }
             catch (Exception ex)
             {
-                throw new UserException($"Error changing order state: {ex.Message}", 400);
+                throw new UserException($"Greška prilikom promene faze narudžbe: {ex.Message}", 400);
             }
         }
     }

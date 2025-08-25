@@ -189,25 +189,25 @@ namespace MyClub.Services.Services
 
                 if (membershipCard == null)
                 {
-                    throw new ArgumentException("Membership card not found.");
+                    throw new UserException("Članstvo ne postoji.");
                 }
 
                 if (!membershipCard.IsActive)
                 {
-                    throw new InvalidOperationException("Membership card is not active.");
+                    throw new UserException("Članstvo nije aktivno.");
                 }
 
                 // Validate amount
                 if (Math.Abs(request.Amount - membershipCard.Price) > 0.1m)
                 {
-                    throw new ArgumentException("Invalid amount for membership card.");
+                    throw new UserException("Neispravna suma za članstvo.");
                 }
 
                 // Get current user ID
                 var authHeader = _httpContextAccessor.HttpContext?.Request.Headers["Authorization"].FirstOrDefault();
                 if (string.IsNullOrEmpty(authHeader))
                 {
-                    throw new UnauthorizedAccessException("Authentication required.");
+                    throw new UserException("Niste prijavljeni.", 401);
                 }
 
                 var currentUserId = GetCurrentUserId();
@@ -225,7 +225,7 @@ namespace MyClub.Services.Services
 
                     if (existingMembership != null)
                     {
-                        throw new InvalidOperationException($"User already has membership for year {membershipCard.Year}.");
+                        throw new UserException($"Korisnik već ima članstvo za godinu {membershipCard.Year}.");
                     }
                 }
 
@@ -241,7 +241,7 @@ namespace MyClub.Services.Services
                 }
                 else
                 {
-                    throw new ArgumentException("Invalid payment type. Use 'Stripe' or 'PayPal'.");
+                    throw new UserException("Neispravan tip plaćanja. Koristite 'Stripe' ili 'PayPal'.");
                 }
 
                 // Create payment record in database with pending status
@@ -263,7 +263,7 @@ namespace MyClub.Services.Services
                 {
                     if (request.Shipping == null)
                     {
-                        throw new ArgumentException("Shipping details are required for physical card delivery.");
+                        throw new UserException("Podaci o dostavi su obavezni za isporuku fizičke kartice.");
                     }
 
                     shippingDetails = new ShippingDetails
@@ -379,7 +379,7 @@ namespace MyClub.Services.Services
                 
             if (userMembership == null)
             {
-                throw new Exception("Membership not found or physical card not requested or already shipped");
+                throw new UserException("Članstvo ne postoji ili fizička kartica nije zatražena ili je već otpremljena.");
             }
             
             userMembership.IsShipped = true;
@@ -437,13 +437,13 @@ namespace MyClub.Services.Services
             var httpContext = _httpContextAccessor.HttpContext;
             if (httpContext == null)
             {
-                throw new Exception("No HTTP context available");
+                throw new UserException("Greška");
             }
 
             string? authHeader = httpContext.Request.Headers["Authorization"].ToString();
             if (string.IsNullOrEmpty(authHeader))
             {
-                throw new Exception("No authorization header found");
+                throw new UserException("Niste prijavljeni");
             }
 
             return JwtTokenManager.GetUserIdFromToken(authHeader);
@@ -459,7 +459,7 @@ namespace MyClub.Services.Services
                     .FirstOrDefaultAsync(p => p.TransactionId == transactionId);
 
                 if (payment == null)
-                    throw new InvalidOperationException($"Payment with transaction ID {transactionId} not found");
+                    throw new UserException($"Plaćanje sa transaction ID {transactionId} nije pronađeno.");
 
                 // Confirm payment based on method
                 bool paymentConfirmed = false;
@@ -473,7 +473,7 @@ namespace MyClub.Services.Services
                 }
 
                 if (!paymentConfirmed)
-                    throw new InvalidOperationException("Payment confirmation failed");
+                    throw new UserException("Potvrda plaćanja nije uspela");
 
                 payment.CompletedAt = DateTime.UtcNow;
 
@@ -485,7 +485,7 @@ namespace MyClub.Services.Services
                     .FirstOrDefaultAsync(um => um.PaymentId == payment.Id);
 
                 if (userMembership == null)
-                    throw new InvalidOperationException("User membership not found for this payment");
+                    throw new UserException("Članstvo nije pronađeno za ovu uplatu");
 
                 // Mark the membership as paid now that payment is confirmed
                 userMembership.IsPaid = true;

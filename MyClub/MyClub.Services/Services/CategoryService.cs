@@ -22,7 +22,7 @@ namespace MyClub.Services
 
             if (isCategoryInUse)
             {
-                throw new UserException($"Cannot delete this category as it's currently used by one or more products.");
+                throw new UserException($"Kategorija je u upotrebi i ne može biti obrisana", 400);
             }
 
             // Proceed with deletion if the category is not in use

@@ -118,7 +118,7 @@ namespace MyClub.Services
                     .FirstOrDefaultAsync(m => m.Id == id);
 
                 if (entity == null)
-                    throw new Exception($"Match with ID {id} not found");
+                    throw new Exception($"Utakmica sa id {id} nije pronađena");
 
                 await BeforeUpdate(entity, request);
                 MapUpdateToEntity(entity, request);
@@ -146,19 +146,19 @@ namespace MyClub.Services
                     .FirstOrDefaultAsync(mt => mt.Id == request.MatchTicketId);
 
                 if (matchTicket == null)
-                    throw new UserException($"Match ticket with ID {request.MatchTicketId} not found");
+                    throw new UserException($"Ulaznica za utakmicu sa ID {request.MatchTicketId} nije pronađena");
 
                 // Check if the ticket is available for purchase
                 if (matchTicket.AvailableQuantity <= 0)
-                    throw new UserException("No tickets available for this match");
+                    throw new UserException("Nema dostupnih ulaznica za ovu utakmicu.");
 
                 // Check if the match is in the future
                 if (matchTicket.Match.MatchDate <= DateTime.UtcNow)
-                    throw new UserException("Cannot purchase tickets for past matches");
+                    throw new UserException("Nije moguće kupiti ulaznice za prošle utakmice.");
 
                 string? authHeader = _httpContextAccessor.HttpContext?.Request.Headers["Authorization"];
                 if (string.IsNullOrEmpty(authHeader))
-                    throw new UserException("Authorization header is required");
+                    throw new UserException("Greška!");
 
                 var userId = JwtTokenManager.GetUserIdFromToken(authHeader);
 
@@ -174,7 +174,7 @@ namespace MyClub.Services
                 }
                 else
                 {
-                    throw new ArgumentException("Invalid payment type. Use 'Stripe' or 'PayPal'.");
+                    throw new ArgumentException("Greška u plačanju");
                 }
 
                 // Create a payment record with pending status
@@ -309,7 +309,7 @@ namespace MyClub.Services
             }
             catch (Exception ex)
             {
-                return new QRValidationResponse { IsValid = false, Message = $"Error validating QR code: {ex.Message}" };
+                return new QRValidationResponse { IsValid = false, Message = $"Greška: {ex.Message}" };
             }
         }
         public async Task<PagedResult<MatchResponse>> GetUpcomingMatchesAsync(BaseSearchObject search)
@@ -376,12 +376,13 @@ namespace MyClub.Services
         }
         protected override async Task BeforeDelete(Database.Match entity)
         {
+            
             // Check if there are any user tickets for this match
             var hasUserTickets = await _context.UserTickets
                 .AnyAsync(ut => ut.MatchTicket.MatchId == entity.Id);
 
             if (hasUserTickets)
-                throw new Exception("Cannot delete match as tickets have already been purchased");
+                throw new Exception("Ne može se obrisati utakmica koja ima prodate ulaznice.");
 
             // Delete match tickets
             var tickets = await _context.MatchTickets
@@ -396,7 +397,7 @@ namespace MyClub.Services
             // Validate club exists
             var clubExists = await _context.Clubs.AnyAsync(c => c.Id == request.ClubId);
             if (!clubExists)
-                throw new Exception($"Club with ID {request.ClubId} does not exist");
+                throw new Exception($"Klub sa ID {request.ClubId} ne postoji.");
 
             return true;
         }
@@ -510,7 +511,7 @@ namespace MyClub.Services
                     .FirstOrDefaultAsync(p => p.TransactionId == transactionId);
 
                 if (payment == null)
-                    throw new UserException($"Payment with transaction ID {transactionId} not found");
+                    throw new UserException($"Plaćanje sa transaction ID {transactionId} nije pronađeno");
 
                 // Confirm payment based on method
                 bool paymentConfirmed = false;
@@ -524,7 +525,7 @@ namespace MyClub.Services
                 }
 
                 if (!paymentConfirmed)
-                    throw new UserException("Payment confirmation failed");
+                    throw new UserException("Greška u potvrdi plaćanja");
 
                 payment.CompletedAt = DateTime.UtcNow;
 
@@ -536,7 +537,7 @@ namespace MyClub.Services
                     .FirstOrDefaultAsync(ut => ut.PaymentId == payment.Id);
 
                 if (userTicket == null)
-                    throw new UserException("User ticket not found for this payment");
+                    throw new UserException("Korisnička ulaznica nije pronađena za ovu uplatu");
 
                 // Mark the ticket as valid now that payment is confirmed
                 userTicket.IsValid = true;
@@ -574,7 +575,7 @@ namespace MyClub.Services
             {
                 var match = await _context.Matches.FindAsync(matchId);
                 if (match == null)
-                    throw new Exception($"Match with ID {matchId} not found");
+                    throw new Exception($"Utakmica sa ID {matchId} nije pronađena");
 
                 match.HomeGoals = request.HomeGoals;
                 match.AwayGoals = request.AwayGoals;
@@ -601,7 +602,7 @@ namespace MyClub.Services
                     .FirstOrDefaultAsync(m => m.Id == id);
 
                 if (entity == null)
-                    throw new Exception($"Match with ID {id} not found");
+                    throw new Exception($"Utakmica sa ID {id} nije pronađena");
 
                 await BeforeDelete(entity);
                 _context.Matches.Remove(entity);
@@ -628,16 +629,12 @@ namespace MyClub.Services
                         .FirstOrDefaultAsync(mt => mt.MatchId == matchId && mt.StadiumSectorId == ticketRequest.StadiumSectorId);
 
 
-                    if (ticketRequest.ReleasedQuantity < 0 || ticketRequest.ReleasedQuantity > 100 || ticketRequest.Price < 0)
+                    if (ticketRequest.ReleasedQuantity < 0 || ticketRequest.Price < 0)
                     {
-                        throw new UserException("Released quantity cannot be negative and price cannot be negative");
+                        throw new UserException("Iznos koji se pušta ne može biti negativan, a cena ne može biti negativna");
                     }
 
-                    // Validate ticket request
-                    if (ticketRequest.ReleasedQuantity > 100)
-                    {
-                        throw new UserException("Released quantity cannot exceed 100", 400);
-                    }
+
                     if (matchTicket == null)
                     {
                         // Create new ticket
@@ -653,12 +650,7 @@ namespace MyClub.Services
                     }
                     else
                     {
-                        // Update existing ticket
 
-                        if (matchTicket.ReleasedQuantity + ticketRequest.ReleasedQuantity > 100)
-                        {
-                            throw new UserException("Total released quantity cannot exceed 100", 400);
-                        }
                         matchTicket.ReleasedQuantity += ticketRequest.ReleasedQuantity;
                         matchTicket.AvailableQuantity += ticketRequest.ReleasedQuantity; // Reset available quantity
                         matchTicket.Price = ticketRequest.Price;

@@ -7,7 +7,6 @@ import '../models/responses/match_response.dart';
 import '../models/responses/match_ticket_response.dart';
 import '../models/responses/payment_response.dart';
 import '../models/requests/ticket_purchase_request.dart';
-import '../models/requests/confirm_order_request.dart';
 import '../providers/auth_provider.dart';
 import '../providers/paypal_provider.dart';
 import '../utility/responsive_helper.dart';
@@ -43,7 +42,7 @@ class _TicketPurchaseScreenState extends State<TicketPurchaseScreen> {
   final _cardHolderNameController = TextEditingController();
 
   // Form data
-  String _selectedPaymentMethod = 'Stripe';
+  String _selectedPaymentMethod = '';
   bool _isLoading = false;
   bool _isProcessingPayment = false;
   bool _isPayPalWaitingDialogOpen = false;
@@ -73,19 +72,34 @@ class _TicketPurchaseScreenState extends State<TicketPurchaseScreen> {
   }
 
   Future<void> _processTicketPurchase() async {
-    if (!_formKey.currentState!.validate()) return;
+    print('=== TICKET PURCHASE BUTTON PRESSED ===');
+    print('Form validation: ${_formKey.currentState?.validate()}');
+    print('Selected payment method: $_selectedPaymentMethod');
+    
+    if (!_formKey.currentState!.validate()) {
+      print('Form validation failed');
+      return;
+    }
+
+    // Ensure payment method selected
+    if (_selectedPaymentMethod.isEmpty) {
+      print('No payment method selected');
+      NotificationHelper.showError(context, 'Molimo odaberite način plaćanja');
+      return;
+    }
+
+    print('✅ Validation passed, proceeding with payment method: $_selectedPaymentMethod');
 
     // For Stripe payments, we need the payment method first
     if (_selectedPaymentMethod == 'Stripe') {
-      if (!_validateCardInputs()) {
-        NotificationHelper.showError(context, 'Molimo unesite sve podatke kartice');
-        return;
-      }
+      // Re-run validation to show inline errors for card fields
+      final valid = _formKey.currentState!.validate();
+      if (!valid) return;
 
       // Create Stripe payment method first
       await _createStripePaymentMethod();
       if (_stripePaymentMethodId == null) {
-        return; // Error already shown
+        return; // creation failed; error already surfaced
       }
     }
 
@@ -139,7 +153,7 @@ class _TicketPurchaseScreenState extends State<TicketPurchaseScreen> {
     } catch (e) {
       print('Error in _processTicketPurchase: $e');
       if (mounted) {
-        NotificationHelper.showApiError(context, e);
+        NotificationHelper.showApiError(context, e, 'obradi rezervacije karte');
       }
     } finally {
       setState(() {
@@ -148,53 +162,54 @@ class _TicketPurchaseScreenState extends State<TicketPurchaseScreen> {
     }
   }
 
-  bool _validateCardInputs() {
-    return _cardNumberController.text.isNotEmpty &&
-           _cardExpiryController.text.isNotEmpty &&
-           _cardCvcController.text.isNotEmpty &&
-           _cardHolderNameController.text.isNotEmpty;
-  }
+  // Card inputs are validated via Form validators in PaymentSectionWidget
 
   Future<void> _createStripePaymentMethod() async {
     try {
-      // Parse expiry date (MM/YY format)
+      final number = _cardNumberController.text.replaceAll(' ', '');
       final expiryParts = _cardExpiryController.text.split('/');
-      if (expiryParts.length != 2) {
-        throw Exception('Format datuma isteka mora biti MM/YY');
-      }
-      
-      final expMonth = int.tryParse(expiryParts[0].trim());
-      final expYear = int.tryParse('20${expiryParts[1].trim()}');
-      
-      if (expMonth == null || expYear == null || expMonth < 1 || expMonth > 12) {
-        throw Exception('Nepravilan datum isteka kartice');
-      }
+      final expMonth = int.parse(expiryParts[0].trim());
+      final expYear = int.parse('20${expiryParts[1].trim()}');
+      final cvc = _cardCvcController.text.trim();
+      final holder = _cardHolderNameController.text.trim();
 
-      // For now, we'll create a simple payment method without the native card input
-      // This is a workaround until the native Stripe components are properly configured
-      print('Creating mock payment method for testing...');
-      
-      // Create a mock payment method ID that we can send to the backend
-      // The backend will handle the actual Stripe processing
-      _stripePaymentMethodId = 'pm_test_ticket_${widget.ticket.id}'; // Unique test ID for ticket
+      await stripe.Stripe.instance.dangerouslyUpdateCardDetails(
+        stripe.CardDetails(
+          number: number,
+          expirationMonth: expMonth,
+          expirationYear: expYear,
+          cvc: cvc,
+        ),
+      );
 
-      print('Mock payment method created: $_stripePaymentMethodId');
+      final pm = await stripe.Stripe.instance.createPaymentMethod(
+        params: stripe.PaymentMethodParams.card(
+          paymentMethodData: stripe.PaymentMethodData(
+            billingDetails: stripe.BillingDetails(
+              name: holder.isNotEmpty ? holder : null,
+            ),
+          ),
+        ),
+      );
+      _stripePaymentMethodId = pm.id;
+      print('Stripe PaymentMethod created (ticket): $_stripePaymentMethodId');
+    } on stripe.StripeException catch (e) {
+      final msg = e.error.localizedMessage ?? e.error.message ?? 'Greška pri kreiranju načina plaćanja';
+      if (mounted) NotificationHelper.showError(context, msg);
+      _stripePaymentMethodId = null;
     } catch (e) {
-      print('Error creating payment method: $e');
-      if (mounted) {
-        NotificationHelper.showApiError(context, e);
-      }
+      _stripePaymentMethodId = null;
     }
   }
 
   Future<void> _processStripePayment() async {
     if (_paymentResponse == null) {
-      NotificationHelper.showError(context, 'Greška: Rezervacija nije kreirana');
+      NotificationHelper.showError(context, 'Greška pri kreiranju rezervacije');
       return;
     }
 
     if (_stripePaymentMethodId == null) {
-      NotificationHelper.showError(context, 'Greška: Način plaćanja nije kreiran');
+      NotificationHelper.showError(context, 'Greška pri kreiranju načina plaćanja');
       return;
     }
 
@@ -203,26 +218,30 @@ class _TicketPurchaseScreenState extends State<TicketPurchaseScreen> {
     });
 
     try {
-      // For the mock implementation, we'll simulate the payment confirmation
-      print('Simulating Stripe payment confirmation for ticket...');
-      print('Payment Method ID: $_stripePaymentMethodId');
-      print('Client Secret: ${_paymentResponse!.clientSecret}');
+      final clientSecret = _paymentResponse!.clientSecret;
+      if (clientSecret == null || clientSecret.isEmpty) {
+        throw Exception('Nedostaje Stripe client secret za potvrdu plaćanja');
+      }
 
-      // Simulate payment processing delay
-      await Future.delayed(const Duration(seconds: 2));
-
-      // Confirm ticket purchase on backend
-      final confirmRequest = ConfirmOrderRequest(
-        transactionId: _paymentResponse!.transactionId,
+      final intent = await stripe.Stripe.instance.confirmPayment(
+        paymentIntentClientSecret: clientSecret,
+        data: stripe.PaymentMethodParams.cardFromMethodId(
+          paymentMethodData: stripe.PaymentMethodDataCardFromMethod(
+            paymentMethodId: _stripePaymentMethodId!,
+          ),
+        ),
       );
 
-      print('Confirming ticket purchase on backend...');
-      await _matchProvider.confirmOrder(confirmRequest.transactionId);
-
-      if (mounted) {
-        NotificationHelper.showSuccess(context, 'Plaćanje uspješno! Karta je kupljena.');
-        // Navigate back to main screen
-        Navigator.of(context).popUntil((route) => route.isFirst);
+      print('Ticket PaymentIntent status: ${intent.status}');
+      if (intent.status == stripe.PaymentIntentsStatus.Succeeded) {
+        // Confirm ticket purchase on backend
+        await _matchProvider.confirmOrder(_paymentResponse!.transactionId);
+        if (mounted) {
+          NotificationHelper.showSuccess(context, 'Plaćanje uspješno! Karta je kupljena.');
+          Navigator.of(context).popUntil((route) => route.isFirst);
+        }
+      } else {
+        throw Exception('Plaćanje nije uspjelo. Status: ${intent.status}');
       }
     } catch (e) {
       print('Error processing Stripe payment: $e');
@@ -232,7 +251,7 @@ class _TicketPurchaseScreenState extends State<TicketPurchaseScreen> {
           final errorMessage = e.error.localizedMessage ?? e.error.message;
           NotificationHelper.showError(context, 'Greška pri plaćanju: $errorMessage');
         } else {
-          NotificationHelper.showApiError(context, e);
+          NotificationHelper.showApiError(context, e, 'Stripe plaćanju');
         }
       }
     } finally {
@@ -244,12 +263,12 @@ class _TicketPurchaseScreenState extends State<TicketPurchaseScreen> {
 
   Future<void> _processPayPalPayment() async {
     if (_paymentResponse == null) {
-      NotificationHelper.showError(context, 'Greška: Rezervacija nije kreirana');
+      NotificationHelper.showError(context, 'Greška pri kreiranju rezervacije');
       return;
     }
     final approvalUrl = _paymentResponse!.approvalUrl;
     if (approvalUrl == null || approvalUrl.isEmpty) {
-      NotificationHelper.showError(context, 'Greška: PayPal approval URL nije dostupan');
+      NotificationHelper.showError(context, 'Greška pri kreiranju PayPal plaćanja');
       return;
     }
     try {
@@ -281,7 +300,7 @@ class _TicketPurchaseScreenState extends State<TicketPurchaseScreen> {
 
       await _showPayPalWaitingDialog();
     } catch (e) {
-      NotificationHelper.showApiError(context, e);
+      NotificationHelper.showApiError(context, e, 'PayPal plaćanju');
     }
   }
 

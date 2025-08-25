@@ -4,7 +4,7 @@ namespace MyClub.Model.Requests
 {
     public class TicketPurchaseRequest : PaymentRequest
     {
-        [Required(ErrorMessage = "Match ticket ID is required")]
+        [Required(ErrorMessage = "Karta je obavezna")]
         public int MatchTicketId { get; set; }
 
     }

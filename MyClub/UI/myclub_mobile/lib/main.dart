@@ -36,7 +36,6 @@ void main() async {
   
   // Initialize Stripe with environment variable
   Stripe.publishableKey = dotenv.env['STRIPE_PUBLISHABLE_KEY'] ?? '';
-  
   // Set system UI colors before the app runs
   runApp(const MyClubApp());
 }
@@ -46,6 +45,7 @@ class MyClubApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+  print('Stripe publishable key: ${Stripe.publishableKey}');
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),

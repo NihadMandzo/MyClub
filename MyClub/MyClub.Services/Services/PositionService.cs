@@ -22,7 +22,7 @@ namespace MyClub.Services
 
             if (isPositionInUse)
             {
-                throw new UserException($"Cannot delete this position as it's currently used by one or more players.");
+                throw new UserException($"Pozicija se ne može obrisati jer je trenutno korišćena od strane jednog ili više igrača.");
             }
 
             // Proceed with deletion if the category is not in use

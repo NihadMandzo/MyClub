@@ -104,7 +104,7 @@ namespace MyClub.Services.Services
             .FirstOrDefaultAsync(x => x.Id == id);
             if (order == null)
             {
-                throw new KeyNotFoundException($"Order with ID {id} not found");
+                throw new KeyNotFoundException($"Naručbina sa ID {id} nije pronađena");
             }
             return MapToResponse(order);
         }

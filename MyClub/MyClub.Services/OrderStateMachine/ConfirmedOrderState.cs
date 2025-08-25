@@ -45,12 +45,12 @@ namespace MyClub.Services.OrderStateMachine
                 
             if (entity == null)
             {
-                throw new KeyNotFoundException($"Order with ID {orderId} not found");
+                throw new KeyNotFoundException($"Narudžba sa ID {orderId} nije pronađena");
             }
             // Disallow changing state to Processing 
             if (request.NewStatus == "Procesiranje")
             {
-                throw new UserException($"Cannot change order from 'Potvrđeno' to '{request.NewStatus}'");
+                throw new UserException($"Ne možete promeniti fazu narudžbe iz 'Potvrđeno' u '{request.NewStatus}'");
             }
             if(request.NewStatus == "Dostava")
             {

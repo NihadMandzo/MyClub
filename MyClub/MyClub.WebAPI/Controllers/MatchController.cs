@@ -73,13 +73,13 @@ namespace MyClub.WebAPI
         {
             if (request == null)
             {
-                return BadRequest("Match result request cannot be null");
+                throw new UserException("Match result request cannot be null");
             }
 
             // Validate the match ID
             if (matchId <= 0)
             {
-                return BadRequest("Invalid match ID");
+                throw new UserException("Invalid match ID");
             }
 
             // Call the service to set the match result
@@ -99,13 +99,13 @@ namespace MyClub.WebAPI
         {
             if (request == null)
             {
-                return BadRequest("Match ticket request cannot be null");
+                throw new UserException("Match ticket request cannot be null");
             }
 
             // Validate the match ID
             if (matchId <= 0)
             {
-                return BadRequest("Invalid match ID");
+                throw new UserException("Invalid match ID");
             }
 
             var result = await _matchService.CreateOrUpdateMatchTicketAsync(matchId, request);

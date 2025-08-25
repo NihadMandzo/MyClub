@@ -32,15 +32,15 @@ namespace MyClub.Services.OrderStateMachine
         }
         public virtual async Task<OrderResponse> ChangeOrderState(int orderId, OrderStateUpdateRequest request)
         {
-            throw new UserException("Action not allowed");
+            throw new UserException("Akcija nije dozvoljena");
         }
         public virtual async Task<OrderResponse> ConfirmOrder(ConfirmOrderRequest request)
         {
-            throw new UserException("Action not allowed");
+            throw new UserException("Akcija nije dozvoljena");
         }
         public virtual async Task<PaymentResponse> PlaceOrder(OrderInsertRequest request)
         {
-            throw new UserException("Action not allowed");
+            throw new UserException("Akcija nije dozvoljena");
         }
         public BaseOrderState GetOrderState(string stateName)
         {
@@ -59,7 +59,7 @@ namespace MyClub.Services.OrderStateMachine
                 case "Završeno":
                     return _serviceProvider.GetService<FinishedOrderState>();
                 default:
-                    throw new UserException($"Unknown order state: {stateName}");
+                    throw new UserException($"Nepoznata faza narudžbe: {stateName}");
             }
         }
         protected async Task<OrderResponse> MapOrderToResponse(Order entity)

@@ -191,7 +191,7 @@ namespace MyClub.Services.Services
 
                 if (entity == null)
                 {
-                    throw new Exception("Membership card not found");
+                    throw new Exception("Kampanja članstva nije pronađena");
                 }
 
                 entity = MapUpdateToEntity(entity, request);
@@ -316,7 +316,7 @@ namespace MyClub.Services.Services
 
                 if (entity == null)
                 {
-                    throw new Exception("Membership card not found");
+                    throw new Exception("Kampanja članstva nije pronađena");
                 }
 
                 // Check if there are any user memberships
@@ -375,7 +375,7 @@ namespace MyClub.Services.Services
             
             if (currentCampaign == null)
             {
-                throw new UserException("No active membership card campaigns found for the current year or any active campaigns.");
+                throw new UserException("Nema aktivnih kampanja članstva pronađenih za tekuću godinu ili bilo koje aktivne kampanje.");
             }
             
             var response = MapToResponse(currentCampaign);

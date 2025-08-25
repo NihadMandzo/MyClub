@@ -99,7 +99,7 @@ namespace MyClub.Services.Services
 
             if (country == null)
             {
-                throw new UserException("Country not found");
+                throw new UserException("Država nije pronađena");
             }
 
             // Check if any cities are referenced in orders
@@ -115,13 +115,13 @@ namespace MyClub.Services.Services
 
             if (hasReferencedCities)
             {
-                throw new UserException("Cannot delete the country because some of its cities are referenced in orders");
+                throw new UserException("Grad koji je u upotrebi u detaljima isporuke ne može biti obrisan.");
             }
 
             bool hasPlayers = await _context.Players.AnyAsync(p => p.CountryId == id);
             if (hasPlayers)
             {
-                throw new UserException("Cannot delete the country because it has players associated with it");
+                throw new UserException("Država sa povezanim igračima ne može biti obrisana.");
             }
 
 

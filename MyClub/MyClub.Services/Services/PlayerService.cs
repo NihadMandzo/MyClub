@@ -89,11 +89,11 @@ namespace MyClub.Services.Services
                 : request.CountryId;
             if (countryId <= 0 || !await _context.Countries.AnyAsync(c => c.Id == countryId))
             {
-                throw new UserException("Selected country does not exist.");
+                throw new UserException("Odabrana država ne postoji.");
             }
             if (request.PositionId <= 0 || !await _context.Positions.AnyAsync(p => p.Id == request.PositionId))
             {
-                throw new UserException("Selected position does not exist.");
+                throw new UserException("Odabrana pozicija ne postoji.");
             }
 
             // Handle image upload if provided
@@ -125,21 +125,21 @@ namespace MyClub.Services.Services
                 {
                     if (!await _context.Countries.AnyAsync(c => c.Id == effectiveCountryId.Value))
                     {
-                        throw new UserException("Selected country does not exist.");
+                        throw new UserException("Odabrana država ne postoji.");
                     }
                 }
                 if (request.PositionId.HasValue && request.PositionId.Value > 0)
                 {
                     if (!await _context.Positions.AnyAsync(p => p.Id == request.PositionId.Value))
                     {
-                        throw new UserException("Selected position does not exist.");
+                        throw new UserException("Odabrana pozicija ne postoji.");
                     }
                 }
 
             // Validate that if KeepPicture is false, a new image must be provided
             if (!request.KeepPicture && request.ImageUrl == null)
             {
-                throw new UserException("A new image must be provided when not keeping the existing picture.");
+                throw new UserException("Nova slika mora biti poslana kada se ne ostavlja postojeća slika.");
             }
 
             if (!request.KeepPicture && request.ImageUrl != null)

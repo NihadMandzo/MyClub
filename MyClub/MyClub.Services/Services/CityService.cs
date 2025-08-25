@@ -115,7 +115,7 @@ namespace MyClub.Services.Services
 
             if (city == null)
             {
-                throw new UserException("City not found");
+                throw new UserException("Grad nije pronađen");
             }
 
             // Check if the city is referenced in any shipping details
@@ -124,7 +124,7 @@ namespace MyClub.Services.Services
 
             if (hasReferencedShippingDetails)
             {
-                throw new UserException("Cannot delete city that is referenced in shipping details");
+                throw new UserException("Grad koji je u upotrebi u detaljima isporuke ne može biti obrisan");
             }
 
             _context.Cities.Remove(city);

@@ -8,14 +8,12 @@ class CardNumberInputFormatter extends TextInputFormatter {
   TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
     var text = newValue.text.replaceAll(' ', '');
     var newText = '';
-    
-    for (int i = 0; i < text.length; i++) {
+  for (int i = 0; i < text.length && i < 19; i++) {
       if (i % 4 == 0 && i != 0) {
         newText += ' ';
       }
       newText += text[i];
     }
-    
     return newValue.copyWith(
       text: newText,
       selection: TextSelection.collapsed(offset: newText.length),
@@ -135,9 +133,7 @@ class _PaymentSectionWidgetState extends State<PaymentSectionWidget> {
         },
       ),
       onExpansionChanged: widget.isProcessing ? null : (expanded) {
-        if (expanded) {
-          widget.onPaymentMethodChanged('Stripe');
-        }
+        // Do not auto-select payment method on expand; user must choose via radio.
       },
       children: [
         Padding(
@@ -214,12 +210,31 @@ class _PaymentSectionWidgetState extends State<PaymentSectionWidget> {
             keyboardType: TextInputType.number,
             inputFormatters: [
               FilteringTextInputFormatter.digitsOnly,
-              LengthLimitingTextInputFormatter(16),
+              LengthLimitingTextInputFormatter(19),
               CardNumberInputFormatter(),
             ],
             validator: (value) {
               if (value == null || value.trim().isEmpty) {
                 return 'Broj kartice je obavezan';
+              }
+              final digits = value.replaceAll(' ', '');
+              if (digits.length < 13 || digits.length > 19) {
+                return 'Neispravan broj kartice';
+              }
+              // Luhn check
+              int sum = 0;
+              bool alt = false;
+              for (int i = digits.length - 1; i >= 0; i--) {
+                int n = int.parse(digits[i]);
+                if (alt) {
+                  n *= 2;
+                  if (n > 9) n -= 9;
+                }
+                alt = !alt;
+                sum += n;
+              }
+              if (sum % 10 != 0) {
+                return 'Neispravan broj kartice (Luhn)';
               }
               return null;
             },
@@ -239,6 +254,9 @@ class _PaymentSectionWidgetState extends State<PaymentSectionWidget> {
             validator: (value) {
               if (value == null || value.trim().isEmpty) {
                 return 'Ime vlasnika kartice je obavezno';
+              }
+              if (value.trim().length < 2) {
+                return 'Unesite puno ime';
               }
               return null;
             },
@@ -272,6 +290,21 @@ class _PaymentSectionWidgetState extends State<PaymentSectionWidget> {
                     if (!value.contains('/') || value.length != 5) {
                       return 'Format: MM/YY';
                     }
+                    final parts = value.split('/');
+                    final mm = int.tryParse(parts[0]);
+                    final yy = int.tryParse(parts[1]);
+                    if (mm == null || yy == null || mm < 1 || mm > 12) {
+                      return 'Neispravan datum';
+                    }
+                    // Not in the past
+                    final now = DateTime.now();
+                    final year = 2000 + yy;
+                    // consider end of month
+                    final exp = DateTime(year, mm + 1, 0);
+                    final today = DateTime(now.year, now.month, now.day);
+                    if (exp.isBefore(today)) {
+                      return 'Kartica je istekla';
+                    }
                     return null;
                   },
                 ),
@@ -298,8 +331,8 @@ class _PaymentSectionWidgetState extends State<PaymentSectionWidget> {
                     if (value == null || value.trim().isEmpty) {
                       return 'CVC je obavezan';
                     }
-                    if (value.length < 3) {
-                      return 'CVC mora imati najmanje 3 cifre';
+                    if (value.length < 3 || value.length > 4) {
+                      return 'CVC mora imati 3-4 cifre';
                     }
                     return null;
                   },
@@ -339,9 +372,7 @@ class _PaymentSectionWidgetState extends State<PaymentSectionWidget> {
         },
       ),
       onExpansionChanged: widget.isProcessing ? null : (expanded) {
-        if (expanded) {
-          widget.onPaymentMethodChanged('PayPal');
-        }
+        // Do not auto-select payment method on expand; user must choose via radio.
       },
       children: [
         Padding(

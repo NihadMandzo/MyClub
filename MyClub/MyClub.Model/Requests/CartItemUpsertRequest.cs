@@ -5,11 +5,11 @@ namespace MyClub.Model.Requests
 {
     public class CartItemUpsertRequest
     {
-        [Required(ErrorMessage = "Product size is required")]
+        [Required(ErrorMessage = "Proizvod je obavezan")]
         public int ProductSizeId { get; set; }
         
-        [Required(ErrorMessage = "Quantity is required")]
-        [Range(1, int.MaxValue, ErrorMessage = "Quantity must be at least 1")]
+        [Required(ErrorMessage = "Količina je obavezna")]
+        [Range(1, int.MaxValue, ErrorMessage = "Količina mora biti najmanje 1")]
         public int Quantity { get; set; } = 1;
     }
 } 

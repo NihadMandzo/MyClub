@@ -56,7 +56,7 @@ class _MatchScreenState extends State<MatchScreen> with TickerProviderStateMixin
         _isLoading = false;
       });
         if (mounted) {
-          NotificationHelper.showApiError(context, e);
+          NotificationHelper.showApiError(context, e, 'učitavanju utakmica');
       }
     }
   }

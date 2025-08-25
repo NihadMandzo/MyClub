@@ -8,31 +8,31 @@ namespace MyClub.Model.Requests
 {
     public class ProductUpsertRequest
     {
-        [Required(ErrorMessage = "Name is required")]
-        [MaxLength(100, ErrorMessage = "Name cannot exceed 100 characters")]
+        [Required(ErrorMessage = "Naziv je obavezan")]
+        [MaxLength(100, ErrorMessage = "Naziv ne može biti duži od 100 karaktera")]
         public string Name { get; set; } = string.Empty;
-        [Required(ErrorMessage = "Description is required")]
-        [MaxLength(500, ErrorMessage = "Description cannot exceed 500 characters")]
-        public string Description { get; set; }
-        
-        [MaxLength(50, ErrorMessage = "Barcode cannot exceed 50 characters")]
+        [Required(ErrorMessage = "Opis je obavezan")]
+        [MaxLength(500, ErrorMessage = "Opis ne može biti duži od 500 karaktera")]
+        public string Description { get; set; } = string.Empty;
+
+        [MaxLength(50, ErrorMessage = "Barkod ne može biti duži od 50 karaktera")]
         public string BarCode { get; set; } = string.Empty;
-        
-        [Required(ErrorMessage = "Price is required")]
-        [Range(0.01, 10000, ErrorMessage = "Price must be greater than 0 and less than 10,000")]
+
+        [Required(ErrorMessage = "Cijena je obavezna")]
+        [Range(0.01, 10000, ErrorMessage = "Cijena mora biti veća od 0 i manja od 10,000")]
         public decimal Price { get; set; } = 0;
-        
-        
-        [Required(ErrorMessage = "Color is required")]
+
+
+        [Required(ErrorMessage = "Boja je obavezna")]
         public int ColorId { get; set; } = 0;
-        
-        [Required(ErrorMessage = "Category is required")]
+
+        [Required(ErrorMessage = "Kategorija je obavezna")]
         public int CategoryId { get; set; } = 0;
         
         public bool IsActive { get; set; } = true;
         
         // For handling image uploads
-        [Required(ErrorMessage = "Images are required")]
+        [Required(ErrorMessage = "Slike su obavezne")]
         public List<IFormFile> Images { get; set; } = new List<IFormFile>();
         
         // For tracking existing images when updating
@@ -56,7 +56,7 @@ namespace MyClub.Model.Requests
         public int SizeId { get; set; }
         
         [Required]
-        [Range(0, 10000, ErrorMessage = "Quantity must be between 0 and 10,000")]
+        [Range(0, 10000, ErrorMessage = "Količina mora biti između 0 i 10,000")]
         public int Quantity { get; set; }
     }
 } 

@@ -4,6 +4,7 @@ using System.Security.Claims;
 using System.Text;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
+using MyClub.Model.Responses;
 
 namespace MyClub.Services.Helpers{
     public static class JwtTokenManager
@@ -11,7 +12,7 @@ namespace MyClub.Services.Helpers{
         public static int GetUserIdFromToken(string authorizationHeader)
         {
             if (string.IsNullOrEmpty(authorizationHeader))
-                throw new UnauthorizedAccessException("Authorization header is missing");
+                throw new UserException("Greška u autorizaciji", 401);
 
             // Remove "Bearer " prefix if present
             string token = authorizationHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)
@@ -24,10 +25,10 @@ namespace MyClub.Services.Helpers{
             // Get the user ID claim
             var userIdClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier);
             if (userIdClaim == null)
-                throw new UnauthorizedAccessException("User ID not found in token");
+                throw new UserException("Korisnički ID nije pronađen u tokenu", 401);
 
             if (!int.TryParse(userIdClaim.Value, out int userId))
-                throw new UnauthorizedAccessException("Invalid user ID in token");
+                throw new UserException("Nevažeći korisnički ID u tokenu", 401);
 
             return userId;
         }
@@ -35,7 +36,7 @@ namespace MyClub.Services.Helpers{
         public static string GetUsernameFromToken(string authorizationHeader)
         {
             if (string.IsNullOrEmpty(authorizationHeader))
-                throw new UnauthorizedAccessException("Authorization header is missing");
+                throw new UserException("Greška u autorizaciji", 401);
 
             // Remove "Bearer " prefix if present
             string token = authorizationHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)
@@ -48,7 +49,7 @@ namespace MyClub.Services.Helpers{
             // Get the username claim
             var usernameClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Name);
             if (usernameClaim == null)
-                throw new UnauthorizedAccessException("Username not found in token");
+                throw new UserException("Korisničko ime nije pronađeno u tokenu", 401);
 
             return usernameClaim.Value;
         }
@@ -56,7 +57,7 @@ namespace MyClub.Services.Helpers{
         public static string GetRoleFromToken(string authorizationHeader)
         {
             if (string.IsNullOrEmpty(authorizationHeader))
-                throw new UnauthorizedAccessException("Authorization header is missing");
+                throw new UserException("Greška u autorizaciji", 401);
 
             // Remove "Bearer " prefix if present
             string token = authorizationHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)
@@ -69,14 +70,14 @@ namespace MyClub.Services.Helpers{
             // Get the role claim
             var roleClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role);
             if (roleClaim == null)
-                throw new UnauthorizedAccessException("Role not found in token");
+                throw new UserException("Uloga nije pronađena u tokenu", 401);
 
             return roleClaim.Value;
         }
         public static bool IsAdmin(string authorizationHeader)
         {
             if (string.IsNullOrEmpty(authorizationHeader))
-                throw new UnauthorizedAccessException("Authorization header is missing");
+                throw new UserException("Greška u autorizaciji", 401);
 
             // Remove "Bearer " prefix if present
             string token = authorizationHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)

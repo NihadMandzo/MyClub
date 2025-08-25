@@ -21,7 +21,7 @@ namespace MyClub.Services.OrderStateMachine
         public override async Task<OrderResponse> ChangeOrderState(int orderId, OrderStateUpdateRequest request)
         {
             // Cannot change state from cancelled
-            throw new UserException("Cannot change state from 'Otkazano'");
+            throw new UserException("Ne možete promeniti fazu iz 'Otkazano'");
         }
     }
 }

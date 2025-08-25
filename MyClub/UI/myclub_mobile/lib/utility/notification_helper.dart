@@ -3,45 +3,51 @@ import 'package:flutter/material.dart';
 /// Helper class for showing notifications, dialogs, and snackbars
 class NotificationHelper {
   /// Extract a clean, user-friendly message from any error/exception
-  static String extractErrorMessage(Object error) {
+  static String extractErrorMessage(Object error, [String? functionName]) {
     String msg = error.toString();
+    
     // Remove common wrappers/prefixes
     msg = msg.replaceFirst(RegExp(r'^Exception:\s*'), '');
     msg = msg.replaceFirst(RegExp(r'^Greška:\s*'), '');
+    
     // If a generic prefix like "Greška pri ...: " exists, prefer the part after the last colon
     if (RegExp(r'Greška|Error', caseSensitive: false).hasMatch(msg) && msg.contains(':')) {
       msg = msg.split(':').last.trim();
     }
-    if (msg.startsWith('API Error')) {
-      msg = 'Došlo je do greške. Pokušajte ponovo.';
+    
+    // If message starts with technical terms, make it generic
+    if (msg.startsWith('API Error') || msg.isEmpty || msg.length < 3) {
+      if (functionName != null) {
+        return 'Greška u $functionName';
+      }
+      return 'Došlo je do greške. Pokušajte ponovo.';
     }
+    
     return msg;
   }
 
   /// Show API error using only the message from the exception/object
-  static void showApiError(BuildContext context, Object error) {
-    showError(context, extractErrorMessage(error));
+  static void showApiError(BuildContext context, Object error, [String? functionName]) {
+    showError(context, extractErrorMessage(error, functionName));
   }
-  /// Calculate safe margin for floating SnackBars
+  /// Calculate safe margin for floating SnackBars at the top
   static EdgeInsets _getSafeSnackBarMargin(BuildContext context) {
-    final bottomPadding = MediaQuery.of(context).padding.bottom;
+    final topPadding = MediaQuery.of(context).padding.top;
     final screenHeight = MediaQuery.of(context).size.height;
     
-    // For very small screens, use less bottom margin
-    final bottomMargin = screenHeight < 600 ? 60 : 80;
+    // For very small screens, use less top margin
+    final topMargin = screenHeight < 600 ? 10 : 20;
     
     return EdgeInsets.only(
-      bottom: bottomPadding + bottomMargin,
+      top: topPadding + topMargin,
       left: 16,
       right: 16,
     );
   }
 
-  /// Determine if we should use floating behavior based on screen size
+  /// Always use floating behavior for top notifications
   static SnackBarBehavior _getSnackBarBehavior(BuildContext context) {
-    final screenHeight = MediaQuery.of(context).size.height;
-    // Use fixed behavior for very small screens to avoid layout issues
-    return screenHeight < 600 ? SnackBarBehavior.fixed : SnackBarBehavior.floating;
+    return SnackBarBehavior.floating;
   }
   /// Show a success snackbar
   static void showSuccess(BuildContext context, String message) {
@@ -56,6 +62,7 @@ class NotificationHelper {
         shape: behavior == SnackBarBehavior.floating ? RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
         ) : null,
+        dismissDirection: DismissDirection.up,
       ),
     );
   }
@@ -85,6 +92,7 @@ class NotificationHelper {
         shape: behavior == SnackBarBehavior.floating ? RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
         ) : null,
+        dismissDirection: DismissDirection.up,
       ),
     );
   }
@@ -102,6 +110,7 @@ class NotificationHelper {
         shape: behavior == SnackBarBehavior.floating ? RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
         ) : null,
+        dismissDirection: DismissDirection.up,
       ),
     );
   }
@@ -123,6 +132,7 @@ class NotificationHelper {
       shape: behavior == SnackBarBehavior.floating ? RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
       ) : null,
+      dismissDirection: DismissDirection.up,
     );
   }
 
@@ -139,6 +149,7 @@ class NotificationHelper {
         shape: behavior == SnackBarBehavior.floating ? RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
         ) : null,
+        dismissDirection: DismissDirection.up,
       ),
     );
   }

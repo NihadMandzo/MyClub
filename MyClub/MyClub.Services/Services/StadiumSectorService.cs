@@ -82,7 +82,7 @@ namespace MyClub.Services.Services
             var stadiumSideExists = await _context.StadiumSides.AnyAsync(s => s.Id == request.StadiumSideId);
             if (!stadiumSideExists)
             {
-                throw new UserException($"Stadium side with ID {request.StadiumSideId} does not exist.");
+                throw new UserException($"Strana sa ID {request.StadiumSideId} ne postoji.");
             }
             
             await Task.CompletedTask;
@@ -94,7 +94,7 @@ namespace MyClub.Services.Services
             var stadiumSideExists = await _context.StadiumSides.AnyAsync(s => s.Id == request.StadiumSideId);
             if (!stadiumSideExists)
             {
-                throw new UserException($"Stadium side with ID {request.StadiumSideId} does not exist.");
+                throw new UserException($"Strana sa ID {request.StadiumSideId} ne postoji.");
             }
             
             await Task.CompletedTask;

@@ -246,13 +246,13 @@ namespace MyClub.Services
         {
             if (userId <= 0)
             {
-                throw new UserException("User ID must be greater than zero", (int)HttpStatusCode.BadRequest);
+                throw new UserException("Greška", (int)HttpStatusCode.BadRequest);
             }
 
             var userExists = await _context.Users.AnyAsync(u => u.Id == userId);
             if (!userExists)
             {
-                throw new UserException($"User with ID {userId} not found", (int)HttpStatusCode.NotFound);
+                throw new UserException($"Korisnik nije pronađen", (int)HttpStatusCode.NotFound);
             }
         }
 
@@ -265,13 +265,13 @@ namespace MyClub.Services
         {
             if (itemId <= 0)
             {
-                throw new UserException("Item ID must be greater than zero", (int)HttpStatusCode.BadRequest);
+                throw new UserException("Greška", (int)HttpStatusCode.BadRequest);
             }
 
             var itemExists = await _context.CartItems.AnyAsync(i => i.Id == itemId);
             if (!itemExists)
             {
-                throw new UserException($"Cart item with ID {itemId} not found", (int)HttpStatusCode.NotFound);
+                throw new UserException($"Artikal u korpi sa ID {itemId} nije pronađen", (int)HttpStatusCode.NotFound);
             }
         }
 
@@ -286,7 +286,7 @@ namespace MyClub.Services
             var cart = await _context.Carts.FirstOrDefaultAsync(c => c.Id == cartItem.CartId);
             if (cart.UserId != userId)
             {
-                throw new UserException("You don't have permission to modify this cart item", (int)HttpStatusCode.Forbidden);
+                throw new UserException("Nemate dozvolu da mijenjate ovaj artikal u korpi", (int)HttpStatusCode.Forbidden);
             }
         }
 
@@ -299,22 +299,22 @@ namespace MyClub.Services
         {
             if (request == null)
             {
-                throw new UserException("Cart item request cannot be null", (int)HttpStatusCode.BadRequest);
+                throw new UserException("Zahtjev za artikal u korpi ne može biti null", (int)HttpStatusCode.BadRequest);
             }
 
             if (request.ProductSizeId <= 0)
             {
-                throw new UserException("Product size ID must be greater than zero", (int)HttpStatusCode.BadRequest);
+                throw new UserException("ID veličine proizvoda mora biti veći od nule", (int)HttpStatusCode.BadRequest);
             }
 
             if (request.Quantity <= 0)
             {
-                throw new UserException("Quantity must be greater than zero", (int)HttpStatusCode.BadRequest);
+                throw new UserException("Količina mora biti veća od nule", (int)HttpStatusCode.BadRequest);
             }
 
             if (request.Quantity > 100)
             {
-                throw new UserException("Maximum quantity per item is 100", (int)HttpStatusCode.BadRequest);
+                throw new UserException("Maksimalna količina po artiklu je 100", (int)HttpStatusCode.BadRequest);
             }
         }
 
@@ -332,7 +332,7 @@ namespace MyClub.Services
 
             if (cart == null)
             {
-                throw new UserException($"Cart not found for user ID {userId}", (int)HttpStatusCode.NotFound);
+                throw new UserException($"Korpa nije pronađena za korisnika", (int)HttpStatusCode.NotFound);
             }
 
             return cart;
@@ -381,7 +381,7 @@ namespace MyClub.Services
 
             if (cartItem == null)
             {
-                throw new UserException($"Cart item with ID {itemId} not found in your cart", (int)HttpStatusCode.NotFound);
+                throw new UserException($"Artikal u korpi sa ID {itemId} nije pronađen", (int)HttpStatusCode.NotFound);
             }
 
             return await Task.FromResult(cartItem);
@@ -403,12 +403,12 @@ namespace MyClub.Services
 
             if (productSize == null)
             {
-                throw new UserException($"ProductSize with ID {productSizeId} not found", (int)HttpStatusCode.NotFound);
+                throw new UserException($"Veličina proizvoda sa ID {productSizeId} nije pronađena", (int)HttpStatusCode.NotFound);
             }
 
             if (productSize.Quantity < requestedQuantity)
             {
-                throw new UserException($"Not enough stock for product '{productSize.Product?.Name}' in size '{productSize.Size?.Name}'. Available: {productSize.Quantity}", (int)HttpStatusCode.BadRequest);
+                throw new UserException($"Nema dovoljno zaliha za proizvod '{productSize.Product?.Name}' u veličini '{productSize.Size?.Name}'. Dostupno: {productSize.Quantity}", (int)HttpStatusCode.BadRequest);
             }
 
             return productSize;
@@ -430,12 +430,12 @@ namespace MyClub.Services
 
             if (latestStock == null)
             {
-                throw new UserException($"ProductSize with ID {productSize.Id} no longer exists", (int)HttpStatusCode.NotFound);
+                throw new UserException($"Veličina proizvoda sa ID {productSize.Id} više ne postoji", (int)HttpStatusCode.NotFound);
             }
 
             if (latestStock.Quantity < requestedQuantity)
             {
-                throw new UserException($"Not enough stock for product '{latestStock.Product?.Name}' in size '{latestStock.Size?.Name}'. Available: {latestStock.Quantity}", (int)HttpStatusCode.BadRequest);
+                throw new UserException($"Nema dovoljno zaliha za proizvod '{latestStock.Product?.Name}' u veličini '{latestStock.Size?.Name}'. Dostupno: {latestStock.Quantity}", (int)HttpStatusCode.BadRequest);
             }
 
             await Task.CompletedTask;
@@ -456,7 +456,7 @@ namespace MyClub.Services
 
             if (productSize == null)
             {
-                throw new UserException($"ProductSize with ID {productSizeId} not found", (int)HttpStatusCode.NotFound);
+                throw new UserException($"Veličina proizvoda sa ID {productSizeId} nije pronađena", (int)HttpStatusCode.NotFound);
             }
 
             await ValidateStockAvailabilityAsync(productSize, requestedQuantity);
@@ -527,8 +527,8 @@ namespace MyClub.Services
                     Id = item.Id,
                     CartId = item.CartId,
                     ProductSizeId = item.ProductSizeId,
-                    ProductName = item.ProductSize?.Product?.Name ?? "Unknown Product",
-                    SizeName = item.ProductSize?.Size?.Name ?? "Unknown Size",
+                    ProductName = item.ProductSize?.Product?.Name ?? "Nepoznat Proizvod",
+                    SizeName = item.ProductSize?.Size?.Name ?? "Nepoznata Veličina",
                     Price = item.ProductSize?.Product?.Price ?? 0,
                     ImageUrl = item.ProductSize?.Product?.ProductAssets?.FirstOrDefault()?.Asset?.Url ?? "",
                     Quantity = item.Quantity,
