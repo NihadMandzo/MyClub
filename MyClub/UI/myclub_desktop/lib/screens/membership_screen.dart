@@ -152,8 +152,8 @@ class _MembershipContentState extends State<_MembershipContent> {
   Future<void> _deleteCampaign(MembershipCard campaign) async {
     // Show confirmation dialog without setting loading state first
     final success = await MembershipCardDialog.deleteCampaign(context, campaign);
-    
-    if (success) {
+
+    if (success == true) {
       // Only set loading state after user has confirmed deletion
       setState(() {
         _isLoading = true;
@@ -165,6 +165,12 @@ class _MembershipContentState extends State<_MembershipContent> {
       
       // Refresh the campaign list
       await _loadCampaigns();
+    }
+    else if (success == false){
+      NotificationUtility.showError(
+        context,
+        message: 'Greška prilikom brisanja kampanje: ${campaign.name}',
+      );
     }
   }
 

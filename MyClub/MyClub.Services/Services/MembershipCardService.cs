@@ -320,15 +320,15 @@ namespace MyClub.Services.Services
                 }
 
                 // Check if there are any user memberships
-                if (entity.UserMemberships.Any())
+                if (entity.UserMemberships.Any() || entity.UserMemberships.Count > 0)
                 {
                     // Instead of deleting, just inactivate the campaign
                     entity.IsActive = false;
                     await _context.SaveChangesAsync();
                     await transaction.CommitAsync();
-                    
+                    Console.WriteLine("Kampanja članstva ima povezane korisnike, kampanja je inaktivirana umjesto brisanja.");
+                    return false;
                     // Return the inactivated entity as a response
-                    return true;
                 }
 
                 // Delete the image from blob storage if exists
@@ -341,15 +341,15 @@ namespace MyClub.Services.Services
                 await BeforeDelete(entity);
                 _context.MembershipCards.Remove(entity);
                 await _context.SaveChangesAsync();
-                
+
                 await transaction.CommitAsync();
                 return true;
             }
             catch (Exception)
             {
                 await transaction.RollbackAsync();
-                throw;
-            }
+                return false;
+                }
         }
 
         public async Task<MembershipCardResponse> GetCurrentCampaignAsync()

@@ -4,6 +4,7 @@ import 'package:myclub_desktop/models/match.dart';
 import 'package:myclub_desktop/models/match_ticket.dart';
 import 'package:myclub_desktop/models/match_ticket_upsert_request.dart';
 import 'package:myclub_desktop/models/paged_result.dart';
+import 'package:myclub_desktop/models/search_objects/base_search_object.dart';
 import 'package:myclub_desktop/models/stadium_sector.dart';
 import 'package:myclub_desktop/providers/match_provider.dart';
 import 'package:myclub_desktop/providers/stadium_sector_provider.dart';
@@ -101,7 +102,9 @@ class _TicketsContentState extends State<_TicketsContent> {
     try {
       // Load both matches and stadium sectors in parallel
       final matchesFuture = _matchProvider.getUpcomingMatches();
-      final sectorsFuture = _stadiumSectorProvider.get();
+
+      BaseSearchObject sectorSearch = BaseSearchObject(retrieveAll: true);
+      final sectorsFuture = _stadiumSectorProvider.get(searchObject: sectorSearch);
       
       final results = await Future.wait([matchesFuture, sectorsFuture]);
       
@@ -112,6 +115,9 @@ class _TicketsContentState extends State<_TicketsContent> {
       
       // Extract stadium sectors from paged result - stadium side should now come from backend
       _stadiumSectors = sectorsResult.data;
+      
+      // Sort stadium sectors by sector code in ascending order
+      _stadiumSectors.sort((a, b) => a.code.compareTo(b.code));
       
       // Auto-select first match if available
       if (_upcomingMatches.isNotEmpty) {
