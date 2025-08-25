@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:myclub_mobile/models/responses/paged_result.dart';
 import 'package:myclub_mobile/models/search_objects/base_search_object.dart';
 import 'package:myclub_mobile/providers/user_membership_card_provider.dart';
+import 'package:myclub_mobile/providers/user_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_stripe/flutter_stripe.dart' as stripe;
 import 'package:url_launcher/url_launcher.dart';
@@ -38,6 +39,7 @@ class _MembershipPurchaseScreenState extends State<MembershipPurchaseScreen> {
   late CityProvider _cityProvider;
   late AuthProvider _authProvider;
   late PayPalProvider _paypalProvider;
+  late UserProvider _userProvider;
 
   // Form controllers
   final _recipientFirstNameController = TextEditingController();
@@ -61,6 +63,7 @@ class _MembershipPurchaseScreenState extends State<MembershipPurchaseScreen> {
   bool _isLoadingCities = false;
   bool _isProcessingPayment = false;
   bool _isPayPalWaitingDialogOpen = false;
+  bool _hasActiveMembership = false;
   
   // Payment data
   PaymentResponse? _paymentResponse;
@@ -72,11 +75,33 @@ class _MembershipPurchaseScreenState extends State<MembershipPurchaseScreen> {
     _userMembershipCardProvider = context.read<UserMembershipCardProvider>();
     _cityProvider = context.read<CityProvider>();
     _authProvider = context.read<AuthProvider>();
-  _paypalProvider = context.read<PayPalProvider>();
+    _paypalProvider = context.read<PayPalProvider>();
+    _userProvider = context.read<UserProvider>();
+    
     _userMembershipCardProvider.setContext(context);
     _cityProvider.setContext(context);
-  _paypalProvider.setContext(context);
+    _paypalProvider.setContext(context);
     _loadCities();
+    _checkActiveMembership();
+  }
+  
+  Future<void> _checkActiveMembership() async {
+    try {
+      // Use the UserProvider method to check if user has active membership
+      final hasMembership = await _userProvider.hasActiveUserMembership();
+      
+      setState(() {
+        _hasActiveMembership = hasMembership;
+        // If user has active membership, force gift purchase mode
+        if (_hasActiveMembership) {
+          _isGiftPurchase = true;
+          // For gift purchases, physical card is mandatory
+          _physicalCardRequested = true;
+        }
+      });
+    } catch (e) {
+      print('Error checking active membership: $e');
+    }
   }
 
   @override
@@ -121,9 +146,18 @@ class _MembershipPurchaseScreenState extends State<MembershipPurchaseScreen> {
     print('=== MEMBERSHIP PURCHASE BUTTON PRESSED ===');
     print('Form validation: ${_formKey.currentState?.validate()}');
     print('Selected payment method: $_selectedPaymentMethod');
+    print('Is gift purchase: $_isGiftPurchase');
+    print('Physical card requested: $_physicalCardRequested');
     
     if (!_formKey.currentState!.validate()) {
       print('Form validation failed');
+      return;
+    }
+    
+    // Validate gift purchase with physical card requirement
+    if (_isGiftPurchase && !_physicalCardRequested) {
+      print('Gift purchase requires physical card');
+      NotificationHelper.showError(context, 'Za poklon je fizička kartica obavezna');
       return;
     }
     
@@ -229,7 +263,6 @@ class _MembershipPurchaseScreenState extends State<MembershipPurchaseScreen> {
 
   Future<void> _createStripePaymentMethod() async {
     try {
-      // Prepare card details from custom fields
       final number = _cardNumberController.text.replaceAll(' ', '');
       final expiryParts = _cardExpiryController.text.split('/');
       final expMonth = int.parse(expiryParts[0].trim());
@@ -256,13 +289,12 @@ class _MembershipPurchaseScreenState extends State<MembershipPurchaseScreen> {
         ),
       );
       _stripePaymentMethodId = pm.id;
-      print('Stripe PaymentMethod created (membership): $_stripePaymentMethodId');
+      print('Stripe PaymentMethod created (ticket): $_stripePaymentMethodId');
     } on stripe.StripeException catch (e) {
       final msg = e.error.localizedMessage ?? e.error.message ?? 'Greška pri kreiranju načina plaćanja';
       if (mounted) NotificationHelper.showError(context, msg);
       _stripePaymentMethodId = null;
     } catch (e) {
-      // Parsing/validation should be handled by field validators
       _stripePaymentMethodId = null;
     }
   }
@@ -313,8 +345,7 @@ class _MembershipPurchaseScreenState extends State<MembershipPurchaseScreen> {
       if (mounted) {
         // Handle specific Stripe errors
         if (e is stripe.StripeException) {
-          final errorMessage = e.error.localizedMessage ?? e.error.message;
-          NotificationHelper.showError(context, 'Greška pri plaćanju: $errorMessage');
+          NotificationHelper.showError(context, 'Greška pri plaćanju: ${e.error.localizedMessage ?? e.error.message ?? "Provjerite vaše podatke"}');
         } else {
           NotificationHelper.showApiError(context, e, 'Stripe plaćanju');
         }
@@ -605,25 +636,37 @@ class _MembershipPurchaseScreenState extends State<MembershipPurchaseScreen> {
             // Gift purchase option
             CheckboxListTile(
               title: const Text('Kupi kao poklon'),
-              subtitle: const Text('Članstvo za drugu osobu'),
+              subtitle: Text(_hasActiveMembership 
+                ? 'Već imate aktivno članstvo, možete kupiti samo kao poklon' 
+                : 'Članstvo za drugu osobu'),
               value: _isGiftPurchase,
-              onChanged: (value) {
-                setState(() {
-                  _isGiftPurchase = value ?? false;
-                });
-              },
+              onChanged: _hasActiveMembership 
+                ? null // Disabled if user has active membership (it's forced to true)
+                : (value) {
+                    setState(() {
+                      _isGiftPurchase = value ?? false;
+                      // If gift purchase is selected, physical card is mandatory
+                      if (_isGiftPurchase) {
+                        _physicalCardRequested = true;
+                      }
+                    });
+                  },
             ),
             
             // Physical card option
             CheckboxListTile(
               title: const Text('Fizička kartica'),
-              subtitle: const Text('Pošaljite mi fizičku člansku karticu'),
+              subtitle: Text(_isGiftPurchase 
+                ? 'Za poklon je fizička kartica obavezna' 
+                : 'Pošaljite mi fizičku člansku karticu'),
               value: _physicalCardRequested,
-              onChanged: (value) {
-                setState(() {
-                  _physicalCardRequested = value ?? false;
-                });
-              },
+              onChanged: _isGiftPurchase 
+                ? null // Disabled if gift purchase (it's forced to true)
+                : (value) {
+                    setState(() {
+                      _physicalCardRequested = value ?? false;
+                    });
+                  },
             ),
           ],
         ),

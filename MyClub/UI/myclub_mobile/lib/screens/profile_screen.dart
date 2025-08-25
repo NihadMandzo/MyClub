@@ -14,6 +14,7 @@ import '../models/responses/order_response.dart';
 import '../models/responses/order_item_response.dart';
 import '../widgets/flip_card.dart';
 import 'edit_profile_screen.dart';
+import 'change_password_screen.dart';
 import 'ticket_detail_screen.dart';
 import 'login_screen.dart';
 
@@ -183,10 +184,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ),
         actions: [
-          IconButton(
-            onPressed: () => _handleEditProfile(context),
-            icon: const Icon(Icons.edit),
-            tooltip: 'Uredi profil',
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              if (value == 'edit') {
+                _handleEditProfile(context);
+              } else if (value == 'change_password') {
+                _handleChangePassword(context);
+              }
+            },
+            itemBuilder: (BuildContext context) => [
+              const PopupMenuItem<String>(
+                value: 'edit',
+                child: Row(
+                  children: [
+                    Icon(Icons.edit, color: Colors.black),
+                    SizedBox(width: 8),
+                    Text('Uredi profil', style: TextStyle(color: Colors.black)),
+                  ],
+                ),
+              ),
+              const PopupMenuItem<String>(
+                value: 'change_password',
+                child: Row(
+                  children: [
+                    Icon(Icons.lock_outline, color: Colors.black),
+                    SizedBox(width: 8),
+                    Text('Promijeni lozinku', style: TextStyle(color: Colors.black)),
+                  ],
+                ),
+              ),
+            ],
+            icon: const Icon(Icons.more_vert),
+            tooltip: 'Opcije',
           ),
         ],
       ),
@@ -359,28 +388,48 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   /// Build action buttons (Edit Profile and Deactivate)
   Widget _buildActionButtons(BuildContext context) {
-    return Row(
+    return Column(
       children: [
-        Expanded(
-          child: ElevatedButton.icon(
-            onPressed: () => _handleEditProfile(context),
-            icon: const Icon(Icons.edit),
-            label: const Text('Uredi profil'),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+        Row(
+          children: [
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: () => _handleEditProfile(context),
+                icon: const Icon(Icons.edit),
+                label: const Text('Uredi profil'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
               ),
             ),
-          ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: () => _handleChangePassword(context),
+                icon: const Icon(Icons.lock_outline, color: Colors.white),
+                label: const Text('Promijeni lozinku', style: TextStyle(color: Colors.white)),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  backgroundColor: Theme.of(context).primaryColor.withOpacity(0.8),
+                ),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: 12),
-        Expanded(
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
           child: OutlinedButton.icon(
             onPressed: () => _handleDeactivateProfile(context),
             icon: const Icon(Icons.block, color: Colors.red),
             label: const Text(
-              'Deaktiviraj',
+              'Deaktiviraj profil',
               style: TextStyle(color: Colors.red),
             ),
             style: OutlinedButton.styleFrom(
@@ -1177,6 +1226,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
         );
       },
     );
+  }
+  
+  /// Handle change password action
+  void _handleChangePassword(BuildContext context) async {
+    if (_currentUser == null) {
+      NotificationHelper.showError(context, 'Korisničke podatke nije moguće učitati');
+      return;
+    }
+
+    final result = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (context) => const ChangePasswordScreen(),
+      ),
+    );
+
+    if (result == true && mounted) {
+      NotificationHelper.showSuccess(context, 'Lozinka je uspješno promijenjena');
+    }
   }
 
   /// Perform the actual deactivation

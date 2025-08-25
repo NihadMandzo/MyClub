@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:myclub_mobile/models/responses/user.dart';
+import 'package:myclub_mobile/models/requests/change_password_request.dart';
 import 'package:myclub_mobile/providers/base_provider.dart';
 import 'package:myclub_mobile/providers/auth_provider.dart';
 
@@ -145,5 +146,26 @@ class UserProvider extends BaseProvider<User> {
     }
   }
 
+  /// Change user password
+  Future<void> changePassword(ChangePasswordRequest request) async {
+    try {
+      var url = "${BaseProvider.baseUrl}${endpoint}/change-password";
+      var uri = Uri.parse(url);
+      var headers = createHeaders();
+      
+      var jsonRequest = jsonEncode(request.toJson());
+      
+      print("API POST Change Password Request URL: $url");
+      print("API POST Change Password Request Headers: $headers");
+
+      var response = await http.post(uri, headers: headers, body: jsonRequest);
+
+      if (!isValidResponse(response)) {
+        throw Exception("Greška pri promjeni lozinke");
+      }
+    } catch (e) {
+      throw Exception("Greška pri promjeni lozinke: $e");
+    }
+  }
   
 }

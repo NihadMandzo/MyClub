@@ -355,9 +355,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       if (mounted) {
         if (e is stripe.StripeException) {
           final errorMessage = e.error.localizedMessage ?? e.error.message ?? 'Neuspješno plaćanje';
-          NotificationHelper.showError(context, errorMessage);
+          NotificationHelper.showError(context, 'Provjerite vaše podatke');
         } else {
-          NotificationHelper.showApiError(context, e, 'procesu plaćanja');
+          NotificationHelper.showError(context, 'procesu plaćanja');
         }
       }
     } finally {

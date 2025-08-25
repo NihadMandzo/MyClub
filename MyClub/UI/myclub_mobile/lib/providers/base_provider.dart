@@ -147,15 +147,19 @@ abstract class BaseProvider<T> with ChangeNotifier {
       if (!requestUrl.contains('/confirm')) {
         _handleUnauthorized();
       }
-      
-      throw Exception("Unauthorized - Please log in again");
+
+      throw Exception("Neautorizovan - pokusajte se prijaviti ponovo");
     } else {
       print("Processing error response with status ${response.statusCode}");
       // Try to extract a user-friendly error message from JSON response
-      // Covers ASP.NET Core ProblemDetails and custom ModelState error shapes
       try {
         final dynamic decoded = jsonDecode(response.body);
         if (decoded is Map<String, dynamic>) {
+          // Add status code to error map if not present
+          if (!decoded.containsKey('status') && response.statusCode != 0) {
+            decoded['status'] = response.statusCode;
+          }
+          
           final msg = _extractMessageFromErrorMap(decoded);
           if (msg != null && msg.trim().isNotEmpty) {
             throw Exception(msg.trim());
@@ -187,9 +191,57 @@ abstract class BaseProvider<T> with ChangeNotifier {
   /// Extracts a user-friendly message from common error response shapes.
   /// Supports:
   /// - ASP.NET Core ProblemDetails with `errors` dictionary
+  /// - RFC9110 validation errors format with status and errors
   /// - Custom `{ errors: { key: [messages] } }` shapes
-  /// - `{ message: "..." }`, `{ title/detail: "..." }`
   String? _extractMessageFromErrorMap(Map<String, dynamic> map) {
+    // RFC9110 validation errors format
+    if (map['status'] is int && map['errors'] is Map) {
+      final errorsMap = Map<String, dynamic>.from(map['errors'] as Map);
+      final List<String> messages = [];
+
+      errorsMap.forEach((key, value) {
+        if (value is List) {
+          messages.addAll(value.map((e) => e.toString()));
+        } else if (value is String) {
+          messages.add(value);
+        }
+      });
+
+      if (messages.isNotEmpty) {
+        return messages.join('\n');
+      }
+    }
+
+    // Handle simple errors format with userError key
+    if (map['errors'] is Map) {
+      final errorsMap = Map<String, dynamic>.from(map['errors'] as Map);
+      
+      // Prioritize userError key as requested
+      if (errorsMap['userError'] != null) {
+        final val = errorsMap['userError'];
+        if (val is List && val.isNotEmpty) {
+          return "userError: ${val.join('\n')}";
+        }
+        if (val is String) {
+          return "userError: $val";
+        }
+      }
+
+      // Handle other error keys
+      final List<String> messages = [];
+      errorsMap.forEach((key, value) {
+        if (value is List) {
+          messages.addAll(value.map((e) => e.toString()));
+        } else if (value is String) {
+          messages.add(value);
+        }
+      });
+
+      if (messages.isNotEmpty) {
+        return messages.join('\n');
+      }
+    }
+
     // If there is a top-level message field
     if (map['message'] is String && (map['message'] as String).trim().isNotEmpty) {
       return map['message'] as String;
@@ -198,35 +250,6 @@ abstract class BaseProvider<T> with ChangeNotifier {
     // ProblemDetails style
     final title = map['title'];
     final detail = map['detail'];
-
-    // Handle `errors` as Map<String, dynamic>
-    if (map['errors'] is Map) {
-      final errorsMap = Map<String, dynamic>.from(map['errors'] as Map);
-      final List<String> messages = [];
-
-      // Prioritize known keys like userError
-      if (errorsMap['userError'] != null) {
-        final val = errorsMap['userError'];
-        if (val is List && val.isNotEmpty) messages.addAll(val.map((e) => e.toString()));
-        if (val is String) messages.add(val);
-      }
-
-      // Collect from all keys
-      if (messages.isEmpty) {
-        errorsMap.forEach((key, value) {
-          if (value is List) {
-            messages.addAll(value.map((e) => e.toString()));
-          } else if (value is String) {
-            messages.add(value);
-          }
-        });
-      }
-
-      if (messages.isNotEmpty) {
-        // Join multiple messages with newlines for readability
-        return messages.join('\n');
-      }
-    }
 
     // If there is a single `errors` string/list
     final errorsField = map['errors'];

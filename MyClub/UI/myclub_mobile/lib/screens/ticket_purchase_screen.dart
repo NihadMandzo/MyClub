@@ -249,7 +249,7 @@ class _TicketPurchaseScreenState extends State<TicketPurchaseScreen> {
         // Handle specific Stripe errors
         if (e is stripe.StripeException) {
           final errorMessage = e.error.localizedMessage ?? e.error.message;
-          NotificationHelper.showError(context, 'Greška pri plaćanju: $errorMessage');
+          NotificationHelper.showError(context, 'Provjerite vaše podatke');
         } else {
           NotificationHelper.showApiError(context, e, 'Stripe plaćanju');
         }
