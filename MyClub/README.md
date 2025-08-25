@@ -12,7 +12,7 @@ MyClub je aplikacija za upravljanje sportskim klubom koja omogućava korisnicima
 
 2. **Pokretanje backend servisa**
    ```bash
-   docker compose up
+   docker compose up --build
    ```
 
 3. **Raspakovanje desktop i mobile aplikacija**
