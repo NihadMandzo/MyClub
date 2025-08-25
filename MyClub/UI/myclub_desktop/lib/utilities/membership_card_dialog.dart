@@ -505,6 +505,7 @@ class _MembershipCardDialogState extends State<MembershipCardDialog> {
                   Expanded(
                     child: Form(
                       key: _formKey,
+                      autovalidateMode: AutovalidateMode.disabled, // Disable auto validation
                       child: SingleChildScrollView(
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
@@ -513,6 +514,7 @@ class _MembershipCardDialogState extends State<MembershipCardDialog> {
                             // Campaign name
                             TextFormField(
                               controller: _nameController,
+                              autovalidateMode: AutovalidateMode.disabled, // Disable auto validation
                               decoration: const InputDecoration(
                                 labelText: 'Naziv Kampanje',
                                 border: OutlineInputBorder(),
@@ -567,7 +569,7 @@ class _MembershipCardDialogState extends State<MembershipCardDialog> {
                                           }
                                         }
                                       });
-                                      _formKey.currentState?.validate(); // Re-validate form
+                                      // Don't validate on change - only on button click
                                     },
                                     validator: (value) {
                                       if (value == null) {
@@ -608,7 +610,7 @@ class _MembershipCardDialogState extends State<MembershipCardDialog> {
                                             _availableYears.sort();
                                           }
                                         });
-                                        _formKey.currentState?.validate(); // Re-validate form
+                                        // Don't validate on change - only on button click
                                       }
                                     },
                                     child: FormField<DateTime>(
@@ -661,7 +663,7 @@ class _MembershipCardDialogState extends State<MembershipCardDialog> {
                                         setState(() {
                                           _endDate = pickedDate;
                                         });
-                                        _formKey.currentState?.validate(); // Re-validate form to check end date
+                                        // Don't validate on change - only on button click
                                       }
                                     },
                                     child: FormField<DateTime?>(
@@ -847,7 +849,9 @@ class _MembershipCardDialogState extends State<MembershipCardDialog> {
                             // Image upload
                             FormField<bool>(
                               initialValue: _imageBytes != null || (_initialImageUrl != null && _keepExistingImage),
+                              autovalidateMode: AutovalidateMode.disabled, // Disable auto validation
                               validator: (value) {
+                                // Only check on final form submission, not during intermediate changes
                                 if (_imageBytes == null && (_initialImageUrl == null || !_keepExistingImage)) {
                                   return 'Molimo dodajte sliku dizajna članarske kartice';
                                 }
@@ -965,7 +969,7 @@ class _MembershipCardDialogState extends State<MembershipCardDialog> {
                               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                             ),
                             onPressed: () async {
-                              // Validate form (this will now include all our validations)
+                              // Force validation to trigger only on button click
                               bool isValid = _formKey.currentState!.validate();
                               
                               if (isValid) {

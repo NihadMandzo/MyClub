@@ -1492,7 +1492,9 @@ class _ShopContentState extends State<_ShopContent> {
                           // Image container with validation
                           FormField<bool>(
                             validator: (value) {
-                              // Validation is now handled in _saveProduct to collect all errors
+                              if (_showValidationErrors && _selectedProduct == null && _selectedImagesBytes.isEmpty) {
+                                return 'Molimo odaberite barem jednu sliku';
+                              }
                               return null;
                             },
                             builder: (formFieldState) {

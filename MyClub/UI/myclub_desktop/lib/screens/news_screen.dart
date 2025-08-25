@@ -460,49 +460,31 @@ class _NewsContentState extends State<_NewsContent> {
     // Trigger full form validation
     final isFormValid = _formKey.currentState!.validate();
 
-    // Collect all validation errors to show them all at once
-    List<String> validationErrors = [];
+    // Set validation state to true to show inline errors
+    setState(() {
+      _showValidationErrors = true;
+    });
+    
+    // Check form fields and image validation
+    bool hasValidationErrors = false;
     
     // Check form fields for completeness
-    if (_titleController.text.trim().isEmpty) {
-      validationErrors.add('Molimo unesite naslov vijesti');
-    }
-    
-    if (_contentController.text.trim().isEmpty) {
-      validationErrors.add('Molimo unesite sadržaj vijesti');
+    if (_titleController.text.trim().isEmpty || _contentController.text.trim().isEmpty) {
+      hasValidationErrors = true;
     }
     
     // Check if images are selected for new news
     if (_selectedNews == null && _selectedImagesBytes.isEmpty) {
-      validationErrors.add('Molimo odaberite barem jednu sliku za vijest');
+      hasValidationErrors = true;
     }
     
     // Check if edited news will have any images after removing
     if (_selectedNews != null && _imagesToKeep.isEmpty && _selectedImagesBytes.isEmpty) {
-      validationErrors.add('Vijest mora imati barem jednu sliku');
+      hasValidationErrors = true;
     }
     
-    // If there are validation errors, show them all at once
-    if (validationErrors.isNotEmpty) {
-      setState(() {
-        _showValidationErrors = true;
-      });
-      NotificationUtility.showError(
-        context,
-        message: validationErrors.join('\n'),
-      );
-      return;
-    }
-    
-    // If form validation failed but we didn't catch specific errors above
-    if (!isFormValid) {
-      setState(() {
-        _showValidationErrors = true;
-      });
-      NotificationUtility.showError(
-        context,
-        message: 'Molimo provjerite unesene podatke i pokušajte ponovo.',
-      );
+    // If validation failed, just return without showing a notification
+    if (!isFormValid || hasValidationErrors) {
       return;
     }
     

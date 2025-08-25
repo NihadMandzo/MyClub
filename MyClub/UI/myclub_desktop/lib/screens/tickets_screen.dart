@@ -270,17 +270,22 @@ class _TicketsContentState extends State<_TicketsContent> {
       for (var entry in _sectorValues.entries) {
         Map<String, dynamic> values = entry.value;
         int quantity = values['quantity'] ?? 0;
-        double price = values['price'] ?? 0.0;
         
-        if (quantity > 0 || price > 0) {
+        if (quantity > 0) {
           hasUserInput = true;
           break;
         }
       }
       
-      // If no user input, don't proceed
+      // If no user input, show validation error
       if (!hasUserInput) {
         if (!mounted) return;
+        
+        NotificationUtility.showError(
+          context,
+          message: 'Morate dodati karte za najmanje 1 sektor',
+        );
+        
         setState(() {
           _isLoadingTickets = false;
         });
