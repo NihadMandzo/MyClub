@@ -1,60 +1,80 @@
-# MyClub - Aplikacija za upravljanje sportskim klubom
+# **MyClub – Sports Club Management Application**
 
-MyClub je aplikacija za upravljanje sportskim klubom koja omogućava korisnicima da pregledaju i kupuju proizvode, prate utakmice, kupuju karte i upravljaju svojim članstvima. Aplikacija je izgrađena koristeći .NET Web API za backend, sa desktop i mobile aplikacijama rađenim u Flutteru.
+MyClub is a sports club management application that allows users to browse and purchase products, follow matches, buy tickets, and manage their memberships. The system is built using a .NET Web API backend, with Flutter-based desktop and mobile applications.
 
-## Kako pokrenuti projekat
+---
 
-### Priprema okruženja
+## **How to Run the Project**
 
-1. **Raspakujte MyClub_env.zip**
-   - Raspakujte fajl `env_file.zip` (šifra:fit)
-   - Kopirajte `.env` fajl u root MyClub folder (na istom nivou kao docker-compose.yml)
+### **Environment Setup**
 
-2. **Pokretanje backend servisa**
+1. **Extract MyClub_env.zip**
+
+   * Extract the file `env_file.zip` (password: **fit**)
+   * Copy the `.env` file into the root MyClub folder (the same directory where `docker-compose.yml` is located)
+
+2. **Start Backend Services**
+
    ```bash
    docker compose up --build
    ```
 
-3. **Raspakovanje desktop i mobile aplikacija**
-   - Raspakujte `fit-build-2025-25-08.zip`
-   - Navigirajte do `.apk` fajla za Android mobilnu aplikaciju
-   - Navigirajte do `.exe` fajla za desktop Windows aplikaciju
+3. **Extract the Desktop and Mobile Applications**
 
-### Instaliranje aplikacija
+   * Extract `fit-build-2025-25-08.zip`
+   * Locate the `.apk` file for the Android mobile app
+   * Locate the `.exe` file for the Windows desktop app
 
-- **Desktop aplikacija**: Pokrenite `.exe` fajl
-- **Mobile aplikacija**: Instalirajte `.apk` fajl na Android uređaj
+---
 
-## Kredencijali za prijavljivanje
+## **Installing the Applications**
 
-### Desktop aplikacija
-- **Korisničko ime**: admin
-- **Lozinka**: test
+* **Desktop Application**: Run the `.exe` file
+* **Mobile Application**: Install the `.apk` file on an Android device
 
-### Mobile aplikacija (Administrator)
-- **Korisničko ime**: admin
-- **Lozinka**: test
+---
 
-### Mobile aplikacija (Obični korisnici)
-- **Korisničko ime**: user
-- **Lozinka**: test
+## **Login Credentials**
 
-ili
+### **Desktop Application**
 
-- **Korisničko ime**: nihad123
-- **Lozinka**: test
+* **Username:** admin
+* **Password:** test
 
-## Test kredencijali za plaćanje
+### **Mobile Application (Administrator)**
 
-### PayPal test nalog
-Za testiranje kupovine karata, članstava i narudžbi koristite:
-- **Email**: sb-43ieux45361356@personal.example.com
-- **Lozinka**: Test1234
+* **Username:** admin
+* **Password:** test
 
-### Stripe test kartice
-Za testiranje Stripe plaćanja posjetite: https://docs.stripe.com/testing
-Na ovoj stranici možete pronaći različite test kartice za različite scenarije testiranja.
+### **Mobile Application (Regular Users)**
 
-## RabbitMQ
+* **Username:** user
+* **Password:** test
 
-Projekat koristi RabbitMQ za slanje informacija o narudžbama i za funkcionalnost zaboravljene lozinke.
+or
+
+* **Username:** nihad123
+* **Password:** test
+
+---
+
+## **Test Payment Credentials**
+
+### **PayPal Test Account**
+
+Use the following credentials to test purchasing tickets, memberships, and orders:
+
+* **Email:** [sb-43ieux45361356@personal.example.com](mailto:sb-43ieux45361356@personal.example.com)
+* **Password:** Test1234
+
+### **Stripe Test Cards**
+
+For testing Stripe payments, visit:
+[https://docs.stripe.com/testing](https://docs.stripe.com/testing)
+This page includes a variety of test cards for different testing scenarios.
+
+---
+
+## **RabbitMQ**
+
+The project uses RabbitMQ to send information about orders and to support the password reset functionality.
